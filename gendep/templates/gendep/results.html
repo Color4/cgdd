@@ -35,7 +35,8 @@ Study: <input type="text" name="search_study">
                     <li>UniProtKB: <a href="http://www.uniprot.org/uniprot/P04626" target="_blank">P04626</a></li>
             </ul>
 -->
-<table>
+{% if dependency_list %}
+  <table border="1" cellspacing="0">
     <tr><th>Dependency</th><th>P-value</th><th>PMID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Details</th></tr>
     {% for item in dependency_list %}
     <tr> 
@@ -47,15 +48,7 @@ Study: <input type="text" name="search_study">
         <td>{{ item.study_pmid.summary }}</td>
     </tr>
     {% endfor %}
-</table>
-
-
-{% if target_list %}
-    <ul>
-    {% for target in target_list %}
-        
-    {% endfor %}
-    </ul>
+  </table>
 {% else %}
-    <p>No targets are available.</p>
+    <p>No dependencies found.</p>
 {% endif %}

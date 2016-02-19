@@ -5,18 +5,18 @@
 <h1>Database of Geneic Dependencies in Cancer</h1>
 <p> &nbsp; </p>
 
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+
 <!--p style="text-align:center"-->
 
-Search: &nbsp; 
-
-<input type="text" > &nbsp;
 <form action="{% url 'gendep:results' %}" method="post">
 {% csrf_token %}
+   Search: &nbsp; 
    Driver gene name:
-   <select name="search_driver_gene" id="search_driver_gene"">
+   <select name="search_driver_gene" id="search_driver_gene">
       <option value="" selected="selected"></option>
-   {% for driver in driver_list.choice_set.all %}
-      <option value="{{driver.gene_name}}">driver.gene_name</option>
+   {% for driver in driver_list.all %}
+      <option value="{{driver.gene_name}}">{{driver.gene_name}}</option>
    {% endfor %}
    </select> &nbsp;
    
@@ -33,7 +33,7 @@ Search: &nbsp;
    Study:
    <select name="search_study" id="search_study">
       <option value="Pending_0001" selected="selected">Pending_0001</option>
-    </select> &nbsp;
+   </select> &nbsp;
     
    <input type="submit" value="Search" />
 </form>

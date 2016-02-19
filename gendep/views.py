@@ -6,14 +6,16 @@ from .models import Gene, Dependency
 
 def index(request): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
     # context = RequestContext(request)
-    driver_list = Gene.objects.filter(is_driver==True).order_by('gene_name')  # but just need gene_names for now.
-    context = {'driver_list': target_list}  # maybe add histotype later.
+    # driver_list = Gene.objects.filter(is_driver).order_by('gene_name')  # but just need gene_names for now.
+    driver_list = Gene.objects.order_by('gene_name')  # but just need gene_names for now.
+    context = {'driver_list': driver_list}  # maybe add histotype later.
     return render(request, 'gendep/index.html', context)  # or render_to_response( .... ) ?
 
+	
 def results(request):
     # context = RequestContext(request)
     search_driver_gene_name = request.POST['search_driver_gene']
-    driver_fullname = Gene.objects.get(gene_name=search_driver_gene_name).gene_fullname
+    driver_fullname = Gene.objects.get(gene_name=search_driver_gene_name).full_name
     # search_driver_gene = get_object_or_404(Gene, gene_name=search_driver_gene_name).gene_fullname
     dependency_list = Dependency.objects.filter(driver__gene_name=search_driver_gene_name, 
                                                 histotype=request.POST['search_histotype'], 
