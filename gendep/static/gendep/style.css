@@ -1,0 +1,14 @@
+li a {
+    color: green;
+}
+
+
+/*
+We can add more styles, see: https://docs.djangoproject.com/en/1.9/intro/tutorial06/
+
+body {
+    background: white url("images/background.gif") no-repeat right bottom;
+
+NOTE:  You should always use relative paths to link your static files between each other, because then you can change STATIC_URL (used by the static template tag to generate its URLs) without having to modify a bunch of paths in your static files as well.
+}
+*/

@@ -1,0 +1,61 @@
+{% load staticfiles %}
+
+<link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
+
+<h1>Database of Geneic Dependencies in Cancer</h1>
+
+<p style="text-align:center">
+Search: &nbsp; 
+Driver gene name:<input type="text" name="search_driver_gene"> &nbsp;
+Tissue type: <input type="text" name="search_histotype"> &nbsp;
+Study: <input type="text" name="search_study">
+</p>
+
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+
+<p><b>Tissue type: {{ search_histotype }}</b></p>
+<p><b>Study: {{ search_study }}</b></p>
+<p> &nbsp; </p>
+<p><b>Driver Gene: {{ search_driver_gene }}</b></p>
+<p><u>Synonyms:</u> HER2</p>
+<p><u>Gene Descripion:</u> {{ driver_fullname }}</p>
+<p><u>External links:</u>
+ CancerRxGene.org 
+| <a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene="{{ search_driver_gene }}">GeneCards</a> 
+| <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln="{{ search_driver_gene }}">Cosmic</a> 
+| Cancer
+</p>
+
+<!--
+            <ul class="list-inline">
+                    <li>HGNC: <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=3430" target="_blank">3430</a></li>
+                    <li>Entrez Gene: <a href="http://www.ncbi.nlm.nih.gov/entrez/query.fcgi?db=gene&amp;cmd=Retrieve&amp;dopt=full_report&amp;list_uids=2064" target="_blank">2064</a></li>
+                    <li>Ensembl: <a href="http://www.ensembl.org/Homo_sapiens/geneview?gene=ENSG00000141736" target="_blank">ENSG00000141736</a></li>
+                    <li>OMIM: <a href="http://omim.org/entry/164870" target="_blank">164870</a></li>
+                    <li>UniProtKB: <a href="http://www.uniprot.org/uniprot/P04626" target="_blank">P04626</a></li>
+            </ul>
+-->
+<table>
+    <tr><th>Dependency</th><th>P-value</th><th>PMID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Details</th></tr>
+    {% for item in dependency_list %}
+    <tr> 
+        <td><a href="{% url 'gendep:graph' item.driver.gene_name item.target.gene_name }}"/>{{ item.target.target }}</a></td>
+        <td>{{ item.wilcox_p }}</td>
+        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ item.study_pmid.pmid }}</a></td>
+        <td>{{ item.histotype }}</td>
+        <td></td>
+        <td>{{ item.study_pmid.summary }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+
+{% if target_list %}
+    <ul>
+    {% for target in target_list %}
+        
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No targets are available.</p>
+{% endif %}

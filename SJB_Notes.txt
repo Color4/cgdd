@@ -1,0 +1,78 @@
+I had added print("HERE ...") to file: 
+   C:\Users\HP\AppData\Local\Programs\Python\Python35\Lib\site-packages\django\apps\registry.py
+
+The file of details of the genes (hgnc_complete_set.txt) was downloaded from: http://www.genenames.org/cgi-bin/statistics
+   wget ftp://ftp.ebi.ac.uk/pub/databases/genenames/new/tsv/hgnc_complete_set.txt
+as the biomart server is down at present, otherwise could use my script: get_gene_ids_from_biomart.py
+
+NCBI seems to use the entrez_id:
+http://www.ncbi.nlm.nih.gov/gene/2064
+
+Can query NCBI using, eg:
+   http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term=%22Homo%20sapiens%22[organism]%20AND%20ERBB2[gene%20name]
+   or: http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term="Homo sapiens"[organism] AND ERBB2[gene name]
+   
+   then use the returned Id, eg:
+   http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=2064
+   
+   
+NCBI website:
+Official Symbol: ERBB2 (provided by HGNC)
+Official Full Name: erb-b2 receptor tyrosine kinase 2provided by HGNC
+Primary source: HGNC:HGNC:3430 
+See related: Ensembl:ENSG00000141736; HPRD:01281; MIM:164870; Vega:OTTHUMG00000179300 
+Gene type: protein coding
+Organism: Homo sapiens 
+Also known as: NEU; NGL; HER2; TKR1; CD340; HER-2; MLN 19; HER-2/neu
+etc..
+
+
+# The record from downloaded file: 'hgnc_complete_set.txt' is
+hgnc_id : HGNC:3430
+symbol : ERBB2
+name : erb-b2 receptor tyrosine kinase 2
+locus_group : protein-coding gene
+locus_type : gene with protein product
+status : Approved
+location : 17q11.2-q12
+location_sortable : 17q11.2-q12
+alias_symbol : NEU|HER-2|CD340|HER2
+alias_name : neuro/glioblastoma derived oncogene homolog|human epidermal growth factor receptor 2
+prev_symbol : NGL
+prev_name : v-erb-b2 avian erythroblastic leukemia viral oncogene homolog 2 (neuro/glioblastoma derived oncogene homolog)|v-erb-b2 avian erythroblastic leukemia viral oncogene homolog 2
+gene_family : CD molecules|Minor histocompatibility antigens|Erb-b2 receptor tyrosine kinases
+gene_family_id : 471|870|1096
+date_approved_reserved : 2001-06-22
+date_symbol_changed :
+date_name_changed : 2014-12-19
+date_modified : 2016-02-11
+entrez_id : 2064
+ensembl_gene_id : ENSG00000141736
+vega_id : OTTHUMG00000179300
+ucsc_id : uc002hso.3
+ena : X03363
+refseq_accession : NM_004448
+ccds_id : CCDS32642|CCDS45667|CCDS74052|CCDS77016|CCDS77017
+uniprot_ids : P04626
+pubmed_id :
+mgd_id : MGI:95410
+rgd_id : RGD:2561
+lsdb : LRG_724|http://www.lrg-sequence.org/LRG/LRG_724
+cosmic : ERBB2
+omim_id : 164870
+mirbase :
+homeodb :
+snornabase :
+bioparadigms_slc :
+orphanet :
+pseudogene.org :
+horde_id :
+merops :
+imgt :
+iuphar : objectId:2019
+kznf_gene_catalog :
+mamit-trnadb :
+cd : CD340
+lncrnadb :
+enzyme_id :
+intermediate_filament_db :
