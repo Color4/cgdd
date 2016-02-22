@@ -37,28 +37,30 @@ class Study(models.Model):
         return self.pmid
 
 class Drug(models.Model):
-    drug   = models.CharField('Drug', max_length=50, primary_key=True, db_index=True)
+    drug        = models.CharField('Drug', max_length=50, primary_key=True, db_index=True)
 
-# Maybe need a table of Histotypes ?
+class Histotype(models.Model):
+    histotype   = models.CharField('Histotype', max_length=10, primary_key=True, db_index=True)
+    full_name   = models.CharField('Histotype', max_length=30)
 
 # Dependency = Driver-Target interactions:
 class Dependency(models.Model):
     class Meta:
-        unique_together = (('driver', 'target', 'histotype', 'study_pmid'),) # This should be unique  (previously also incuded 'study_table')
+        unique_together = (('driver', 'target', 'histotype', 'study'),) # This should be unique  (previously also incuded 'study_table')
         # This 'histotype' needed added to this unique_together otherwise when the S1K table is added to the S1I table there is a conflict.
         verbose_name_plural = "Dependencies" # Otherwise the Admin page just adds a 's', ie. 'Dependencys'
 
     driver      = models.ForeignKey(Gene, verbose_name='Driver gene', db_column='driver', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
-    histotype   = models.CharField('Histotype', max_length=20, db_index=True)
+    histotype   = models.ForeignKey(Histotype, verbose_name='Histotype', db_column='histotype', to_field='histotype', related_name='+', db_index=True, on_delete=models.PROTECT)
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
     wilcox_p    = models.FloatField('Wilcox P-value')     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9)
-    study_pmid  = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
+    study       = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
     study_table = models.CharField('Study Table', max_length=10) # The table the data is from.
     inhibitors  = models.ManyToManyField(Drug, related_name='+')
 
     def __str__(self):
-        # return self.table+' '+self.driver.gene_name+' '+self.target.gene_name+' '+self.histotype+' '+str(self.wilcox_p)+' '+str(self.study_pmid)
+        # return self.table+' '+self.driver.gene_name+' '+self.target.gene_name+' '+self.histotype+' '+str(self.wilcox_p)+' '+str(self.study.pmid)
         return self.target.gene_name
 
     def very_significant(self):

@@ -1,28 +1,38 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 
-from .models import Gene, Dependency
+from .models import Study, Gene, Histotype, Dependency
 
 
 def index(request): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
-    # context = RequestContext(request)
-    # driver_list = Gene.objects.filter(is_driver).order_by('gene_name')  # but just need gene_names for now.
-    driver_list = Gene.objects.order_by('gene_name')  # but just need gene_names for now.
-    context = {'driver_list': driver_list}  # maybe add histotype later.
-    return render(request, 'gendep/index.html', context)  # or render_to_response( .... ) ?
+    driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+    histotype_list = Histotype.objects.order_by('full_name')
+    study_list = Study.objects.order_by('pmid')
+    context = {'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list}
+    return render(request, 'gendep/index.html', context)
 
 	
 def results(request):
-    # context = RequestContext(request)
-    search_driver_gene_name = request.POST['search_driver_gene']
-    driver_fullname = Gene.objects.get(gene_name=search_driver_gene_name).full_name
-    # search_driver_gene = get_object_or_404(Gene, gene_name=search_driver_gene_name).gene_fullname
-    dependency_list = Dependency.objects.filter(driver__gene_name=search_driver_gene_name, 
-                                                histotype=request.POST['search_histotype'], 
-                                                study_pmid__pmid=request.POST['search_study']
-                                                ).order_by('target__gene_name')  # [:20] use study_pmid__pmid instaed of study_pmid.pmid, AND 'target__gene_name' instead of 'target.gene_name'
-    # ADD: 'study_list': study and histotype_list below:
-    context = {'dependency_list': dependency_list, 'driver_fullname': driver_fullname}
+    # For building the filter, see: http://www.nomadjourney.com/2009/04/dynamic-django-queries-with-kwargs/ 
+    kwargs = {'wilcox_p__lte': 0.05}
+    driver = Gene.objects.get(gene_name=request.POST['driver'])
+    kwargs['driver'] = driver
+    if request.POST['histotype'] != "ALL_HISTOTYPES":
+      histotype = Histotype.objects.get(histotype=request.POST['histotype'])
+      kwargs['histotype'] = histotype
+    else: histotype = "ALL_HISTOTYPES"
+    if request.POST['study'] != "ALL_STUDIES":
+      study = Study.objects.get(pmid=request.POST['study'])
+      kwargs['study'] = study
+    else: study = "ALL_STUDIES"
+    # search_driver_gene = get_object_or_404(Gene, gene_name=driver_gene_name).gene_fullname
+    # dependency_list = Dependency.objects.filter(driver=driver, histotype=histotype, study=study, wilcox_p__lte=0.05).order_by('wilcox_p')
+    dependency_list = Dependency.objects.filter(**kwargs).order_by('wilcox_p')
+	   # was: order_by('target__gene_name'). 
+	   # Only list significant hits (ie: p<=0.05)  but adding: wilcox_p<0.05 gives error "positional argument follows keyword argument"
+       # was: study__pmid=request.POST['study']
+       # [:20] use: 'target__gene_name' instead of 'target.gene_name'
+    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'study': study}
     return render(request, 'gendep/results.html', context)
 
 

@@ -15,8 +15,8 @@ class GeneAdmin(admin.ModelAdmin):
 
 # For the foreign keys, to return a string need to append: '__gene_name'
 class DependencyAdmin(admin.ModelAdmin):
-    list_display  = ('driver', 'target', 'histotype', 'wilcox_p', 'study_pmid')
-    search_fields = ['driver__gene_name', 'target__gene_name', 'histotype']
+    list_display  = ('driver', 'target', 'histotype', 'wilcox_p', 'study')
+    search_fields = ['driver__gene_name', 'target__gene_name', 'histotype__full_name']
 
 
 admin.site.register(Study, StudyAdmin)

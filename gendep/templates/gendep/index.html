@@ -2,7 +2,7 @@
 
 <link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
 
-<h1>Database of Geneic Dependencies in Cancer</h1>
+<h1 style="text-align: center;">Database of Geneic Dependencies in Cancer</h1>
 <p> &nbsp; </p>
 
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
@@ -11,31 +11,46 @@
 
 <form action="{% url 'gendep:results' %}" method="post">
 {% csrf_token %}
-   Search: &nbsp; 
-   Driver gene name:
-   <select name="search_driver_gene" id="search_driver_gene">
-      <option value="" selected="selected"></option>
-   {% for driver in driver_list.all %}
-      <option value="{{driver.gene_name}}">{{driver.gene_name}}</option>
-   {% endfor %}
-   </select> &nbsp;
    
-   Tissue type:
-   <select name="search_histotype" id="search_histotype">
-      <option value="PANCAN" selected="selected">PANCAN</option>
-      <option value="BREAST">BREAST</option>
-      <option value="OSTEOSARCOMA">OSTEOSARCOMA</option>
-      <option value="OESOPHAGUS">OESOPHAGUS</option>
-      <option value="LUNG">LUNG</option>
-      <option value="OVARY">OVARY</option>
-   </select> &nbsp;
-    
-   Study:
-   <select name="search_study" id="search_study">
-      <option value="Pending_0001" selected="selected">Pending_0001</option>
-   </select> &nbsp;
-    
+   
+<table align="center">
+<tr><td></td><td>Search</td></tr>
+<tr><td>Driver gene:</td>
+<td>
+   <select name="driver" id="driver">
+      <option value="" selected="selected"></option>
+   {% for driver in driver_list %}
+      <option value="{{driver.gene_name}}">{{driver.gene_name}} {{driver.name}} {{driver.synonyms}} {{driver.prev_names}}</option>
+   {% endfor %}
+   </select>
+</td></tr>
+   
+<tr><td>Tissue type:</td>
+<td>
+   <select name="histotype" id="histotype">
+      <option value="ALL_HISTOTYPES" selected="selected">All histotypes</option>
+	{% for histotype in histotype_list %}
+      <option value="{{ histotype.histotype }}" {% if histotype.histotype == "PANCAN" %} selected="selected" {% endif %}>{{ histotype.full_name }}</option>
+	{% endfor %}
+   </select>
+   
+</td></tr>
+
+<tr><td>Study:</td>
+<td>
+   <select name="study" id="study">
+      <option value="ALL_STUDIES" selected="selected">All studies</option>
+	{% for study in study_list %}
+	  <option value="{{ study.pmid }}">{{ study.pmid }} {{ study.title}}</option>
+	{% endfor %}
+   </select>
+</td></tr>
+<tr><td></td>
+<td>
    <input type="submit" value="Search" />
+</td></tr>   
+
+</table>
 </form>
 
 <!-- prepopulate search boxes with menu of options -->

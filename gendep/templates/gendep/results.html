@@ -2,27 +2,28 @@
 
 <link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
 
-<h1>Database of Geneic Dependencies in Cancer</h1>
+<style type="text/css">
+    .jsAction {
+        cursor: pointer;
+        color: #00f;
+        text-decoration: underline;
+    }
+</style>
 
-<p style="text-align:center">
-Search: &nbsp; 
-Driver gene name:<input type="text" name="search_driver_gene"> &nbsp;
-Tissue type: <input type="text" name="search_histotype"> &nbsp;
-Study: <input type="text" name="search_study">
-</p>
+<h1 style="text-align: center;">Database of Geneic Dependencies in Cancer</h1>
 
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
 
-<p><b>Tissue type: {{ search_histotype }}</b></p>
-<p><b>Study: {{ search_study }}</b></p>
-<p> &nbsp; </p>
-<p><b>Driver Gene: {{ search_driver_gene }}</b></p>
-<p><u>Synonyms:</u> HER2</p>
-<p><u>Gene Descripion:</u> {{ driver_fullname }}</p>
+<p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype.full_name }} {% endif %}</p>
+<p>Study: {% if histotype == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> {{ study.title }} {% endif %} </p>
+
+<p><b>Driver Gene: {{ driver.gene_name }}</b></p>
+<p><u>Synonyms:</u> {{ driver.synonyms }} {{ driver.prev_names }}</p>
+<p><u>Gene Descripion:</u> {{ driver.full_name }}</p>
 <p><u>External links:</u>
  CancerRxGene.org 
-| <a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene="{{ search_driver_gene }}">GeneCards</a> 
-| <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln="{{ search_driver_gene }}">Cosmic</a> 
+| <a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene={{ driver.gene_name }}" target="_blank">GeneCards</a> 
+| <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln={{ driver.gene_name }}" target="_blank">Cosmic</a> 
 | Cancer
 </p>
 
@@ -35,17 +36,26 @@ Study: <input type="text" name="search_study">
                     <li>UniProtKB: <a href="http://www.uniprot.org/uniprot/P04626" target="_blank">P04626</a></li>
             </ul>
 -->
+<!--
+script
+set_graph(driver,target)
+{% url 'gendep:graph' dependency.driver.gene_name dependency.target.gene_name }}
+-->
+<!--
+<a href="set_graph( {{ dependency.driver.gene_name }}, {{ dependency.target.gene_name }} );"/>{{ dependency.target.gene_name }}</a>
+-->
+
 {% if dependency_list %}
   <table border="1" cellspacing="0">
-    <tr><th>Dependency</th><th>P-value</th><th>PMID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Details</th></tr>
-    {% for item in dependency_list %}
+    <tr><th>Dependency</th><th>P-value</th><th>PubMed ID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Details</th></tr>
+    {% for dependency in dependency_list %}
     <tr> 
-        <td><a href="{% url 'gendep:graph' item.driver.gene_name item.target.gene_name }}"/>{{ item.target.target }}</a></td>
-        <td>{{ item.wilcox_p }}</td>
-        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ item.study_pmid.pmid }}</a></td>
-        <td>{{ item.histotype }}</td>
+        <td><span class="jsAction" onclick="set_graph( {{ dependency.driver.gene_name }}, {{ dependency.target.gene_name }} );">{{ dependency.target.gene_name }}</span></td>
+        <td>{{ dependency.wilcox_p }}</td>
+        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study_pmid.pmid }}" target="_blank">{{ dependency.study.pmid }}</a></td>
+        <td>{{ dependency.histotype.full_name }}</td>
         <td></td>
-        <td>{{ item.study_pmid.summary }}</td>
+        <td>{{ dependency.study.summary }}</td>
     </tr>
     {% endfor %}
   </table>
