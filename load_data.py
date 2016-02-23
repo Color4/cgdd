@@ -154,12 +154,17 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study):
   print("\nImporting table: ",csv_filepathname)
   dataReader = csv.reader(open(csv_filepathname), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   
-  counter = 0
+  count_added = 0
+  count_skipped = 0
   dependencies = []
   for row in dataReader:
     if dataReader.line_num == 1:
       if row[0] != 'Driver': print("***ERROR: Expected header to start with 'Driver', but found:",row)
       continue  # Ignore the header row, import everything else
+
+    if float(row[2]) > 0.05:
+      count_skipped += 1
+      continue  # Skip as the wilcox_p value isn't significant
 
     driver_gene = find_or_add_gene(split_driver_gene_name(row[0]), is_driver=True)
     target_gene = find_or_add_gene(split_target_gene_name(row[1]), is_driver=False)
@@ -176,9 +181,10 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study):
     # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
     dependencies.append( d )
     
-    print("\r",counter, end=" ")
-    counter += 1
-    
+    print("\r",count_added, end=" ")
+    count_added += 1
+  
+  print( "%d dependency rows were skipped as wilcox_p > 0.05" %(count_skipped))
   print("Bulk_create ....")  
   Dependency.objects.bulk_create(dependencies) # Comparisons for Postgres:  http://stefano.dissegna.me/django-pg-bulk-insert.html
   print("Finished importing table.")

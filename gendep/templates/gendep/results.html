@@ -14,7 +14,9 @@
 
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
 
-<p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype.full_name }} {% endif %}</p>
+<!-- histotype.full_name  -->
+
+<p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype }} {% endif %}</p>
 <p>Study: {% if histotype == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> {{ study.title }} {% endif %} </p>
 
 <p><b>Driver Gene: {{ driver.gene_name }}</b></p>
@@ -53,7 +55,7 @@ set_graph(driver,target)
 -->
 <!-- 
 When using the Histotype table class, then below use: dependency.histotype.full_name,
-but when using the choices CharField, use: histotype.get_histotype_display() 
+but when using the choices CharField, use: dependency.get_histotype_display() 
 -->
 {% endcomment %}
 

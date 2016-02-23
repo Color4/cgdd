@@ -15,7 +15,7 @@ def index(request): # Default is search boxes, with driver dropdown populated wi
 	
 def results(request):
     # For building the filter, see: http://www.nomadjourney.com/2009/04/dynamic-django-queries-with-kwargs/ 
-    kwargs = {'wilcox_p__lte': 0.05}
+    kwargs = {'wilcox_p__lte': 0.05} 
     driver = Gene.objects.get(gene_name=request.POST['driver'])
     kwargs['driver'] = driver
     if request.POST['histotype'] != "ALL_HISTOTYPES":
@@ -27,6 +27,12 @@ def results(request):
       study = Study.objects.get(pmid=request.POST['study'])
       kwargs['study'] = study
     else: study = "ALL_STUDIES"
+    # Instead of using the kwargs above, can just use (as the queries are lazy and aren't evaluated until query os finally run): https://docs.djangoproject.com/es/1.9/topics/db/queries/
+    # q = Entry.objects.filter(headline__startswith="What")
+    # q = q.filter(pub_date__lte=datetime.date.today())
+    # q = q.exclude(body_text__icontains="food")
+    # print(q)
+    
     # search_driver_gene = get_object_or_404(Gene, gene_name=driver_gene_name).gene_fullname
     # dependency_list = Dependency.objects.filter(driver=driver, histotype=histotype, study=study, wilcox_p__lte=0.05).order_by('wilcox_p')
     dependency_list = Dependency.objects.filter(**kwargs).order_by('wilcox_p')
