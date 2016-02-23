@@ -5,11 +5,16 @@ class Gene(models.Model):
     gene_name   = models.CharField('Gene name', max_length=10, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
     is_driver   = models.BooleanField('Is driver', db_index=True) # So will know for search menus which to list in the dropdown menu
     full_name   = models.CharField('Full name', max_length=200)
-    ensembl_id  = models.CharField('Ensembl Id', max_length=20, blank=True)
-    entrez_id   = models.CharField('Entrez Id', max_length=10, blank=True)  # This field is only used for the drivers, not the target.
+    ensembl_id  = models.CharField('Ensembl Id', max_length=20, blank=True) # Ensembl
+    entrez_id   = models.CharField('Entrez Id', max_length=10, blank=True)  # Entrez
     cosmic_id   = models.CharField('COSMIC Id', max_length=10, blank=True) # Same as gene_name, or empty if not in COSMIC
     cancerrxgene_id = models.CharField('CancerRxGene Id', max_length=10, blank=True) # Not available yet
-    prev_names  = models.CharField('Synonyms for gene name', max_length=50, blank=True)
+    omim_id     = models.CharField('OMIM Id', max_length=10, blank=True) # Online Mendelian Inheritance in Man
+    uniprot_id  = models.CharField('UniProt Ids', max_length=20, blank=True) # UniProt protein Ids.
+    vega_id     = models.CharField('Vega Id', max_length=25, blank=True) # Vega Id.
+    hgnc_id     = models.CharField('HGNC Id', max_length=10, blank=True) # HGNC Id.
+    # protein_id  = models.CharField('Protein Id', max_length=10, blank=True) # Protein Id
+    prev_names  = models.CharField('Previous name', max_length=50, blank=True) # Previous gene name(s)
     synonyms    = models.CharField('Synonyms for gene name', max_length=250, blank=True) # alias_name
     # links       = models.CharField('External site links', max_length=250, blank=True) # Links to external gene information webpages, perhaps a comma separated list.
     # Or could use an array field, by using the Django Postgres 'django-pgfields' extension: https://www.djangopackages.com/packages/p/django-pgfields/
@@ -39,12 +44,36 @@ class Study(models.Model):
 class Drug(models.Model):
     drug        = models.CharField('Drug', max_length=50, primary_key=True, db_index=True)
 
-class Histotype(models.Model):
-    histotype   = models.CharField('Histotype', max_length=10, primary_key=True, db_index=True)
-    full_name   = models.CharField('Histotype', max_length=30)
+# class Histotype(models.Model):
+#    histotype   = models.CharField('Histotype', max_length=10, primary_key=True, db_index=True)
+#    full_name   = models.CharField('Histotype', max_length=30)
+
+#===
+# But this is only run on the web form, not on creating a model instance 
+def validate_histotype_choice(value):
+    for row in Dependency.HISTOTYPE_CHOICES:
+        if row[0] == value: 
+           found=True
+           break
+    if not found:
+        raise ValidationError(
+            _('%(value)s is not in the histotype choices: %(choices)s'),
+            params={'value': value, 'choices': Dependency.HISTOTYPE_CHOICES},
+        )
+#====
 
 # Dependency = Driver-Target interactions:
 class Dependency(models.Model):
+    # Values for the histotype choices CharField: 
+    HISTOTYPE_CHOICES = (
+      ("BREAST", "Breast"),
+      ("LUNG", "Lung"),
+      ("OESOPHAGUS", "Oesophagus"),
+      ("OSTEOSARCOMA", "Osteosarcoma"),
+      ("OVARY", "Ovary"),
+      ("PANCAN", "Pan cancer"),      
+      )
+
     class Meta:
         unique_together = (('driver', 'target', 'histotype', 'study'),) # This should be unique  (previously also incuded 'study_table')
         # This 'histotype' needed added to this unique_together otherwise when the S1K table is added to the S1I table there is a conflict.
@@ -52,19 +81,39 @@ class Dependency(models.Model):
 
     driver      = models.ForeignKey(Gene, verbose_name='Driver gene', db_column='driver', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
-    histotype   = models.ForeignKey(Histotype, verbose_name='Histotype', db_column='histotype', to_field='histotype', related_name='+', db_index=True, on_delete=models.PROTECT)
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
     wilcox_p    = models.FloatField('Wilcox P-value')     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9)
     study       = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
     study_table = models.CharField('Study Table', max_length=10) # The table the data is from.
     inhibitors  = models.ManyToManyField(Drug, related_name='+')
 
+    # histotype   = models.ForeignKey(Histotype, verbose_name='Histotype', db_column='histotype', to_field='histotype', related_name='+', db_index=True, on_delete=models.PROTECT)
+    # Now using a choices field instead of the above Foreign key to a separate table. 
+    histotype   = models.CharField('Histotype', max_length=12, choices=HISTOTYPE_CHOICES, validators=[validate_histotype_choice], db_index=True )   # also optional "default" parameter
+    
+    #def is_valid_histotype(self, h):
+    #   for row in self.HISTOTYPE_CHOICES:
+    #      if row[0] == h: return True
+    #   return False
+       
     def __str__(self):
         # return self.table+' '+self.driver.gene_name+' '+self.target.gene_name+' '+self.histotype+' '+str(self.wilcox_p)+' '+str(self.study.pmid)
         return self.target.gene_name
 
     def very_significant(self):
         return self.wilcox_p <= 0.005
+        
+    # Based on: https://groups.google.com/forum/#!topic/django-users/SzYgjbrYVCI
+    def __setattr__(self, name, value):
+        if name == 'histotype':
+            found = False
+            for row in Dependency.HISTOTYPE_CHOICES:
+                if row[0] == value:
+                    found = True
+                    break
+            if not found: raise ValueError('Invalid value "%s" for histotype choices: %s' %(value, Dependency.HISTOTYPE_CHOICES))
+        models.Model.__setattr__(self, name, value)
+
 
 
 # NOTES:

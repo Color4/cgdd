@@ -20,7 +20,7 @@
    <select name="driver" id="driver">
       <option value="" selected="selected"></option>
    {% for driver in driver_list %}
-      <option value="{{driver.gene_name}}">{{driver.gene_name}} {{driver.name}} {{driver.synonyms}} {{driver.prev_names}}</option>
+      <option value="{{driver.gene_name}}">{{driver.gene_name}} {{driver.full_name}} {{driver.synonyms}} {{driver.prev_names}}</option>
    {% endfor %}
    </select>
 </td></tr>
@@ -28,9 +28,12 @@
 <tr><td>Tissue type:</td>
 <td>
    <select name="histotype" id="histotype">
-      <option value="ALL_HISTOTYPES" selected="selected">All histotypes</option>
+      <option value="ALL_HISTOTYPES">All histotypes</option>
 	{% for histotype in histotype_list %}
+	{% comment %}
       <option value="{{ histotype.histotype }}" {% if histotype.histotype == "PANCAN" %} selected="selected" {% endif %}>{{ histotype.full_name }}</option>
+	{% endcomment %}  
+	  <option value="{{ histotype.0 }}" {% if histotype.0 == "PANCAN" %} selected="selected" {% endif %}>{{ histotype.1 }}</option>  
 	{% endfor %}
    </select>
    

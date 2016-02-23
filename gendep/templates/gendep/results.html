@@ -21,12 +21,19 @@
 <p><u>Synonyms:</u> {{ driver.synonyms }} {{ driver.prev_names }}</p>
 <p><u>Gene Descripion:</u> {{ driver.full_name }}</p>
 <p><u>External links:</u>
- CancerRxGene.org 
-| <a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene={{ driver.gene_name }}" target="_blank">GeneCards</a> 
-| <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln={{ driver.gene_name }}" target="_blank">Cosmic</a> 
-| Cancer
+  <a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene={{ driver.gene_name }}" title="Genecards" target="_blank">GeneCards</a> 
+| <a href="http://www.ncbi.nlm.nih.gov/gene/{{ driver.entrez_id }}" title="Entrez Gene at NCBI" target="_blank">Entrez</a> 
+| <a href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g={{ driver.ensembl_id }}" title="Ensembl Gene" target="_blank">Ensembl</a> 
+| <a href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g={{ driver.vega_id }}" title="Vertebrate Genome Annotation" target="_blank">Vega</a> 
+| <a href="http://www.omim.org/entry/{{ driver.omim_id }}" title="Online Mendelian Inheritance in Man" target="_blank">OMIM</a>
+| <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id={{ driver.hgnc_id }}" title="HUGO Gene Nomenclature Committee" target="_blank">HGNC</a> 
+| <a href="http://www.cancerrxgene.org/translation/Search?query={{ driver.gene_name }}" title="CancerRxGene search" target="_blank">CancerRxGene</a> 
+| <a href="http://www.cbioportal.org/ln?q={{ driver.gene_name }}" title="cBioPortal for Cancer Genomics" target="_blank">cBioPortal</a> 
+| <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln={{ driver.gene_name }}" title="Catalogue of Somatic Mutations in Cancer" target="_blank">COSMIC</a> 
+| <a href="https://cansar.icr.ac.uk/cansar/molecular-targets/{{ driver.uniprot_id }}/" title="CanSAR" target="_blank">CanSAR</a> 
 </p>
 
+{% comment %}
 <!--
             <ul class="list-inline">
                     <li>HGNC: <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=3430" target="_blank">3430</a></li>
@@ -44,6 +51,11 @@ set_graph(driver,target)
 <!--
 <a href="set_graph( {{ dependency.driver.gene_name }}, {{ dependency.target.gene_name }} );"/>{{ dependency.target.gene_name }}</a>
 -->
+<!-- 
+When using the Histotype table class, then below use: dependency.histotype.full_name,
+but when using the choices CharField, use: histotype.get_histotype_display() 
+-->
+{% endcomment %}
 
 {% if dependency_list %}
   <table border="1" cellspacing="0">
@@ -53,7 +65,7 @@ set_graph(driver,target)
         <td><span class="jsAction" onclick="set_graph( {{ dependency.driver.gene_name }}, {{ dependency.target.gene_name }} );">{{ dependency.target.gene_name }}</span></td>
         <td>{{ dependency.wilcox_p }}</td>
         <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study_pmid.pmid }}" target="_blank">{{ dependency.study.pmid }}</a></td>
-        <td>{{ dependency.histotype.full_name }}</td>
+        <td>{{ dependency.get_histotype_display }}</td>
         <td></td>
         <td>{{ dependency.study.summary }}</td>
     </tr>

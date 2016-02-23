@@ -1,12 +1,13 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
 
-from .models import Study, Gene, Histotype, Dependency
+from .models import Study, Gene, Dependency  # Removed: Histotype,
 
 
 def index(request): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
-    histotype_list = Histotype.objects.order_by('full_name')
+    # histotype_list = Histotype.objects.order_by('full_name')
+    histotype_list = Dependency.HISTOTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
     context = {'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list}
     return render(request, 'gendep/index.html', context)
@@ -18,7 +19,8 @@ def results(request):
     driver = Gene.objects.get(gene_name=request.POST['driver'])
     kwargs['driver'] = driver
     if request.POST['histotype'] != "ALL_HISTOTYPES":
-      histotype = Histotype.objects.get(histotype=request.POST['histotype'])
+      # histotype = Histotype.objects.get(histotype=request.POST['histotype'])  # if using separate Histotype database table 
+      histotype = request.POST['histotype']   # When using the "choices" field.
       kwargs['histotype'] = histotype
     else: histotype = "ALL_HISTOTYPES"
     if request.POST['study'] != "ALL_STUDIES":

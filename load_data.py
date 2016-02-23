@@ -25,16 +25,22 @@ import django
 django.setup()
 
 
-from gendep.models import Study, Gene, Histotype, Drug, Dependency
+from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
 
 def add_study(pmid, title, authors, description, summary, journal, pub_date):
   s, created = Study.objects.get_or_create( pmid=pmid, defaults={'title': title, 'authors': authors, 'description': description, 'summary': summary, 'journal': journal, 'pub_date': pub_date} )
   return s
 
 
-def add_histotype(histotype, full_name):
-  if full_name is None: full_name={'PANCAN':'Pan cancer'}.get(histotype, histotype.title()) # The other known types are: 'BREAST', 'OSTEOSARCOMA', 'OESOPHAGUS', 'LUNG', and 'OVARY'
-  h, created = Histotype.objects.get_or_create(histotype=histotype, defaults={'full_name': full_name} )
+def find_or_add_histotype(histotype, full_name):
+  # if full_name is None: full_name={'PANCAN':'Pan cancer'}.get(histotype, histotype.title()) # The other known types are: 'BREAST', 'OSTEOSARCOMA', 'OESOPHAGUS', 'LUNG', and 'OVARY'
+  # h, created = Histotype.objects.get_or_create(histotype=histotype, defaults={'full_name': full_name} )
+
+  # As using the "choices=" param. 
+  # if not Dependency().is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))  
+  # else: 
+  h = histotype
+  
   return h
 
 
@@ -57,14 +63,27 @@ def split_target_gene_name(long_name):
 
 
 hgnc = dict() # To read the HGNC ids into a dictionary
-ihgnc = dict() # The column name to number for the above HGNC dict. 
+#ihgnc = dict() # The column name to number for the above HGNC dict. 
 def load_hgnc_dictionary():
+  global ifull_name, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
   print("\nLoading HGNC data")
+  # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
   infile = os.path.join('input_data','hgnc_complete_set.txt')
   dataReader = csv.reader(open(infile), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   for row in dataReader:
     if dataReader.line_num == 1: # The header line.
-      for i in range(len(row)): ihgnc[row[i]] = i # Store column numbers for each header item
+      ihgnc = dict() # The column name to number for the above HGNC dict. 
+      for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
+      ifull_name  = ihgnc.get('name')            # eg: erb-b2 receptor tyrosine kinase 2
+      isynonyms   = ihgnc.get('alias_symbol')    # eg: NEU|HER-2|CD340|HER2
+      iprev_names = ihgnc.get('prev_symbol')     # eg: NGL
+      ientrez_id  = ihgnc.get('entrez_id')       # eg: 2064
+      iensembl_id = ihgnc.get('ensembl_gene_id') # eg: ENSG00000141736
+      icosmic_id  = ihgnc.get('cosmic')          # eg: ERBB2
+      iomim_id    = ihgnc.get('omim_id')         # eg: 164870
+      iuniprot_id = ihgnc.get('uniprot_ids')     # eg: P04626  NOTE: This could be more than one Id
+      ivega_id    = ihgnc.get('vega_id')         # eg: 
+      ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
     else:
       gene_name = row[ihgnc['symbol']]    # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
       hgnc[gene_name] = row # Store the whole row for simplicity. 
@@ -94,33 +113,37 @@ def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entre
     if g.ensembl_id != names[2]: print("WARNING: For gene '%s': Ensembl_id '%s' already saved in the Gene table doesn't match '%s' from Excel file" %(g.gene_name, g.ensembl_id, names[2]) )
 
   except ObjectDoesNotExist: # Not found by the objects.get()
-    if name not in hgnc:        
+    if name not in hgnc:
       print("WARNING: Gene '%s' NOT found in HGNC dictionary" %(name) )
       g = Gene.objects.create(gene_name=name, is_driver=is_driver, entrez_id=names[1], ensembl_id=names[2])
     else:  
-      if names[1] != '' and names[1] != hgnc[name][ihgnc['entrez_id']]:
+      this_hgnc = hgnc[name] # cache in a local variable to simplify code and reduce lookups.
+      if names[1] != '' and names[1] != this_hgnc[ientrez_id]:
         print("WARNING: For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from Excel file" %(name, hgnc[name][ihgnc['entrez_id']], names[1]) )
-        hgnc[name][ihgnc['entrez_id']] = names[1]        # So change it to use the one from the Excel file.
-      if names[2] != hgnc[name][ihgnc['ensembl_gene_id']]:
-        print("WARNING: For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(name, hgnc[name][ihgnc['ensembl_gene_id']], names[2]) )
-        hgnc[name][ihgnc['ensembl_gene_id']] = names[2]  # So change it to use the one from the Excel file.
-      g = Gene.objects.create(gene_name  = name,                                # hgnc[name][ihgnc['symbol']]  eg. ERBB2
+        this_hgnc[ientrez_id] = names[1]        # So change it to use the one from the Excel file.
+      if names[2] != this_hgnc[iensembl_id]:
+        print("WARNING: For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(name, this_hgnc[iensembl_id], names[2]) )
+        this_hgnc[iensembl_id] = names[2]  # So change it to use the one from the Excel file.
+      # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
+      g = Gene.objects.create(gene_name  = name,         # hgnc[name][ihgnc['symbol']]  eg. ERBB2
                is_driver  = is_driver,
-               full_name  = hgnc[name][ihgnc['name']],            # eg: erb-b2 receptor tyrosine kinase 2
-               synonyms   = hgnc[name][ihgnc['alias_symbol']],    # eg: NEU|HER-2|CD340|HER2
-               prev_names = hgnc[name][ihgnc['prev_symbol']],     # eg: NGL  # was: hgnc[name][iprevsymbol],
-               entrez_id  = hgnc[name][ihgnc['entrez_id']],       # eg: 2064
-               ensembl_id = hgnc[name][ihgnc['ensembl_gene_id']], # eg: ENSG00000141736
-               cosmic_id  = hgnc[name][ihgnc['cosmic']],          # eg: ERBB2
+               full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
+               synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
+               prev_names = this_hgnc[iprev_names],      # eg: NGL  # was: hgnc[name][iprevsymbol],
+               entrez_id  = this_hgnc[ientrez_id],       # eg: 2064
+               ensembl_id = this_hgnc[iensembl_id],      # eg: ENSG00000141736
+               cosmic_id  = this_hgnc[icosmic_id],       # eg: ERBB2
+               omim_id    = this_hgnc[iomim_id],         # eg: 164870
+               uniprot_id = this_hgnc[iuniprot_id],      # eg: P04626
+               vega_id    = this_hgnc[ivega_id],         # eg: OTTHUMG00000179300
+               hgnc_id    = this_hgnc[ihgnc_id]
                # cancerrxgene_id = ....... ????
                # 'hgnc_id'          # eg: 3430
                # 'alias_name'       # eg: neuro/glioblastoma derived oncogene homolog|human epidermal growth factor receptor 2
                # 'gene_family'      # eg: CD molecules|Minor histocompatibility antigens|Erb-b2 receptor tyrosine kinases
-               # 'vega_id':         # eg: OTTHUMG00000179300
                # 'refseq_accession' # eg: NM_004448
-               # 'uniprot_ids':     # eg: P04626
-               # 'omim_id':         # eg: 164870
                )
+    # print( "*****", this_hgnc[iuniprot_id])
     # g.save() # Using create() above instead of Gene(...) and g.save.
     
   return g
@@ -140,7 +163,8 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study):
 
     driver_gene = find_or_add_gene(split_driver_gene_name(row[0]), is_driver=True)
     target_gene = find_or_add_gene(split_target_gene_name(row[1]), is_driver=False)
-    histotype = add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
+    # If using Histotype table: histotype = find_or_add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
+    histotype = row[3] # As using CharField(choices=...) and now is validated in the model.
     mutation_type='Both'  # Default to 'Both' for current data now.
 
     # When loading the second table 'S1K', it contains duplicates of the Driver-Target pairs that were in 'S1I', which is ok as different histotype.
@@ -148,13 +172,15 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study):
     # Using bulk_create() would be faster I think. See: http://vincent.is/speeding-up-django-postgres/  and https://www.caktusgroup.com/blog/2011/09/20/bulk-inserts-django/
     
     # Bulk create is actually slightly slower than adding record by record
-    dependencies.append( Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], histotype=histotype, mutation_type=mutation_type, study=study) )
+    d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], histotype=histotype, mutation_type=mutation_type, study=study)
+    # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
+    dependencies.append( d )
     
     print("\r",counter, end=" ")
     counter += 1
     
   print("Bulk_create ....")  
-  Dependency.objects.bulk_create(dependencies)
+  Dependency.objects.bulk_create(dependencies) # Comparisons for Postgres:  http://stefano.dissegna.me/django-pg-bulk-insert.html
   print("Finished importing table.")
 
 
@@ -175,7 +201,7 @@ if __name__ == "__main__":
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
     print("\nEmptying database tables")
-    for table in (Dependency, Study, Gene, Histotype, Drug): table.objects.all().delete()
+    for table in (Dependency, Study, Gene, Drug): table.objects.all().delete()  # removed: Histotype,
 
     study=add_study( study_pmid, study_title, study_authors, study_description, study_summary, study_journal, study_pub_date)
   
