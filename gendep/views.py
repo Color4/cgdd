@@ -23,7 +23,9 @@ def results(request):
       histotype = request.POST['histotype']   # When using the "choices" field.
       kwargs['histotype'] = histotype
       histotype_full_name = Dependency.histotype_full_name(histotype)
-    else: histotype = "ALL_HISTOTYPES"
+    else:
+      histotype = "ALL_HISTOTYPES"
+      histotype_full_name = "All histotypes"
     if request.POST['study'] != "ALL_STUDIES":
       study = Study.objects.get(pmid=request.POST['study'])
       kwargs['study'] = study
