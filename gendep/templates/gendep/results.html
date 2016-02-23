@@ -10,14 +10,38 @@
     }
 </style>
 
+
+<script>
+function show_plot(driver,target)
+  {
+  document.getElementById('plot_title').innerHTML = '<b>' + target + ' vs ' + driver + '</b>'; 
+  if (driver=='ERBB2' && target=='MAP2K3')
+    {
+    // Should use { % static .... % } below in future:
+    // document.getElementById("plot_image").src = '../static/gendep/' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
+	document.getElementById("plot_image").src = '{% static 'gendep/' %}' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
+    document.getElementById('plot_description').innerHTML = 'ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))'; 
+	}
+  else
+    {
+    document.getElementById("plot_image").src = '';
+    document.getElementById('plot_description').innerHTML = 'No plot available';
+	}
+  }
+</script>
+
+
 <h1 style="text-align: center;">Database of Geneic Dependencies in Cancer</h1>
 
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
 
 <!-- histotype.full_name  -->
 
-<p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype }} {% endif %}</p>
-<p>Study: {% if study == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> {{ study.title }} {% endif %} </p>
+<table align="center" cellpadding="8" style="border: 1px solid blue;">
+<tr><td>
+
+<p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype_full_name }} {% endif %}</p>
+<p>Study: {% if study == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> "{{ study.title }}", {{ study.authors|slice:":30" }} et al, {{ study.journal }}, {{ study.pub_date }} {% endif %} </p>
 
 <p><b>Driver Gene: {{ driver.gene_name }}</b></p>
 <p><u>Synonyms:</u> {{ driver.synonyms }} {{ driver.prev_names }}</p>
@@ -56,17 +80,24 @@ set_graph(driver,target)
 <!-- 
 When using the Histotype table class, then below use: dependency.histotype.full_name,
 but when using the choices CharField, use: dependency.get_histotype_display() 
+
+style="border-bottom: 1px solid #ddd;"
+
 -->
 {% endcomment %}
 
+</td></tr><tr><td align="center">
+
 {% if dependency_list %}
-  <table border="1" cellspacing="0">
+<p style="font-size: 75%;">Click the 'MAP2K3' dependency to display the box plot at bottom of this table.</p>
+  <table class=tabler>
     <tr><th>Dependency</th><th>P-value</th><th>PubMed ID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Details</th></tr>
     {% for dependency in dependency_list %}
     <tr> 
-        <td><span class="jsAction" onclick="set_graph( {{ dependency.driver.gene_name }}, {{ dependency.target.gene_name }} );">{{ dependency.target.gene_name }}</span></td>
+        <td>
+		<span class="jsAction" onclick="show_plot( '{{ dependency.driver.gene_name }}', '{{ dependency.target.gene_name }}' );" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}">{{ dependency.target.gene_name }}</span></td>
         <td>{{ dependency.wilcox_p }}</td>
-        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study_pmid.pmid }}" target="_blank">{{ dependency.study.pmid }}</a></td>
+        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.pmid }}</a></td>
         <td>{{ dependency.get_histotype_display }}</td>
         <td></td>
         <td>{{ dependency.study.summary }}</td>
@@ -76,3 +107,11 @@ but when using the choices CharField, use: dependency.get_histotype_display()
 {% else %}
     <p>No dependencies found.</p>
 {% endif %}
+
+</td></tr><tr><td align="center">
+<p id="plot_title"></p>
+<img id="plot_image"/>
+<p id="plot_description" style="font-size: 95%;"></p>
+</td></tr>
+</table>
+

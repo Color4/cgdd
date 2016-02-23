@@ -22,6 +22,7 @@ def results(request):
       # histotype = Histotype.objects.get(histotype=request.POST['histotype'])  # if using separate Histotype database table 
       histotype = request.POST['histotype']   # When using the "choices" field.
       kwargs['histotype'] = histotype
+      histotype_full_name = Dependency.histotype_full_name(histotype)
     else: histotype = "ALL_HISTOTYPES"
     if request.POST['study'] != "ALL_STUDIES":
       study = Study.objects.get(pmid=request.POST['study'])
@@ -40,7 +41,7 @@ def results(request):
 	   # Only list significant hits (ie: p<=0.05)  but adding: wilcox_p<0.05 gives error "positional argument follows keyword argument"
        # was: study__pmid=request.POST['study']
        # [:20] use: 'target__gene_name' instead of 'target.gene_name'
-    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'study': study}
+    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study}
     return render(request, 'gendep/results.html', context)
 
 

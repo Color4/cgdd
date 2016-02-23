@@ -48,19 +48,6 @@ class Drug(models.Model):
 #    histotype   = models.CharField('Histotype', max_length=10, primary_key=True, db_index=True)
 #    full_name   = models.CharField('Histotype', max_length=30)
 
-#===
-# But this is only run on the web form, not on creating a model instance 
-def validate_histotype_choice(value):
-    for row in Dependency.HISTOTYPE_CHOICES:
-        if row[0] == value: 
-           found=True
-           break
-    if not found:
-        raise ValidationError(
-            _('%(value)s is not in the histotype choices: %(choices)s'),
-            params={'value': value, 'choices': Dependency.HISTOTYPE_CHOICES},
-        )
-#====
 
 # Dependency = Driver-Target interactions:
 class Dependency(models.Model):
@@ -89,12 +76,13 @@ class Dependency(models.Model):
 
     # histotype   = models.ForeignKey(Histotype, verbose_name='Histotype', db_column='histotype', to_field='histotype', related_name='+', db_index=True, on_delete=models.PROTECT)
     # Now using a choices field instead of the above Foreign key to a separate table. 
-    histotype   = models.CharField('Histotype', max_length=12, choices=HISTOTYPE_CHOICES, validators=[validate_histotype_choice], db_index=True )   # also optional "default" parameter
+    # can add a validator for the web form, eg: validators=[validate_histotype_choice],
+    histotype   = models.CharField('Histotype', max_length=12, choices=HISTOTYPE_CHOICES, db_index=True )   # also optional "default" parameter
     
-    #def is_valid_histotype(self, h):
-    #   for row in self.HISTOTYPE_CHOICES:
-    #      if row[0] == h: return True
-    #   return False
+    def histotype_full_name(h):
+       for row in Dependency.HISTOTYPE_CHOICES:
+          if row[0] == h: return row[1]
+       return "Unknown"
        
     def __str__(self):
         # return self.table+' '+self.driver.gene_name+' '+self.target.gene_name+' '+self.histotype+' '+str(self.wilcox_p)+' '+str(self.study.pmid)

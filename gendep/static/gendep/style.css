@@ -1,7 +1,45 @@
 li a {
-    color: green;
+    color: blue;
 }
 
+body
+   {
+   font-family:sans-serif;
+   }
+   
+
+   
+.tabler {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/*   width: 100%; */
+
+.tabler,
+.tabler th,
+.tabler td {
+  border: none;
+  text-align: left;
+  padding: 3px;
+  font-size: 95%;
+}
+
+.tabler th {text-align: center; background-color: #ddddff}
+
+.tabler tbody tr:nth-child(even) {
+  background-color: #f2f2f2
+}
+
+.tabler tr:hover:nth-child(even) {
+  background-color: #ddddff
+}
+
+.tabler tr:hover {
+  background-color: #ddddff
+}
 
 /*
 We can add more styles, see: https://docs.djangoproject.com/en/1.9/intro/tutorial06/
