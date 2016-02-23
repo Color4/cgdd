@@ -17,7 +17,7 @@
 <!-- histotype.full_name  -->
 
 <p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype }} {% endif %}</p>
-<p>Study: {% if histotype == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> {{ study.title }} {% endif %} </p>
+<p>Study: {% if study == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> {{ study.title }} {% endif %} </p>
 
 <p><b>Driver Gene: {{ driver.gene_name }}</b></p>
 <p><u>Synonyms:</u> {{ driver.synonyms }} {{ driver.prev_names }}</p>
