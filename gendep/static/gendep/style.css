@@ -4,11 +4,31 @@ li a {
 
 body
    {
-   font-family:sans-serif;
+   font-family: sans-serif;
    }
    
+/*
+ .ui-autocomplete.ui-menu{fontSize: 10px, width:300px}
 
-   
+ 
+//    targets the first result's <a> element, 
+//    remove the a at the end to target the li itself 
+// .ui-autocomplete.ui-menu li:first-child a{color:blue;}
+
+// ul.ui-autocomplete.ui-menu
+*/
+
+
+/*
+.ui-autocomplete {font-size: small; font-weight: normal;}
+.ui-front {font-size: small; font-weight: normal;}
+.ui-widget-content {font-size: small; font-weight: normal;}
+.ui-menu {font-size: small; font-weight: normal; width: 500;}
+*/
+
+.ui-widget {font-family: sans-serif; font-size: small; font-weight: normal;}
+.ui-menu-item {font-family: sans-serif; font-size: small; font-weight: normal;}  /*  width: 800; */
+	
 .tabler {
   margin-top: 20px;
   margin-bottom: 10px;

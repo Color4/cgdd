@@ -1,7 +1,16 @@
+{% extends 'gendep/base.html' %}
 {% load staticfiles %}
-
-<link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
-
+{# For defining template blocks see: https://docs.djangoproject.com/en/1.9/ref/templates/language/ #}
+{% block links %}
+{# Links to jQuery and jQuery-UI google hosted libraries for the autocomplete search box: #}
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  <!-- Add fancyBox -->
+  <link rel="stylesheet" href="{% static 'fancybox/source/jquery.fancybox.css?v=2.1.5' %}" type="text/css" media="screen" />
+  <script type="text/javascript" src="{% static 'fancybox/source/jquery.fancybox.pack.js?v=2.1.5' %}"></script>
+{% endblock %}
+{% block scripts %}
 <style type="text/css">
     .jsAction {
         cursor: pointer;
@@ -10,8 +19,7 @@
     }
 </style>
 
-
-<script>
+<script type="text/javascript">
 function show_plot(driver,target)
   {
   document.getElementById('plot_title').innerHTML = '<b>' + target + ' vs ' + driver + '</b>'; 
@@ -29,17 +37,12 @@ function show_plot(driver,target)
 	}
   }
 </script>
-
-
-<h1 style="text-align: center;">Database of Geneic Dependencies in Cancer</h1>
-
-{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-
+{% endblock %}
+{% block content %}
 <!-- histotype.full_name  -->
 
 <table align="center" cellpadding="8" style="border: 1px solid blue;">
 <tr><td>
-
 <p>Tissue type: {% if histotype == "ALL_HISTOTYPES" %} All histotypes {% else %} {{ histotype_full_name }} {% endif %}</p>
 <p>Study: {% if study == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> "{{ study.title }}", {{ study.authors|slice:":30" }} et al, {{ study.journal }}, {{ study.pub_date }} {% endif %} </p>
 
@@ -106,3 +109,4 @@ style="border-bottom: 1px solid #ddd;"
 </td></tr>
 </table>
 
+{% endblock %}
