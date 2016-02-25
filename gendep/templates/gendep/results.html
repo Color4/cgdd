@@ -20,6 +20,12 @@
 </style>
 
 <script type="text/javascript">
+
+$(document).ready(function() {
+	$(".fancybox").fancybox();
+});
+
+
 function show_plot(driver,target)
   {
   document.getElementById('plot_title').innerHTML = '<b>' + target + ' vs ' + driver + '</b>'; 
@@ -27,7 +33,7 @@ function show_plot(driver,target)
     {
     // Should use { % static .... % } below in future:
     // document.getElementById("plot_image").src = '../static/gendep/' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
-	document.getElementById("plot_image").src = '{% static 'gendep/' %}' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
+	document.getElementById("plot_image").src = '{% static 'gendep/' %}' + driver + '_' + target + '.png'; // eg: MAP2K3_vs_ERBB2.png
     document.getElementById('plot_description').innerHTML = 'ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))'; 
 	}
   else
@@ -37,6 +43,12 @@ function show_plot(driver,target)
 	}
   }
 </script>
+
+<style type="text/css">
+	.fancybox-custom .fancybox-skin {
+		box-shadow: 0 0 50px #222;
+	}
+</style>
 {% endblock %}
 {% block content %}
 <!-- histotype.full_name  -->
@@ -89,7 +101,13 @@ style="border-bottom: 1px solid #ddd;"
     {% for dependency in dependency_list %}
     <tr> 
         <td>
+		{% comment %}
+		<!-- The old method was: -->
 		<span class="jsAction" onclick="show_plot( '{{ dependency.driver.gene_name }}', '{{ dependency.target.gene_name }}' );" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}">{{ dependency.target.gene_name }}</span></td>
+        {% endcomment %}
+		<!-- Now using flashbox: -->
+		<!--  Note: ID's are single use and are only applied to one element. Galleries are created from elements who have the same "data-fancybox-group" or "rel" attribute value.   Use `title` or `data-fancybox-title` attribute to specify item caption. -->
+		<a class="fancybox" rel="group" href="{% static 'gendep/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}.png" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}">{{ dependency.target.gene_name }}</a></td>
         <td>{{ dependency.wilcox_p }}</td>
         <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.pmid }}</a></td>
         <td>{{ dependency.get_histotype_display }}</td>
