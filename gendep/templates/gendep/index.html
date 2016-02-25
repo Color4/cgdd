@@ -10,7 +10,7 @@
 // Using a preloaded array gives faster response than AJAX call.
 // The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
 var driver_array = [
-   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.full_name}} : {{driver.gene_name}}|{{driver.prev_names}}{% if driver.prev_names != '' %}|{% endif %}{{driver.synonyms}}"},
+   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
    {% endfor %}
 ];
 
@@ -18,16 +18,18 @@ $(function() {
   $("#driver").autocomplete({
     // source: "/api/get_drivers/",   // to use Ajax call.
     source: driver_array,  // using the above array.
-	// It is possible to format the list items using the focus and select functions and html, etc:	
+    // It is possible to format the list items using the focus and select functions and html, etc:	
     minLength: 0,  // number of letters need to type for drop-down menu to appear.
-	delay: 1,  // 1 millisecond delay.
-	autoFocus: true,
+    delay: 1,  // 1 millisecond delay.
+    autoFocus: true,
   }).autocomplete( "instance" )._renderItem = function( ul, item ) {
         return $( "<li>" )
-            .append( "<a><b>" + item.value+ "</b> - " + item.label+ "</a>" )
+            .append( "<a><b>" + item.value + "</b> | " + item.synonyms_spaced + '<br/><font size="-2">' + item.full_name + "</font></a>" )
             .appendTo( ul );
     };
+    // It is possible to add more customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
+
 
 function is_form_valid() {
   // As the autocomplete form permits text that doesn't match any driver:
@@ -38,13 +40,12 @@ function is_form_valid() {
     }
   
   var found = false;
-  var i;
-  for (i=0; i<driver_array.length; i++) {
-	if (d == driver_array[i]['value']) {
-	   found = true;
-	   break;
-	   }
-	}
+  for (var i=0; i<driver_array.length; i++) {
+    if (d == driver_array[i]['value']) {
+       found = true;
+       break;
+       }
+    }
   if (found == false) {alert("Driver gene value: '"+d+"' doesn't match any drivers in the list. Please select a driver gene.");}
   return found;
   }; 
@@ -82,6 +83,7 @@ function is_form_valid() {
 
 <tr><td>Tissue type:</td>
 <td>
+   <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype">
       <option value="ALL_HISTOTYPES">All histotypes</option>
 	{% for histotype in histotype_list %}

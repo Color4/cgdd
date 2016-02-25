@@ -23,7 +23,14 @@ class Gene(models.Model):
     def __str__(self):
         # return self.gene_name+' '+self.entrez_id+' '+self.ensembl_id
         return self.gene_name
+    def prev_names_and_synonyms_spaced(self):
+        # To dispay in the template for the driver search box, as cant use functions that have arguments in the template (unless use extra custom template tgs)
+        spaced_names = ''
+        prev_names_spaced = '' if self.prev_names == '' else self.prev_names.replace('|',' | ')
+        
+        return prev_names_spaced + self.synonyms.replace('|',' | ')
 
+        
 
 # Links to the research study papers:
 class Study(models.Model):

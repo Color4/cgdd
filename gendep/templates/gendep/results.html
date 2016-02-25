@@ -3,10 +3,10 @@
 {# For defining template blocks see: https://docs.djangoproject.com/en/1.9/ref/templates/language/ #}
 {% block links %}
 {# Links to jQuery and jQuery-UI google hosted libraries for the autocomplete search box: #}
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
-  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-  <!-- Add fancyBox -->
+  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  <!-- Add fancyBox, which also uses the above jquery -->
   <link rel="stylesheet" href="{% static 'fancybox/source/jquery.fancybox.css?v=2.1.5' %}" type="text/css" media="screen" />
   <script type="text/javascript" src="{% static 'fancybox/source/jquery.fancybox.pack.js?v=2.1.5' %}"></script>
 {% endblock %}
@@ -22,7 +22,7 @@
 <script type="text/javascript">
 
 $(document).ready(function() {
-	$(".fancybox").fancybox();
+    $(".fancybox").fancybox();
 });
 
 
@@ -33,14 +33,14 @@ function show_plot(driver,target)
     {
     // Should use { % static .... % } below in future:
     // document.getElementById("plot_image").src = '../static/gendep/' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
-	document.getElementById("plot_image").src = '{% static 'gendep/' %}' + driver + '_' + target + '.png'; // eg: MAP2K3_vs_ERBB2.png
+    document.getElementById("plot_image").src = '{% static 'gendep/' %}' + driver + '_' + target + '.png'; // eg: MAP2K3_vs_ERBB2.png
     document.getElementById('plot_description').innerHTML = 'ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))'; 
-	}
+    }
   else
     {
     document.getElementById("plot_image").src = '';
     document.getElementById('plot_description').innerHTML = 'No plot available';
-	}
+    }
   }
 </script>
 

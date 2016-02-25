@@ -42,19 +42,20 @@ def get_drivers(request):
 
 def results(request):
     # For building the filter, see: http://www.nomadjourney.com/2009/04/dynamic-django-queries-with-kwargs/ 
+    request_method = request.method # 'POST' or 'GET'
     kwargs = {'wilcox_p__lte': 0.05} 
-    driver = Gene.objects.get(gene_name=request.POST['driver'])
+    driver = Gene.objects.get(gene_name=request.POST.get('driver')) # POST.get('..') will return a None if the 'driver' isn't in the post from the form. Could specify a default to get(.., default)
     kwargs['driver'] = driver
-    if request.POST['histotype'] != "ALL_HISTOTYPES":
-      # histotype = Histotype.objects.get(histotype=request.POST['histotype'])  # if using separate Histotype database table 
-      histotype = request.POST['histotype']   # When using the "choices" field.
+    if request.POST.get('histotype') != "ALL_HISTOTYPES":
+      # histotype = Histotype.objects.get(histotype=request.POST.get('histotype'))  # if using separate Histotype database table 
+      histotype = request.POST.get('histotype')   # When using the "choices" field.
       kwargs['histotype'] = histotype
       histotype_full_name = Dependency.histotype_full_name(histotype)
     else:
       histotype = "ALL_HISTOTYPES"
       histotype_full_name = "All histotypes"
-    if request.POST['study'] != "ALL_STUDIES":
-      study = Study.objects.get(pmid=request.POST['study'])
+    if request.POST.get('study') != "ALL_STUDIES":
+      study = Study.objects.get(pmid=request.POST.get('study'))
       kwargs['study'] = study
     else: study = "ALL_STUDIES"
     # Instead of using the kwargs above, can just use (as the queries are lazy and aren't evaluated until query os finally run): https://docs.djangoproject.com/es/1.9/topics/db/queries/
@@ -68,7 +69,7 @@ def results(request):
     dependency_list = Dependency.objects.filter(**kwargs).order_by('wilcox_p')
 	   # was: order_by('target__gene_name'). 
 	   # Only list significant hits (ie: p<=0.05)  but adding: wilcox_p<0.05 gives error "positional argument follows keyword argument"
-       # was: study__pmid=request.POST['study']
+       # was: study__pmid=request.POST.get('study')
        # [:20] use: 'target__gene_name' instead of 'target.gene_name'
     context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study}
     return render(request, 'gendep/results.html', context)
