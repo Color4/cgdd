@@ -3,12 +3,14 @@
 {# For defining template blocks see: https://docs.djangoproject.com/en/1.9/ref/templates/language/ #}
 {% block links %}
 {# Links to jQuery and jQuery-UI google hosted libraries for the autocomplete search box: #}
-  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
-  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
-  <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-  <!-- Add fancyBox, which also uses the above jquery -->
-  <link rel="stylesheet" href="{% static 'fancybox/source/jquery.fancybox.css?v=2.1.5' %}" type="text/css" media="screen" />
-  <script type="text/javascript" src="{% static 'fancybox/source/jquery.fancybox.pack.js?v=2.1.5' %}"></script>
+
+<!-- Add jQuery library -->
+<script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js"></script>
+
+<!-- Add fancyBox -->
+<link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" media="screen" />
+<script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>
+
 {% endblock %}
 {% block scripts %}
 <style type="text/css">
@@ -107,7 +109,7 @@ style="border-bottom: 1px solid #ddd;"
         {% endcomment %}
 		<!-- Now using flashbox: -->
 		<!--  Note: ID's are single use and are only applied to one element. Galleries are created from elements who have the same "data-fancybox-group" or "rel" attribute value.   Use `title` or `data-fancybox-title` attribute to specify item caption. -->
-		<a class="fancybox" rel="group" href="{% static 'gendep/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}.png" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}">{{ dependency.target.gene_name }}</a></td>
+		<a class="fancybox" rel="group" href="{% static 'gendep/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}.png" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}" data-fancybox-title="ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))" >{{ dependency.target.gene_name }}</a></td>
         <td>{{ dependency.wilcox_p }}</td>
         <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.pmid }}</a></td>
         <td>{{ dependency.get_histotype_display }}</td>

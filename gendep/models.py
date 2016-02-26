@@ -25,11 +25,8 @@ class Gene(models.Model):
         return self.gene_name
     def prev_names_and_synonyms_spaced(self):
         # To dispay in the template for the driver search box, as cant use functions that have arguments in the template (unless use extra custom template tgs)
-        spaced_names = ''
-        prev_names_spaced = '' if self.prev_names == '' else self.prev_names.replace('|',' | ')
-        
-        return prev_names_spaced + self.synonyms.replace('|',' | ')
-
+        prev_names_and_synonyms = self.prev_names + ('' if self.prev_names == '' or self.synonyms == '' else ' | ') + self.synonyms
+        return prev_names_and_synonyms.replace('|',' | ')
         
 
 # Links to the research study papers:
