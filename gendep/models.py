@@ -31,11 +31,17 @@ class Gene(models.Model):
 
 # Links to the research study papers:
 class Study(models.Model):
+    EXPERIMENTTYPE_CHOICES = (
+    ('kinome siRNA', 'kinome siRNA'),
+    ('genome-wide shRNA', 'genome-wide shRNA'),
+    )
     class Meta:
         verbose_name_plural = "Studies" # Otherwise the Admin page just adds a 's', ie. 'Studies'
     pmid        = models.CharField('PubMed ID', max_length=30, primary_key=True, db_index=True)   # help_text="Please use the following format: <em>YYYY-MM-DD</em>."
+    short_name  = models.CharField('Short Name', max_length=50) # eg. 'Campbell, J. 2014'
     title       = models.CharField('Title', max_length=250)
     authors     = models.TextField('Authors')
+    experiment_type = models.CharField('Experiment type', max_length=20, choices=EXPERIMENTTYPE_CHOICES, db_index=True)
     description = models.TextField('Description')
     summary     = models.TextField('Summary') # Short summary line to use on the results table
     journal     = models.CharField('Journal', max_length=100)

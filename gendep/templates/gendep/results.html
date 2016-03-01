@@ -35,7 +35,7 @@ function show_plot(driver,target)
     {
     // Should use { % static .... % } below in future:
     // document.getElementById("plot_image").src = '../static/gendep/' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
-    document.getElementById("plot_image").src = '{% static 'gendep/' %}' + driver + '_' + target + '.png'; // eg: MAP2K3_vs_ERBB2.png
+    document.getElementById("plot_image").src = '{% static 'gendep/boxplots/' %}' + driver + '_' + target + '.png'; // eg: MAP2K3_vs_ERBB2.png
     document.getElementById('plot_description').innerHTML = 'ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))'; 
     }
   else
@@ -99,7 +99,7 @@ style="border-bottom: 1px solid #ddd;"
 {% if dependency_list %}
 <p style="font-size: 75%;">For Driver 'ERBB2': Click the 'MAP2K3' dependency to display the box plot at bottom of this table.</p>
   <table class=tabler>
-    <tr><th>Dependency</th><th>P-value</th><th>PubMed ID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Details</th></tr>
+    <tr><th>Dependency</th><th>P-value</th><th>PubMed ID</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Type</th></tr>
     {% for dependency in dependency_list %}
     <tr> 
         <td>
@@ -109,12 +109,12 @@ style="border-bottom: 1px solid #ddd;"
         {% endcomment %}
 		<!-- Now using flashbox: -->
 		<!--  Note: ID's are single use and are only applied to one element. Galleries are created from elements who have the same "data-fancybox-group" or "rel" attribute value.   Use `title` or `data-fancybox-title` attribute to specify item caption. -->
-		<a class="fancybox" rel="group" href="{% static 'gendep/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}.png" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}" data-fancybox-title="ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))" >{{ dependency.target.gene_name }}</a></td>
+		<a class="fancybox" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}.png" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}" data-fancybox-title="ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))" >{{ dependency.target.gene_name }}</a></td>
         <td>{{ dependency.wilcox_p }}</td>
-        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.pmid }}</a></td>
+        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.sort_name }}</a></td>
         <td>{{ dependency.get_histotype_display }}</td>
         <td></td>
-        <td>{{ dependency.study.summary }}</td>
+        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.summary }}" target="_blank">{{ dependency.study.experiment_type }}</a></td>
     </tr>
     {% endfor %}
   </table>

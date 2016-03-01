@@ -1,37 +1,112 @@
 {% extends 'gendep/base.html' %}
+{% load staticfiles %}
+{# For defining template blocks see: https://docs.djangoproject.com/en/1.9/ref/templates/language/ #}
 {% block links %}
-{# Links to jQuery and jQuery-UI google hosted libraries for the autocomplete search box: #}
+{# jQuery: #}
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+  <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
+ {# and jQuery-UI google hosted libraries for the autocomplete search box: #}
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+{# Fancybox: #}
+  <link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" media="screen" />
+  <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>
 {% endblock %}
 {% block scripts %}
+<style type="text/css">
+    .jsAction {
+        cursor: pointer;
+        color: #00f;
+        text-decoration: underline;
+    }
+</style>
+
 <script type="text/javascript">
-// Using a preloaded array gives faster response than AJAX call.
+
+// Using this preloaded array gives faster response than AJAX call - but in future the driver list may grow too big to preload quickly.
 // The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
 var driver_array = [
    {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
    {% endfor %}
 ];
 
-$(function() {
-  $("#driver").autocomplete({
-    // source: "/api/get_drivers/",   // to use Ajax call.
-    source: driver_array,  // using the above array.
-    // It is possible to format the list items using the focus and select functions and html, etc:	
-    minLength: 0,  // number of letters need to type for drop-down menu to appear.
-    delay: 1,  // 1 millisecond delay.
-    autoFocus: true,
-  }).autocomplete( "instance" )._renderItem = function( ul, item ) {
+
+$(document).ready(function() {
+
+    $(".fancybox").fancybox();
+
+var result_start = "1"; // For now
+    // From: http://www.tutorialspoint.com/jquery/jquery-ajax.htm
+    $("#search_button").click(function(event){
+       if ( ! is_form_complete() ) {return false;}
+       var driver = $("#driver").val();
+       var histotype = $("#histotype").val();
+       var study = $("#study").val();
+       result_start = "1";
+       var numrows = "25"; // Max rows to return for now
+       $("#result_table").load("{% url 'gendep:ajax_results' %}", {"driver":driver, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',}); // Appends the returned html data to this id.
+    });
+    // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
+
+
+    $("#driver").autocomplete({
+        // source: "/api/get_drivers/",   // to use Ajax call.
+        source: driver_array,  // using the above array.
+        // It is possible to format the list items using the focus and select functions and html, etc:	
+        minLength: 2,  // number of letters need to type for drop-down menu to appear.
+        delay: 1,  // 1 millisecond delay.
+        autoFocus: true,
+    }).autocomplete( "instance" )._renderItem = function( ul, item ) {
         return $( "<li>" )
             .append( "<a><b>" + item.value + "</b> | " + item.synonyms_spaced + '<br/><font size="-2">' + item.full_name + "</font></a>" )
             .appendTo( ul );
     };
-    // It is possible to add more customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
+    // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
 
+{% comment %}
+// ===== AJAX test start ===
+/*
+// Another method: from: http://jsfiddle.net/neerajkumarsingh/tqyn3/
+$(document).ready(function() {
+            $("#driver").click(function(event){
+				
+               $.getJSON('/jquery/result.json', function(jd) {
+                  $('#stage').html('<p> Name: ' + jd.name + '</p>');
+                  $('#stage').append('<p>Age : ' + jd.age+ '</p>');
+                  $('#stage').append('<p> Sex: ' + jd.sex+ '</p>');
+               });
+					
+            });
+         });
+*/
+// ===========
 
-function is_form_valid() {
+
+
+/*
+// Another method
+var jsonData = '[{"rank":"9","content":"Alon","UID":"5"},{"rank":"6","content":"Tala","UID":"6"}]';
+
+$.ajax({
+    url: '/echo/json/',
+    type: 'POST',
+    data: {
+        json: jsonData
+    },
+    success: function (response) {
+        var trHTML = '';
+        $.each(response, function (i, item) {
+            trHTML += '<tr><td>' + item.rank + '</td><td>' + item.content + '</td><td>' + item.UID + '</td></tr>';
+        });
+        $('#records_table').append(trHTML);
+    }
+});
+*/
+// ===== AJAX test end ===
+{% endcomment %}
+
+function is_form_complete() {
   // As the autocomplete form permits text that doesn't match any driver:
   var d = document.getElementById("driver").value;
   if (d == null || d == "") {
@@ -49,66 +124,80 @@ function is_form_valid() {
   if (found == false) {alert("Driver gene value: '"+d+"' doesn't match any drivers in the list. Please select a driver gene.");}
   return found;
   }; 
+
+
+
 </script>
+
+<style type="text/css">
+	.fancybox-custom .fancybox-skin {
+		box-shadow: 0 0 50px #222;
+	}
+</style>
 {% endblock %}
 {% block content %}
-<p> &nbsp; </p>
 
-<form action="{% url 'gendep:results' %}" onsubmit="return is_form_valid();" method="post">
-{% csrf_token %}
    
-<table align="center" cellpadding="2" style="background-color: #ddddff; border: 1px solid blue;">
-<tr><td colspan="2" style="text-align: center;">Specify your search filter</td></tr>
+<table align="center" cellpadding="5" style="background-color: #ddddff; border: 1px solid blue;">
+<tr><td colspan="3" style="text-align: center;">Specify your search filter</td></tr>
 
-<tr><td>
-  <label for="driver">Driver gene: </label>
-</td> <td>
-<!-- div class="ui-widget" -->
-  <input name="driver" id="driver" required>
-<!-- /div -->
-</td></tr>
-
-{% comment %}
-<!-- Old menu which can remove later if the above ui-autocomplete keeps working -->
-<tr><td>Driver gene:</td>
+<tr>
 <td>
-   <select name="driver" id="driver">
-      <option value="" selected="selected"></option>
-   {% for driver in driver_list %}
-      <option value="{{driver.gene_name}}">{{driver.gene_name}} {{driver.full_name}} {{driver.synonyms}} {{driver.prev_names}}</option>
-   {% endfor %}
-   </select>
-</td></tr>
-{% endcomment %}   
+  <label for="driver">Driver gene:</label></br>
+  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" required>
+</td>
 
-<tr><td>Tissue type:</td>
-<td>
+<td><label for="histotype">Tissue type:</label><br/>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype">
       <option value="ALL_HISTOTYPES">All histotypes</option>
 	{% for histotype in histotype_list %}
-	{% comment %}
-      <option value="{{ histotype.histotype }}" {% if histotype.histotype == "PANCAN" %} selected="selected" {% endif %}>{{ histotype.full_name }}</option>
-	{% endcomment %}  
 	  <option value="{{ histotype.0 }}" {% if histotype.0 == "PANCAN" %} selected="selected" {% endif %}>{{ histotype.1 }}</option>  
 	{% endfor %}
    </select>
-   
-</td></tr>
+</td>
 
-<tr><td>Study:</td>
-<td>
+<td>Study:<br/>
    <select name="study" id="study">
       <option value="ALL_STUDIES" selected="selected">All studies</option>
 	{% for study in study_list %}
-	  <option value="{{ study.pmid }}">{{ study.pmid }} {{ study.title}}</option>
+	  <option value="{{ study.pmid }}">{{ study.short_name }}</option>  {# Maybe add: study.title #}
 	{% endfor %}
    </select>
-</td></tr>
-<tr><td colspan="2" align="center">
-   <input type="submit" value="Search" />
-</td></tr>
+</td>
+
+<td><input type="submit" value="Search" id="search_button"/></td>
+</tr>
 
 </table>
-</form>
+
+<p> &nbsp; </p>
+<div id = "result_table"></div>
+
+
 {% endblock %}
+
+{% comment %}
+Old code:
+function show_plot(driver,target)
+  {
+  document.getElementById('plot_title').innerHTML = '<b>' + target + ' vs ' + driver + '</b>'; 
+  if (driver=='ERBB2' && target=='MAP2K3')
+    {
+    // Should use { % static .... % } below in future:
+    // document.getElementById("plot_image").src = '../static/gendep/' + target + '_vs_' + driver + '.png'; // eg: MAP2K3_vs_ERBB2.png
+    document.getElementById("plot_image").src = '{% static 'gendep/boxplots/' %}' + driver + '_' + target + '.png'; // eg: MAP2K3_vs_ERBB2.png
+    document.getElementById('plot_description').innerHTML = 'ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))'; 
+    }
+  else
+    {
+    document.getElementById("plot_image").src = '';
+    document.getElementById('plot_description').innerHTML = 'No plot available';
+    }
+  }
+
+</td></tr><tr><td align="center">
+<p id="plot_title"></p>
+<img id="plot_image"/>
+<p id="plot_description" style="font-size: 95%;"></p>
+{% endcomment%}

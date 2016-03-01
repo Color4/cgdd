@@ -27,8 +27,8 @@ django.setup()
 
 from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
 
-def add_study(pmid, title, authors, description, summary, journal, pub_date):
-  s, created = Study.objects.get_or_create( pmid=pmid, defaults={'title': title, 'authors': authors, 'description': description, 'summary': summary, 'journal': journal, 'pub_date': pub_date} )
+def add_study(pmid, short_name, title, authors, description, summary, experiment_type, journal, pub_date):
+  s, created = Study.objects.get_or_create( pmid=pmid, defaults={'short_name': short_name, 'title': title, 'authors': authors, 'description': description, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
   return s
 
 
@@ -196,10 +196,12 @@ if __name__ == "__main__":
   load_hgnc_dictionary()
   
   study_pmid = "Pending_0001"
+  study_short_name = "Campbell J, 2016 in review"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
   study_authors = "James Campbell, Colm J. Ryan, Rachel Brough, Ilirjana Bajrami, Helen Pemberton, Irene Chong, Sara Costa-Cabral,Jessica Frankum, Aditi Gulati, Harriet Holme, Rowan Miller, Sophie Postel-Vinay, Rumana Rafiq, Wenbin Wei,Chris T Williamson, David A Quigley, Joe Tym, Bissan Al-Lazikani, Timothy Fenton, Rachael Natrajan, Sandra Strauss, Alan Ashworth and Christopher J Lord"
   study_description = "Summary: One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."
   study_summary = "siRNA screen of 714 kinase and kinase-related genes in 117 different tumor cell lines"
+  experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
   study_pub_date = "2016"
   
@@ -209,7 +211,7 @@ if __name__ == "__main__":
     print("\nEmptying database tables")
     for table in (Dependency, Study, Gene, Drug): table.objects.all().delete()  # removed: Histotype,
 
-    study=add_study( study_pmid, study_title, study_authors, study_description, study_summary, study_journal, study_pub_date)
+    study=add_study( study_pmid, study_short_name, study_title, study_authors, study_description, study_summary, experiment_type, study_journal, study_pub_date)
   
     for table_name in ('S1I', 'S1K'):
       csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
