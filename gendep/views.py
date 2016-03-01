@@ -5,6 +5,12 @@ from .models import Study, Gene, Dependency  # Removed: Histotype,
 import json # For ajax for the jquery autocomplete search box
 import math # For ceil()
 
+# This django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
+#import logging
+#logger = logging.getLogger(__name__)
+#def log(): logger.debug("this is a debug message!")
+#def log_error(): logger.error("this is an error message!!")
+
 
 def index(request): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
@@ -49,6 +55,22 @@ def get_drivers(request):
     mimetype = 'application/json'
     return HttpResponse(data, mimetype)
 
+def gene_external_links(gene, div):
+    # gene is a row in the Gene table
+    # Building these links here, rather than in template as are used twice in the template:
+    links  = '<a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene=%s" title="Genecards" target="_blank">GeneCards</a> ' %(gene.gene_name)
+    links += div+' <a href="http://www.ncbi.nlm.nih.gov/gene/%s" title="Entrez Gene at NCBI" target="_blank">Entrez</a> ' %(gene.entrez_id)
+    links += div+' <a href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" title="Ensembl Gene" target="_blank">Ensembl</a> ' %(gene.ensembl_id)
+    links += div+' <a href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" title="Vertebrate Genome Annotation" target="_blank">Vega</a> ' %(gene.vega_id)
+    links += div+' <a href="http://www.omim.org/entry/%s" title="Online Mendelian Inheritance in Man" target="_blank">OMIM</a> ' %(gene.omim_id)
+    links += div+' <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" title="HUGO Gene Nomenclature Committee" target="_blank">HGNC</a> ' %(gene.hgnc_id)
+    links += div+' <a href="http://www.cancerrxgene.org/translation/Search?query=%s" title="CancerRxGene search" target="_blank">CancerRxGene</a> ' %(gene.gene_name)
+    links += div+' <a href="http://www.cbioportal.org/ln?q=%s" title="cBioPortal for Cancer Genomics" target="_blank">cBioPortal</a> ' %(gene.gene_name)
+    links += div+' <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" title="Catalogue of Somatic Mutations in Cancer" target="_blank">COSMIC</a> ' %(gene.gene_name)
+    links += div+' <a href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" title="CanSAR" target="_blank">CanSAR</a>' %(gene.uniprot_id)
+    # log(links)
+    return links
+
 
 def ajax_results(request):
     # View for the dependency search result table.
@@ -64,6 +86,8 @@ def ajax_results(request):
     # driver = None if driver == '' else Gene.objects.get(gene_name=driver)
     driver = Gene.objects.get(gene_name=driver)
     if driver is None: return HttpResponse('Driver NOT found in Gene table', mimetype)
+    gene_weblinks = gene_external_links(driver, '|')
+
     # As Query Sets are lazy, so can build query and evaluated once at end:
     q = Dependency.objects.filter(wilcox_p__lte=0.05)
     q = q.filter( driver = driver )  # q = q.filter( driver__gene_name = driver )
@@ -102,7 +126,7 @@ def ajax_results(request):
     page_num = 1 + int(slice_start/numrows) # eg. At start=1, page=1+(1-1)/20 =1; At start=21, page=1+(21-1)/20 =2
     max_pages = math.ceil( max_rows_in_query/numrows )
 
-    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study, 'start': start, 'numrows': numrows, 'page_num': page_num, 'max_pages': max_pages, 'current_url': current_url}
+    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'start': start, 'numrows': numrows, 'page_num': page_num, 'max_pages': max_pages, 'current_url': current_url}
     return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
         # Expects back the columns in the results table. 

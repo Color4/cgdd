@@ -10,10 +10,19 @@
 import os, csv
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
+from distutils import file_util  # Single file operations, eg: copy_file()
+
+FETCH_BOXPLOTS = False
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
 # sys.path.append(PROJECT_DIR)
+
+# Paths to extract the boxplots images produced by R:
+analysis_dir = "198_boxplots_for_Colm/analyses/"
+combined_boxplots_dir = os.path.join(analysis_dir, "combined_histotypes")
+separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes")
+
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
 
@@ -26,6 +35,21 @@ django.setup()
 
 
 from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
+
+
+def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_name,target_name, old_histotype, histotype, old_pmid, pmid):
+  from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, old_target_name, old_histotype, old_pmid)
+  to_filename   = "%s/%s_%s_%s__PMID%s.png" %(to_dir, driver_name, target_name, histotype, pmid)
+  # currently the pmid is: nnnnnnnn
+#  if histotype == "PANCAN": 
+#    fromfilename = "combined_boxplots_dir/%s_%s_allhistotypes__PMID%s.png" %(driver, target, pmid)  # eg: ABCB1_ALPK3_allhistotypes__PMIDnnnnnnnn.nng   or: ERBB2_MAP2K3_allhistotypes__PMIDnnnnnnnn or: ERBB2_C8orf44.SGK3_allhistotypes__PMIDnnnnnnnn
+#    tofilename = %s_%s_allhistotypes__PMID%s.png" %(driver, target, pmid)
+#  else:
+#    fromfilename = "separate_boxplots_dir/%s_%s_%s__PMID%s.png" %(driver, target, histotype, pmid)  # eg: AKT2_ACVR1_LUNG__PMIDnnnnnnnn.png  or: ERBB2_MAP3K2_BREAST__PMIDnnnnnnnn
+    #  or: filename = driver + "_" + target + "_" + histotype + "_" + "_PMIDnnnnnnnn.png"
+  # print( from_filename, " ====> ", to_filename)
+  file_util.copy_file(from_filename, to_filename, preserve_mode=1, preserve_times=1, update=1, dry_run=0) 
+
 
 def add_study(pmid, short_name, title, authors, description, summary, experiment_type, journal, pub_date):
   s, created = Study.objects.get_or_create( pmid=pmid, defaults={'short_name': short_name, 'title': title, 'authors': authors, 'description': description, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
@@ -89,14 +113,17 @@ def load_hgnc_dictionary():
       hgnc[gene_name] = row # Store the whole row for simplicity. 
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
       
+def fix_gene_name(name):
+  if   name == 'C8orf44.SGK3': return 'C8orf44-SGK3'  # as is hghc: 48354
+  elif name == 'CTB.89H12.4':  return 'CTB-89H12.4'
+  elif name == 'RP11.78H18.2': return 'RP11-78H18.2'
+  elif name == 'C9orf96':      return 'STKLD1' # as C9orf96 is the old name.
+  else: return name
 
 
 def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entrez_id, ensembl_id
-  if   names[0]=='C8orf44.SGK3': names[0]='C8orf44-SGK3'  # as is hghc: 48354
-  elif names[0]=='CTB.89H12.4':  names[0]='CTB-89H12.4'
-  elif names[0]=='RP11.78H18.2': names[0]='RP11-78H18.2'
-  elif names[0]=='C9orf96':      names[0]='STKLD1' # as C9orf96 is the old name.
-
+  original_name = names[0]
+  names[0] = fix_gene_name(names[0])
   name = names[0]
 
   try:
@@ -115,7 +142,7 @@ def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entre
   except ObjectDoesNotExist: # Not found by the objects.get()
     if name not in hgnc:
       print("WARNING: Gene '%s' NOT found in HGNC dictionary" %(name) )
-      g = Gene.objects.create(gene_name=name, is_driver=is_driver, entrez_id=names[1], ensembl_id=names[2])
+      g = Gene.objects.create(gene_name=name, original_name = original_name, is_driver=is_driver, entrez_id=names[1], ensembl_id=names[2])
     else:  
       this_hgnc = hgnc[name] # cache in a local variable to simplify code and reduce lookups.
       if names[1] != '' and names[1] != this_hgnc[ientrez_id]:
@@ -126,6 +153,7 @@ def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entre
         this_hgnc[iensembl_id] = names[2]  # So change it to use the one from the Excel file.
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
       g = Gene.objects.create(gene_name  = name,         # hgnc[name][ihgnc['symbol']]  eg. ERBB2
+               original_name = original_name,
                is_driver  = is_driver,
                full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
                synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
@@ -148,10 +176,26 @@ def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entre
     
   return g
 
+def get_boxplot_histotype(histotype):
+    # As the R scripts used some different tissue names
+    if   histotype == "PANCAN": return "allhistotypes"
+    elif histotype == "OSTEOSARCOMA": return "BONE"
+    # elif histotype == "BREAST": return "BREAST",
+    # elif histotype == "LUNG": return "LUNG",
+    # elif histotype == "": return "HEADNECK",
+    # elif histotype == "": return "PANCREAS",
+    # elif histotype == "": return "CERVICAL",
+    # elif histotype == "OVARY": return "OVARY",
+    # elif histotype == "OESOPHAGUS": return "OESOPHAGUS",
+    # elif histotype == "": return "ENDOMETRIUM",
+    # elif histotype == "": return "CENTRAL_NERVOUS_SYSTEM"
+    else: return histotype
 
-
-def import_data_from_tsv_table(csv_filepathname, table_name, study):
+def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid):
+  global FETCH_BOXPLOTS
   print("\nImporting table: ",csv_filepathname)
+  print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
+
   dataReader = csv.reader(open(csv_filepathname), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   
   count_added = 0
@@ -180,7 +224,15 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study):
     d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], histotype=histotype, mutation_type=mutation_type, study=study)
     # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
     dependencies.append( d )
-    
+
+
+    # Fetch the boxplot:
+    if FETCH_BOXPLOTS:
+      from_dir = combined_boxplots_dir if row[3] == "PANCAN" else separate_boxplots_dir
+      to_dir = "gendep/static/gendep/boxplots"
+      old_histotype = get_boxplot_histotype(histotype)
+      fetch_boxplot(from_dir, to_dir, driver_gene.original_name, driver_gene.gene_name, target_gene.original_name, target_gene.gene_name, old_histotype, histotype,  study_old_pmid, study.pmid)
+
     print("\r",count_added, end=" ")
     count_added += 1
   
@@ -195,7 +247,7 @@ if __name__ == "__main__":
 
   load_hgnc_dictionary()
   
-  study_pmid = "Pending_0001"
+  study_pmid = "Pending001"
   study_short_name = "Campbell J, 2016 in review"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
   study_authors = "James Campbell, Colm J. Ryan, Rachel Brough, Ilirjana Bajrami, Helen Pemberton, Irene Chong, Sara Costa-Cabral,Jessica Frankum, Aditi Gulati, Harriet Holme, Rowan Miller, Sophie Postel-Vinay, Rumana Rafiq, Wenbin Wei,Chris T Williamson, David A Quigley, Joe Tym, Bissan Al-Lazikani, Timothy Fenton, Rachael Natrajan, Sandra Strauss, Alan Ashworth and Christopher J Lord"
@@ -204,8 +256,9 @@ if __name__ == "__main__":
   experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
   study_pub_date = "2016"
-  
-  
+  study_old_pmid = "nnnnnnnn" # This is te ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
+
+ 
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
     print("\nEmptying database tables")
@@ -215,5 +268,5 @@ if __name__ == "__main__":
   
     for table_name in ('S1I', 'S1K'):
       csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
-      import_data_from_tsv_table(csv_filepathname,table_name,study)
+      import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid)
   # transaction.commit() # just needed if used "transaction.set_autocommit(False)"

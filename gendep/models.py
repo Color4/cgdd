@@ -3,6 +3,7 @@ from django.db import models
 # Information about each gene:
 class Gene(models.Model):
     gene_name   = models.CharField('Gene name', max_length=10, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
+    original_name = models.CharField('Original name', max_length=30) # As some names are changed, especially needed for the other studies.
     is_driver   = models.BooleanField('Is driver', db_index=True) # So will know for search menus which to list in the dropdown menu
     full_name   = models.CharField('Full name', max_length=200)
     ensembl_id  = models.CharField('Ensembl Id', max_length=20, blank=True) # Ensembl
