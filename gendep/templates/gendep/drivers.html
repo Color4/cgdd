@@ -1,0 +1,16 @@
+{% extends 'gendep/base.html' %}
+{% load staticfiles %}
+{% block content %}
+<b>Details of driver genes investigated</b>
+<table align="center" cellpadding="5" width="80%" border: 1px solid blue;">
+<tr><th>Driver gene</th><th>Synonyms</th><th>Full name</th><th>External links</th></tr>
+{% for driver in driver_list %}
+<tr>
+<td>driver.gene_name</td>
+<td>driver.prev_names_and_synonyms_spaced</td>
+<td>driver.full_name</td>
+<td>driver.external_links</td>
+</tr>
+{% endfor %}
+</table>
+{% endblock%}
