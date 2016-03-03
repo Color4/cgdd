@@ -5,7 +5,7 @@
 <p>Study: {% if study == "ALL_STUDIES" %} All studies {% else %} <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a> "{{ study.title }}", {{ study.authors|slice:":30" }} et al, {{ study.journal }}, {{ study.pub_date }} {% endif %} </p>
 
 <p><b>Driver Gene: {{ driver.gene_name }}</b></p>
-<p><u>Synonyms:</u> {{ driver.synonyms }} {{ driver.prev_names }}</p>
+<p><u>Synonyms:</u> {{ driver.prev_names_and_synonyms_spaced }}</p>
 <p><u>Gene Descripion:</u> {{ driver.full_name }}</p>
 <p><u>External links:</u> {{ gene_weblinks|safe }}</p>
 
@@ -21,22 +21,21 @@
 {% if dependency_list %}
 <p style="font-size: 75%;">For Driver 'ERBB2': Click the 'MAP2K3' dependency to display the box plot at bottom of this table.</p>
   <table class=tabler>
-    <tr><th>Dependency</th><th>P-value</th><th>Study + PubMedId</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Type</th></tr>
+    <tr><th>Dependency</th><th>P-value</th><th>Study</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Type</th></tr>
     {% for dependency in dependency_list %}
     <tr> 
         <td>
-
-		<a class="fancybox" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}.png" title="{{ dependency.target.full_name }}, {{ dependency.target.synonyms }} {{ dependency.target.prev_names }}" data-fancybox-title='ERBB2 mutant cell lines have an increased dependency upon MAP2K3 (p=10-4 | Tissues=muliple | Source=Campbell et al (2015))<br/>{{ gene_weblinks|safe }}'>{{ dependency.target.gene_name }}</a></td>
+		<a class="fancybox tip" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}_{{ dependency.histotype }}__PMID{{ dependency.study.pmid }}.png" data-fancybox-width="1000" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> mutant cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b> (p={{ dependency.wilcox_p }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/>{{ dependency.driver.gene_name }} links: {{ gene_weblinks|safe }}<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links|safe }}'>{{ dependency.target.gene_name }}<span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
 
         <td>{{ dependency.wilcox_p }}</td>
 
-        <td><a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.short_name }} {{ dependency.study.pmid }}</a></td>
+        <td>{{ dependency.study.weblink|safe }}</td>
 
         <td>{{ dependency.get_histotype_display }}</td>
 
         <td></td>
 
-        <td><a href='#' title="{{ dependency.study.summary }}" target="_blank">{{ dependency.study.experiment_type }}</a></td>
+        <td><a href="#" class="tip">{{ dependency.study.experiment_type }}<span>{{ dependency.study.summary }}</span></a></td>
     </tr>
     {% endfor %}
   </table>

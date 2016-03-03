@@ -10,16 +10,25 @@
   {% block scripts %}{% endblock %}
 </head>
 <body>
+
+<p align="center">
+<a href="{% url 'gendep:home' %}">Home/Search</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:about' %}">About</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:drivers' %}">Driver genes</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:studies' %}">Studies</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:contact' %}">Contact</a></p>
+<hr/>
+
 <h1 style="text-align: center;">Database of Genetic Dependencies in Cancer</h1>
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
 {% block content %}{% endblock %}
 <p> &nbsp; </p>
 <hr/>
 <p align="center">
-<a href="http://www.ucd.ie/sbi/" title="Systems Biology Ireland"><img src="{% static 'gendep/images/SBI-logo-138w79h.png' %}"></a> 
-&nbsp; <a href="http://www.ucd.ie/" title="University College Dublin"><img src="{% static 'gendep/images/UCD_maincore_logo.png' %}"></a>
-&nbsp; <a href="http://www.icr.ac.uk/" title="The Institute of cancer Research"><img src="{% static 'gendep/images/ICR_logo.png"></a>
-&nbsp; <a href="https://www.broadinstitute.org/achilles" title="Project Achilles at the Broad Institute"><img src="{% static 'gendep/images/project_achilles_logo.png %}"></a>
+<a href="http://www.ucd.ie/sbi/" title="Systems Biology Ireland"><img src="{% static 'gendep/images/SBI-logo-138w79h.png' %}" /></a> 
+&nbsp; &nbsp; <a href="http://www.ucd.ie/" title="University College Dublin"><img src="{% static 'gendep/images/UCD_maincore_logo.png' %}" /></a>
+&nbsp; &nbsp; <a href="http://www.icr.ac.uk/" title="The Institute of cancer Research"><img src="{% static 'gendep/images/ICR_logo.png' %}" width="235" height="45" /></a>
+&nbsp; &nbsp; <a href="https://www.broadinstitute.org/achilles" title="Project Achilles at the Broad Institute"><img src="{% static 'gendep/images/project_achilles_logo.png' %}" /></a>
 </p>
 </body>
 </html>

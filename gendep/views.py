@@ -55,22 +55,6 @@ def get_drivers(request):
     mimetype = 'application/json'
     return HttpResponse(data, mimetype)
 
-def gene_external_links(gene, div):
-    # gene is a row in the Gene table
-    # Building these links here, rather than in template as are used twice in the template:
-    links  = '<a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene=%s" title="Genecards" target="_blank">GeneCards</a> ' %(gene.gene_name)
-    links += div+' <a href="http://www.ncbi.nlm.nih.gov/gene/%s" title="Entrez Gene at NCBI" target="_blank">Entrez</a> ' %(gene.entrez_id)
-    links += div+' <a href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" title="Ensembl Gene" target="_blank">Ensembl</a> ' %(gene.ensembl_id)
-    links += div+' <a href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" title="Vertebrate Genome Annotation" target="_blank">Vega</a> ' %(gene.vega_id)
-    links += div+' <a href="http://www.omim.org/entry/%s" title="Online Mendelian Inheritance in Man" target="_blank">OMIM</a> ' %(gene.omim_id)
-    links += div+' <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" title="HUGO Gene Nomenclature Committee" target="_blank">HGNC</a> ' %(gene.hgnc_id)
-    links += div+' <a href="http://www.cancerrxgene.org/translation/Search?query=%s" title="CancerRxGene search" target="_blank">CancerRxGene</a> ' %(gene.gene_name)
-    links += div+' <a href="http://www.cbioportal.org/ln?q=%s" title="cBioPortal for Cancer Genomics" target="_blank">cBioPortal</a> ' %(gene.gene_name)
-    links += div+' <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" title="Catalogue of Somatic Mutations in Cancer" target="_blank">COSMIC</a> ' %(gene.gene_name)
-    links += div+' <a href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" title="CanSAR" target="_blank">CanSAR</a>' %(gene.uniprot_id)
-    # log(links)
-    return links
-
 
 def ajax_results(request):
     # View for the dependency search result table.
@@ -86,7 +70,7 @@ def ajax_results(request):
     # driver = None if driver == '' else Gene.objects.get(gene_name=driver)
     driver = Gene.objects.get(gene_name=driver)
     if driver is None: return HttpResponse('Driver NOT found in Gene table', mimetype)
-    gene_weblinks = gene_external_links(driver, '|')
+    gene_weblinks = driver.external_links('|')
 
     # As Query Sets are lazy, so can build query and evaluated once at end:
     q = Dependency.objects.filter(wilcox_p__lte=0.05)
@@ -190,6 +174,27 @@ def results(request):
 def graph(request, target_id):
     requested_target = get_object_or_404(Dependency, pk=target_id)
     return render(request, 'gendep/graph.html', {'target': requested_target})
+
+def show_study(request, pmid):
+    requested_study = get_object_or_404(Study, pk=pmid)
+    # requested_study = get_object_or_404(Study, pk='Pending001') # Temportary for now.
+    return render(request, 'gendep/study.html', {'study': requested_study})
+
+def about(request):
+    return render(request, 'gendep/about.html')
+
+def drivers(request):
+    driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+    context = {'driver_list': driver_list}
+    return render(request, 'gendep/drivers.html')
+
+def studies(request):
+    study_list = Study.objects.order_by('pmid')
+    context = {'study_list': study_list}
+    return render(request, 'gendep/studies.html', context)
+
+def contact(request):
+    return render(request, 'gendep/contact.html')
 
 
 #def graph(request, driver_name):

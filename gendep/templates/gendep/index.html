@@ -31,9 +31,75 @@ var driver_array = [
 ];
 
 
+//         'height': 800,
+//        width: 1000,
+//        'autoSize': false,
+//        'autoDimensions': false,
+//        'hideOnContentClick': false,
+
+
+//        'helpers': {
+//            'title': {
+//                'type': 'inside'
+//            },
+//            'overlay': {
+//                'showEarly': false
+//            }
+//        }
+// fitToView: false, // add this
+
 $(document).ready(function() {
 
-    $(".fancybox").fancybox();
+    $(".fancybox").fancybox({
+        preload: 0, // Number of gallary images to preload
+        minWidth: 600,
+        maxHeight: 500,
+        aspectRatio: true,
+        fitToView: false,
+        arrows: false,
+        helpers: {
+            title: {
+                type: 'inside'
+            },
+            overlay: {
+                showEarly: false
+            }
+        }
+    });
+
+/*
+        showNavArrows: false,
+        autoSize: false,
+        // autoResize: false,
+        autoHeight: false,
+        autoWidth: false,
+        width: 900,
+        height: 600,
+        minWidth: 900,
+        minHeight: 600,
+        maxWidth: 900,
+        maxHeight: 600,
+
+*/
+//=========================================================
+
+/*
+Could use a function for displaying the text, which would mean transferring less text to browser:
+function formatTitle(title, currentArray, currentIndex, currentOpts) {
+    return '<div id="tip7-title"><span><a href="javascript:;" onclick="$.fancybox.close();"><img src="/data/closelabel.gif" /></a></span>' + (title && title.length ? '<b>' + title + '</b>' : '' ) + 'Image ' + (currentIndex + 1) + ' of ' + currentArray.length + '</div>';
+}
+
+$(".tip7").fancybox({
+	'showCloseButton'	: false,
+	'titlePosition' 		: 'inside',
+	'titleFormat'		: formatTitle
+});
+#tip7-title { text-align: left; }
+
+#tip7-title b { display: block; margin-right: 80px; }
+
+#tip7-title span { float: right; }
+*/
 
 var result_start = "1"; // For now
     // From: http://www.tutorialspoint.com/jquery/jquery-ajax.htm
@@ -144,7 +210,7 @@ function is_form_complete() {
 <tr>
 <td>
   <label for="driver">Driver gene:</label></br>
-  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" required>
+  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="ERBB2" required>
 </td>
 
 <td><label for="histotype">Tissue type:</label><br/>
