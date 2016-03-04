@@ -6,8 +6,14 @@
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
  {# and jQuery-UI google hosted libraries for the autocomplete search box: #}
-  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css">
+  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+ {# Table sorter, and optional widgets: #}
+  <link rel="stylesheet" href="{% static 'gendep/tablesorter/css/theme.blue.min.css' %}" class="theme blue" />
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.widgets.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.min.js' %}"></script>
+  
 {# Fancybox: #}
   <link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" media="screen" />
   <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>
@@ -49,6 +55,8 @@ var driver_array = [
 // fitToView: false, // add this
 
 $(document).ready(function() {
+
+    // $("#dummy").tablesorter();
 
     $(".fancybox").fancybox({
         preload: 0, // Number of gallary images to preload
@@ -101,16 +109,40 @@ $(".tip7").fancybox({
 #tip7-title span { float: right; }
 */
 
-var result_start = "1"; // For now
+// var result_start = "1"; // For now
     // From: http://www.tutorialspoint.com/jquery/jquery-ajax.htm
     $("#search_button").click(function(event){
-       if ( ! is_form_complete() ) {return false;}
-       var driver = $("#driver").val();
-       var histotype = $("#histotype").val();
-       var study = $("#study").val();
-       result_start = "1";
-       var numrows = "25"; // Max rows to return for now
-       $("#result_table").load("{% url 'gendep:ajax_results' %}", {"driver":driver, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',}); // Appends the returned html data to this id.
+        if ( ! is_form_complete() ) {return false;}
+        var driver = $("#driver").val();
+        var histotype = $("#histotype").val();
+        var study = $("#study").val();
+        // result_start = "1";
+        // var numrows = "25"; // Max rows to return for now
+		
+		
+		 
+        $("#result_table_div").load("{% url 'gendep:ajax_results' %}", 
+	        //{"driver":driver, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
+			{"driver":driver, "histotype":histotype, "study":study, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
+            function(response, status, xhr){
+                if(status == "success") {
+				    // alert("External content loaded successfully!");
+	                
+					$("#result_table").tablesorter({
+					    widgetOptions: {size: 20},
+						// size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option. 
+						showProcessing: true,
+					    theme: 'blue',
+					    widgets: ["zebra", 'filter', 'scroller'],
+					    widgetOptions: {zebra: ["even", "odd"]},
+					    sortInitialOrder: "asc", // default sort order
+					});
+					}
+                if(status == "error")
+                    alert("Error: " + xhr.status + ": " + xhr.status);
+            }
+	    ); // Appends the returned html data to this id.
+	   // see: http://www.w3schools.com/jquery/ajax_load.asp and  https://api.jquery.com/load/	   
     });
     // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
 
@@ -203,14 +235,27 @@ function is_form_complete() {
 {% endblock %}
 {% block content %}
 
+{% comment %}
+ <table id="dummy" class="tablesorter"> 
+ <thead>
+ <tr><th>Num</th></tr>
+ </thead>
+ <tbody>
+ <tr><td>3</td></tr>
+ <tr><td>2</td></tr>
+ <tr><td>1</td></tr>
+ </tbody>
+ </table>
+{% endcomment %}
    
 <table align="center" cellpadding="5" style="background-color: #ddddff; border: 1px solid blue;">
 <tr><td colspan="3" style="text-align: center;">Specify your search filter</td></tr>
 
 <tr>
 <td>
-  <label for="driver">Driver gene:</label></br>
-  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="ERBB2" required>
+  <label for="driver">Driver gene:</label><br/>
+  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="ERBB2"/>
+  <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td>
 
 <td><label for="histotype">Tissue type:</label><br/>
@@ -237,8 +282,8 @@ function is_form_complete() {
 
 </table>
 
-<p> &nbsp; </p>
-<div id = "result_table"></div>
+<br/> 
+<div id = "result_table_div"></div>
 
 
 {% endblock %}

@@ -79,13 +79,13 @@ class Study(models.Model):
     title       = models.CharField('Title', max_length=250)
     authors     = models.TextField('Authors')
     experiment_type = models.CharField('Experiment type', max_length=20, choices=EXPERIMENTTYPE_CHOICES, db_index=True)
-    description = models.TextField('Description')
+    abstract    = models.TextField('Abstract')
     summary     = models.TextField('Summary') # Short summary line to use on the results table
     journal     = models.CharField('Journal', max_length=100)
     pub_date    = models.CharField('Date published', max_length=30)  # OR: models.DateTimeField('Date published')
 
     def __str__(self):
-        # return self.pmid+' '+self.authors+' '+self.title+' '+self.description+' '+self.journal+' '+self.pub_date
+        # return self.pmid+' '+self.authors+' '+self.title+' '+self.abstract+' '+self.journal+' '+self.pub_date
         return self.pmid
 
     def weblink(self):

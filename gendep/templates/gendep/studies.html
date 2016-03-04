@@ -1,12 +1,14 @@
 {% extends 'gendep/base.html' %}
 {% load staticfiles %}
 {% block content %}
-<table align="center" cellpadding="5" width="90%" style="background-color: #ddddff; border: 1px solid blue;">
-<tr><th>Link</th><th>PubMed ID</th><th>Title:</th><th>Authors</th><th>Experiment type</th><th>Journal:</th><th>Publication date</th></tr>
+<p>Studies included in this database:<p/>
+<table align="center" cellpadding="3" width="95%" class="tabler">
+<thead><tr><th>Link</th><th>PubMed ID</th><th>Title:</th><th>Authors</th><th>Experiment type</th><th>Journal:</th><th>Publication date</th></tr></thead>
+<tbody>
 {% for study in study_list %}
 <tr>
 <td>{{ study.weblink|safe }}</td>
-<td>{{ study.pmid }}</a></td>
+<td>{{ study.pmid }}</td>
 <td>{{ study.title }}</td>
 <td><a class="tip" href="#">{{ study.authors|slice:":30" }} et al<span>{{ study.authors }}</span></a></td>
 <td><a class="tip" href="#">{{ study.experiment_type }}<span>{{ study.summary }}</span></a></td>
@@ -14,6 +16,7 @@
 <td>{{ study.pub_date }}</td>
 </tr>
 {% endfor %}
+</tbody>
 </table>
 {% endblock%}
 

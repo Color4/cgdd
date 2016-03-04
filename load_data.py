@@ -51,8 +51,8 @@ def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_nam
   file_util.copy_file(from_filename, to_filename, preserve_mode=1, preserve_times=1, update=1, dry_run=0) 
 
 
-def add_study(pmid, short_name, title, authors, description, summary, experiment_type, journal, pub_date):
-  s, created = Study.objects.get_or_create( pmid=pmid, defaults={'short_name': short_name, 'title': title, 'authors': authors, 'description': description, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
+def add_study(pmid, short_name, title, authors, abstract, summary, experiment_type, journal, pub_date):
+  s, created = Study.objects.get_or_create( pmid=pmid, defaults={'short_name': short_name, 'title': title, 'authors': authors, 'abstract': abstract, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
   return s
 
 
@@ -89,7 +89,7 @@ def split_target_gene_name(long_name):
 hgnc = dict() # To read the HGNC ids into a dictionary
 #ihgnc = dict() # The column name to number for the above HGNC dict. 
 def load_hgnc_dictionary():
-  global ifull_name, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
+  global hgnc, ifull_name, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
   print("\nLoading HGNC data")
   # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
   infile = os.path.join('input_data','hgnc_complete_set.txt')
@@ -191,6 +191,7 @@ def get_boxplot_histotype(histotype):
     # elif histotype == "": return "CENTRAL_NERVOUS_SYSTEM"
     else: return histotype
 
+# driver_counter = dict() # To count the number of times each driver is added to the database
 def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid):
   global FETCH_BOXPLOTS
   print("\nImporting table: ",csv_filepathname)
@@ -251,12 +252,12 @@ if __name__ == "__main__":
   study_short_name = "Campbell(2016) in review"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
   study_authors = "James Campbell, Colm J. Ryan, Rachel Brough, Ilirjana Bajrami, Helen Pemberton, Irene Chong, Sara Costa-Cabral,Jessica Frankum, Aditi Gulati, Harriet Holme, Rowan Miller, Sophie Postel-Vinay, Rumana Rafiq, Wenbin Wei,Chris T Williamson, David A Quigley, Joe Tym, Bissan Al-Lazikani, Timothy Fenton, Rachael Natrajan, Sandra Strauss, Alan Ashworth and Christopher J Lord"
-  study_description = "Summary: One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."
+  study_abstract = "One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."
   study_summary = "siRNA screen of 714 kinase and kinase-related genes in 117 different tumor cell lines"
   experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
   study_pub_date = "2016"
-  study_old_pmid = "nnnnnnnn" # This is te ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
+  study_old_pmid = "nnnnnnnn" # This is the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
 
  
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
@@ -264,9 +265,23 @@ if __name__ == "__main__":
     print("\nEmptying database tables")
     for table in (Dependency, Study, Gene, Drug): table.objects.all().delete()  # removed: Histotype,
 
-    study=add_study( study_pmid, study_short_name, study_title, study_authors, study_description, study_summary, experiment_type, study_journal, study_pub_date)
+    study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date)
   
     for table_name in ('S1I', 'S1K'):
       csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
       import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid)
   # transaction.commit() # just needed if used "transaction.set_autocommit(False)"
+
+  
+    # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
+    study_pmid = "25984343"
+    study_short_name = "Cowley(2014)"
+    study_title = "Parallel genome-scale loss of function screens in 216 cancer cell lines for the identification of context-specific genetic dependencies."
+    study_authors = "Cowley GS, Weir BA, Vazquez F, Tamayo P, Scott JA, Rusin S, East-Seletsky A, Ali LD, Gerath WF, Pantel SE, Lizotte PH, Jiang G, Hsiao J, Tsherniak A, Dwinell E, Aoyama S, Okamoto M, Harrington W, Gelfand E, Green TM, Tomko MJ, Gopal S, Wong TC, Li H, Howell S, Stransky N, Liefeld T, Jang D, Bistline J, Hill Meyers B, Armstrong SA, Anderson KC, Stegmaier K, Reich M, Pellman D, Boehm JS, Mesirov JP, Golub TR, Root DE, Hahn WC"
+    study_abstract = "Using a genome-scale, lentivirally delivered shRNA library, we performed massively parallel pooled shRNA screens in 216 cancer cell lines to identify genes that are required for cell proliferation and/or viability. Cell line dependencies on 11,000 genes were interrogated by 5 shRNAs per gene. The proliferation effect of each shRNA in each cell line was assessed by transducing a population of 11M cells with one shRNA-virus per cell and determining the relative enrichment or depletion of each of the 54,000 shRNAs after 16 population doublings using Next Generation Sequencing. All the cell lines were screened using standardized conditions to best assess differential genetic dependencies across cell lines. When combined with genomic characterization of these cell lines, this dataset facilitates the linkage of genetic dependencies with specific cellular contexts (e.g., gene mutations or cell lineage). To enable such comparisons, we developed and provided a bioinformatics tool to identify linear and nonlinear correlations between these features."
+    study_summary = "shRNA screen of 11,000 genes in 216 different cancer cell lines, with 5 shRNAs per gene"
+    experiment_type = "kinome shRNA"
+    study_journal = "Scientific Data"
+    study_pub_date = "2014, 30 Sep"
+    study_old_pmid = "25984343"
+    study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date )

@@ -34,7 +34,7 @@ def get_drivers(request):
     if request.is_ajax():
         q = request.GET.get('term', '')  #  jQuery autocomplete sends the query as "term" and it expects back three fields: id, label, and value. It will use those to display the label and then the value to autocomplete each driver gene.
         # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
-        drivers = Gene.objects.filter(is_driver=True, gene_name__icontains = q)[:20]
+        drivers = Gene.objects.filter(is_driver=True, gene_name__icontains = q)   # [:20]
         # ADD: full_name__icontains = q or prev_names__icontains = q or synonyms__icontains = q
         results = []
         for d in drivers:
@@ -55,8 +55,74 @@ def get_drivers(request):
     mimetype = 'application/json'
     return HttpResponse(data, mimetype)
 
-
+    
 def ajax_results(request):
+    # View for the dependency search result table.
+    # Ajax sends four fields: driver, histotype, pmid, start(row for pagination):
+    mimetype = 'text/html' # was: 'application/json'
+    request_method = request.method # 'POST' or 'GET'
+    if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), mimetype)
+
+    if not request.is_ajax(): return HttpResponse('fail', mimetype)
+
+    driver = request.POST.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
+    if driver == "": return HttpResponse('Error: Driver must be specified', mimetype)
+    # driver = None if driver == '' else Gene.objects.get(gene_name=driver)
+    driver = Gene.objects.get(gene_name=driver)
+    if driver is None: return HttpResponse('Driver NOT found in Gene table', mimetype)
+    gene_weblinks = driver.external_links('|')
+
+    # As Query Sets are lazy, so can build query and evaluated once at end:
+    q = Dependency.objects.filter(wilcox_p__lte=0.05)
+    q = q.filter( driver = driver )  # q = q.filter( driver__gene_name = driver )
+
+    histotype = request.POST.get('histotype', "ALL_HISTOTYPES")
+    if histotype != "ALL_HISTOTYPES":
+        q = q.filter( histotype = histotype )
+        histotype_full_name = Dependency.histotype_full_name(histotype)
+    else: 
+        histotype_full_name = "All histotypes"
+
+    study = request.POST.get('study', "ALL_STUDIES")
+    if study != "ALL_STUDIES":
+        study = Study.objects.get(pmid=study)
+        q = q.filter( study = study )
+
+#    start = request.POST.get('start', "1") # Start at 1, and increment by 20
+#    numrows = request.POST.get('numrows', "100") # If not specified then returns all rows - but maybe should set a maximum of 100 for now, as in final database could return whole database
+    # Probably faster making just one SQL database query, even with the joins, eg:
+    #        if study != "ALL_STUDIES": q = q.filter( study__pmid = study )
+#    numrows = int(numrows)
+#    max_rows_in_query = q.count()
+#    slice_start = int(start)-1
+#    slice_end = slice_start + int(numrows)
+#    if slice_end > max_rows_in_query: slice_end = max_rows_in_query
+#    dependency_list = q.order_by('wilcox_p')[slice_start:slice_end]
+    dependency_list = q.order_by('wilcox_p')
+	   # was: order_by('target__gene_name'). 
+	   # Only list significant hits (ie: p<=0.05)  but adding: wilcox_p<0.05 gives error "positional argument follows keyword argument"
+       # was: study__pmid=request.POST.get('study')
+       # [:20] use: 'target__gene_name' instead of 'target.gene_name'
+    # dependency_list_count = dependency_list.count()+1
+
+    #current_url =  request.META['SERVER_NAME']
+    current_url =  request.META['HTTP_HOST']
+
+    # Need to finish this:
+#    page_num = 1 + int(slice_start/numrows) # eg. At start=1, page=1+(1-1)/20 =1; At start=21, page=1+(21-1)/20 =2
+#    max_pages = math.ceil( max_rows_in_query/numrows )
+
+#    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'start': start, 'numrows': numrows, 'page_num': page_num, 'max_pages': max_pages, 'current_url': current_url}
+    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
+    return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
+
+        # Expects back the columns in the results table. 
+        # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+
+
+
+def ajax_results_OLD(request):
+    # THIS OLDER VERSION HAS PAGINATION, and uses template: ajax_results_paginated.html
     # View for the dependency search result table.
     # Ajax sends four fields: driver, histotype, pmid, start(row for pagination):
     mimetype = 'text/html' # was: 'application/json'
@@ -111,7 +177,7 @@ def ajax_results(request):
     max_pages = math.ceil( max_rows_in_query/numrows )
 
     context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'start': start, 'numrows': numrows, 'page_num': page_num, 'max_pages': max_pages, 'current_url': current_url}
-    return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
+    return render(request, 'gendep/ajax_results_paginated.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
         # Expects back the columns in the results table. 
         # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
@@ -186,7 +252,7 @@ def about(request):
 def drivers(request):
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     context = {'driver_list': driver_list}
-    return render(request, 'gendep/drivers.html')
+    return render(request, 'gendep/drivers.html', context)
 
 def studies(request):
     study_list = Study.objects.order_by('pmid')

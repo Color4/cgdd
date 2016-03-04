@@ -1,7 +1,14 @@
 {% extends 'gendep/base.html' %}
 {% load staticfiles %}
 {% block content %}   
-<b>About CGDD
-<p>The Gnetic Dependencies in cancer database is .....</p>
+<b>About CGDD</b>
+<p>The Genetic Dependencies in Cancer Database is ........</p>
+
+siRNA (small interfering RNA) or shRNA (short hairpin RNA) were used to knockdown/silence target gene expression.
+
+Analysed using R for significance.
+
+Database is a searchable collection of data published in <a href="{% url 'gendep:studies' %}" title="Studies">serveral studies</a> of <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver genes</a>.
+
 
 {% endblock%}
