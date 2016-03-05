@@ -1,5 +1,5 @@
 {% load staticfiles %}
-<table align="center" cellpadding="6" width="80%" style="border: 1px solid blue;">
+<table align="center" cellpadding="6" style="border: 1px solid blue;">
 <tr><td>
 <p><b>Driver Gene: {{ driver.gene_name }}</b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> {{ driver.prev_names_and_synonyms_spaced }}</p>
 <p><u>Gene Descripion:</u> {{ driver.full_name }}</p>
@@ -17,6 +17,8 @@ For driver gene <b>{{ driver.gene_name }}</b>, a total of <b>{{ dependency_list.
  <!-- a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ study.pmid }}" target="_blank">{{ study.pmid }}</a --> 
 {% if dependency_list %}
 {# <p style="font-size: 75%;">For Driver 'ERBB2': Click the 'MAP2K3' dependency to display the box plot at bottom of this table.</p> #}
+</td></tr>
+</table>
   <table id="result_table" class="tablesorter"> <!-- tabler  -->
   <thead>
     <tr><th>Dependency</th><th>P-value</th><th>Study</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Type</th></tr>
@@ -25,7 +27,7 @@ For driver gene <b>{{ driver.gene_name }}</b>, a total of <b>{{ dependency_list.
     {% for dependency in dependency_list %}
     <tr> 
         <td>
-		<a class="fancybox tip" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}_{{ dependency.histotype }}__PMID{{ dependency.study.pmid }}.png" data-fancybox-width="1000" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> mutant cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b> (p={{ dependency.wilcox_p }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/><font size="-2">{{ dependency.driver.gene_name }} links: {{ gene_weblinks|safe }}<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links|safe }}</font>' >{{ dependency.target.gene_name }}<span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
+		<a class="fancybox tip" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.driver.gene_name }}_{{ dependency.target.gene_name }}_{{ dependency.histotype }}__PMID{{ dependency.study.pmid }}.png" data-fancybox-width="1000" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> mutant cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b> (p={{ dependency.wilcox_p }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/><font size="-2">{{ dependency.driver.gene_name }} links: {{ gene_weblinks|safe }}<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links|safe }}</font>' >{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font><span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
 
         <td>{{ dependency.wilcox_p }}</td>
 
@@ -44,5 +46,3 @@ For driver gene <b>{{ driver.gene_name }}</b>, a total of <b>{{ dependency_list.
     <p>No dependencies found.</p>
 {% endif %}
 
-</td></tr>
-</table>

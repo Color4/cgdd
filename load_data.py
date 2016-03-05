@@ -249,7 +249,7 @@ if __name__ == "__main__":
   load_hgnc_dictionary()
   
   study_pmid = "Pending001"
-  study_short_name = "Campbell(2016) in review"
+  study_short_name = "Campbell(2016)"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
   study_authors = "James Campbell, Colm J. Ryan, Rachel Brough, Ilirjana Bajrami, Helen Pemberton, Irene Chong, Sara Costa-Cabral,Jessica Frankum, Aditi Gulati, Harriet Holme, Rowan Miller, Sophie Postel-Vinay, Rumana Rafiq, Wenbin Wei,Chris T Williamson, David A Quigley, Joe Tym, Bissan Al-Lazikani, Timothy Fenton, Rachael Natrajan, Sandra Strauss, Alan Ashworth and Christopher J Lord"
   study_abstract = "One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."

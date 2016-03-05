@@ -127,14 +127,16 @@ $(".tip7").fancybox({
             function(response, status, xhr){
                 if(status == "success") {
 				    // alert("External content loaded successfully!");
-	                
+	                $("#welcome_div").hide() // hide the welcome text...
 					$("#result_table").tablesorter({
-					    widgetOptions: {size: 20},
 						// size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option. 
 						showProcessing: true,
 					    theme: 'blue',
 					    widgets: ["zebra", 'filter', 'scroller'],
-					    widgetOptions: {zebra: ["even", "odd"]},
+					    widgetOptions: {
+						    zebra: ["even", "odd"], 
+							scroller_height: 400  // default is 300
+						},  // widgetOptions maybe need to be after the widgets: [...] line.
 					    sortInitialOrder: "asc", // default sort order
 					});
 					}
@@ -234,31 +236,20 @@ function is_form_complete() {
 </style>
 {% endblock %}
 {% block content %}
-
-{% comment %}
- <table id="dummy" class="tablesorter"> 
- <thead>
- <tr><th>Num</th></tr>
- </thead>
- <tbody>
- <tr><td>3</td></tr>
- <tr><td>2</td></tr>
- <tr><td>1</td></tr>
- </tbody>
- </table>
-{% endcomment %}
-   
+<div id="welcome_div">
+<p>Welcome to the Genetic Dependencies in Cancer database, which contains results from <a href ="{% url 'gendep:studies' %}" title="Studies"> several studies</a> of siRNA and shRNA silencing of target genes in cancer cell lines with known <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations ........</p>
+<p>Enter your driver search criteria below. (In the "Driver gene" search box, typing two letters of a driver gene name will display a menu of matching gene names)</p>
+</div>
 <table align="center" cellpadding="5" style="background-color: #ddddff; border: 1px solid blue;">
-<tr><td colspan="3" style="text-align: center;">Specify your search filter</td></tr>
-
 <tr>
+<td>Search filter:</td>
 <td>
-  <label for="driver">Driver gene:</label><br/>
+  <label for="driver">Driver gene:</label>
   <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="ERBB2"/>
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td>
 
-<td><label for="histotype">Tissue type:</label><br/>
+<td><label for="histotype">Tissue type:</label>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype">
       <option value="ALL_HISTOTYPES">All histotypes</option>
@@ -268,7 +259,7 @@ function is_form_complete() {
    </select>
 </td>
 
-<td>Study:<br/>
+<td><label for="study">Study:</label>
    <select name="study" id="study">
       <option value="ALL_STUDIES" selected="selected">All studies</option>
 	{% for study in study_list %}
