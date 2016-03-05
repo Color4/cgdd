@@ -12,20 +12,26 @@ import math # For ceil()
 #def log_error(): logger.error("this is an error message!!")
 
 
-def index(request): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
+def index(request, driver=''): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     # histotype_list = Histotype.objects.order_by('full_name')
     histotype_list = Dependency.HISTOTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
     dependency_list = None # For now.
-
+    
+    # This page can be called from the 'drivers' page, with a driver as a POST parameter, so then should display the POST results?
+    if driver == '': # if driver not passed using the '/driver_name' parameter in urls.py
+        if   request.method == 'GET':  driver = request.GET.get('driver', '')
+        elif request.method == 'POST': driver = request.POST.get('driver', '')
+        else: driver = ''
+    
     # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
     # current_url = request.build_absolute_uri()
     #current_url =  request.META['SERVER_NAME']
     current_url =  request.META['HTTP_HOST']
 
     # Optionally could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list, 'dependency_list': dependency_list, 'current_url': current_url}
+    context = {'driver': driver, 'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list, 'dependency_list': dependency_list, 'current_url': current_url}
     return render(request, 'gendep/index.html', context)
 
 

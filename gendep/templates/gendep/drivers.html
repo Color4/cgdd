@@ -3,14 +3,16 @@
 {% block content %}
 <p>Details of driver genes investigated:</p>
 
-<table align="center" cellpadding="3" width="95%" class="tabler"> <!-- style="border: 1px solid blue;" -->
-<thead><tr><th>Driver gene</th><th>Synonyms</th><th>Full name</th><th>External links</th></tr></thead>
+<table cellpadding="3" class="tabler"> <!-- style="border: 1px solid blue;" -->
+<thead><tr><th>Driver gene</th><th>Synonyms</th><th>Full name</th><th>Num studies</th><th>Num targets</th><th>External links</th></tr></thead>
 <tbody>
 {% for driver in driver_list %}
 <tr>
-<td>{{ driver.gene_name }}</td>
-<td>{{ driver.prev_names_and_synonyms_spaced }}</td>
+<td><a href="{% url 'gendep:driver' driver.gene_name %}">{{ driver.gene_name }}</a></td>
+<td><font size="-1">{{ driver.prev_names_and_synonyms_spaced }}</font></td>
 <td>{{ driver.full_name }}</td>
+<td>{{ driver.num_studies }}</td>
+<td>{{ driver.num_targets }}</td>
 <td><font size="-2">{{ driver.external_links|safe }}</font></td>
 </tr>
 {% endfor %}

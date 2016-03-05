@@ -236,7 +236,7 @@ function is_form_complete() {
 </style>
 {% endblock %}
 {% block content %}
-<div id="welcome_div">
+<div id="welcome_div" {% if driver %}style="display:none"{% endif %} >
 <p>Welcome to the Genetic Dependencies in Cancer database, which contains results from <a href ="{% url 'gendep:studies' %}" title="Studies"> several studies</a> of siRNA and shRNA silencing of target genes in cancer cell lines with known <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations ........</p>
 <p>Enter your driver search criteria below. (In the "Driver gene" search box, typing two letters of a driver gene name will display a menu of matching gene names)</p>
 </div>
@@ -245,7 +245,7 @@ function is_form_complete() {
 <td>Search filter:</td>
 <td>
   <label for="driver">Driver gene:</label>
-  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="ERBB2"/>
+  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="{{ driver }}"/>
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td>
 

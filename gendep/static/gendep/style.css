@@ -1,12 +1,65 @@
+html, body {
+    padding: 0;
+    margin: 0;
+} 
+/*
 li a {
     color: blue;
+}
+*/
+
+a {
+    text-decoration: none;
 }
 
 body
    {
    font-family: sans-serif;
    }
-   
+
+span.title {
+    font-weight: 100;
+    font-size: 66px;
+    width: 100%;
+    float: left;
+}
+
+
+/* padding-top padding-right padding-bottom padding-left   */
+#header, #footer {
+    margin: 0;
+	border: 0;
+	padding: 0;
+    min-width:100%;
+	background: #aa66ff;
+	text-align: center;
+	color: white;
+}
+#header a:link { color: white; }  /* #70DB93; */
+#header a:visited { color: white; } /* #70DB93; */
+#header a:hover { color: #70DB93; }
+#header a:active { color: red; } /* #70DB93;  */
+
+#header h1 {color: white; padding: 5px; margin: 0; }
+/* #header a:link {color: white;} */
+
+/* * {margin:0; padding:0;} */
+
+#main {
+    margin: 5px;
+	border: 5px;
+	padding: 5px;
+    min-width:100%;
+	background: white;
+	text-align: left;
+}
+
+#main a:link { color: blue; }  /* #70DB93; */
+#main a:visited { color: blue; } /* #70DB93; */
+#main a:hover { color: green; }
+#main a:active { color: blue; } /* #70DB93;  */
+
+	
 /*
  .ui-autocomplete.ui-menu{fontSize: 10px, width:300px}
 
@@ -30,7 +83,9 @@ body
 .ui-menu-item {font-family: sans-serif; font-size: small; font-weight: normal;}  /*  width: 800; */
 	
 .tabler {
-  margin-top: 20px;
+  margin-top: 10px;
+  margin-left: 0;
+  margin-right: 0;
   margin-bottom: 10px;
   border-collapse: collapse;
   border-spacing: 0;
@@ -169,7 +224,7 @@ border: 1px solid #8c8c8c;
 // From: http://stackoverflow.com/questions/2011142/how-to-change-the-style-of-title-attribute-inside-the-anchor-tag
 // Use, eg: <a href="#" class="tip">Link<span>This is the CSS tooltip showing up when you mouse over the link</span></a>
 a.tip {
-    border-bottom: 1px dashed;
+    //border-bottom: 1px dashed;
     text-decoration: none
 }
 a.tip:hover {
@@ -193,6 +248,59 @@ a.tip:hover span {
     top: 10px;
     text-decoration: none
 }
+
+a.tipleft {
+    //border-bottom: 1px dashed;
+    text-decoration: none
+}
+a.tipleft:hover {
+    cursor: pointer; // was: help;
+    position: relative
+}
+a.tipleft span {
+    display: none
+}
+a.tipleft:hover span {
+    border: #000000 1px;
+    padding: 5px 20px 5px 5px;
+    display: block;
+    z-index: 100;
+//    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%;
+    background: #ffff66;
+    left: -310px;
+    margin: 10px;
+    width: 300px;
+    position: absolute;
+    top: -15px;
+    text-decoration: none
+}
+
+a.tipright {
+    //border-bottom: 1px dashed;
+    text-decoration: none
+}
+a.tipright:hover {
+    cursor: pointer; // was: help;
+    position: relative
+}
+a.tipright span {
+    display: none
+}
+a.tipright:hover span {
+    border: #000000 1px;
+    padding: 5px 20px 5px 5px;
+    display: block;
+    z-index: 100;
+//    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%;
+    background: #ffff66;
+    left: 80px;
+    margin: 10px;
+    width: 300px;
+    position: absolute;
+    top: -15px;
+    text-decoration: none
+}
+
 
 // Cursor types: http://www.w3schools.com/cssref/playit.asp?filename=playcss_cursor&preval=alias
 /*

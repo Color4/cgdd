@@ -11,6 +11,7 @@ import os, csv
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from distutils import file_util  # Single file operations, eg: copy_file()
+from django.db.models import Count # For the distincy study and target counts for drivers.
 
 FETCH_BOXPLOTS = False
 
@@ -122,38 +123,48 @@ def fix_gene_name(name):
 
 
 def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entrez_id, ensembl_id
-  original_name = names[0]
+  # if names[0] == 'PIK3CA' and is_driver: print("**** PIK3CA  is_driver: ",names)
+  original_gene_name = names[0]
   names[0] = fix_gene_name(names[0])
-  name = names[0]
-
+  gene_name = names[0]
+  entrez_id = names[1]
+  ensembl_id = names[2]
+  
+  # if gene_name == 'PIK3CA': print("PIK3CA Here 0")
   try:
-    g = Gene.objects.get(gene_name=name)
+    # if gene_name == 'PIK3CA': print("PIK3CA Here A")
+    g = Gene.objects.get(gene_name=gene_name)
+    # Test driver status:
+    if is_driver and not g.is_driver:
+      print("Updating '%s' to is_driver" %(gene_name))
+      g.is_driver = is_driver
+      g.save()
     # Test if ensemble_id is same:
-    if names[1] != '' and g.entrez_id != names[1]:
+    if entrez_id != '' and g.entrez_id != entrez_id:
       if g.entrez_id != '':
-        print("WARNING: For gene '%s': Entrez_id '%s' already saved in the Gene table doesn't match '%s' from the Excel file" %(g.gene_name,g.entrez_id,names[1]))
+        print("WARNING: For gene '%s': Entrez_id '%s' already saved in the Gene table doesn't match '%s' from the Excel file" %(g.gene_name,g.entrez_id,entrez_id))
       else:
-        print("Updating entrez_id, as driver must have been inserted as a target first:",g.gene_name,g.entrez_id,names[1])
-        g.entrez_id=names[1]
-        g.is_driver=is_driver
+        print("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver))
+        g.entrez_id=entrez_id
         g.save()
-    if g.ensembl_id != names[2]: print("WARNING: For gene '%s': Ensembl_id '%s' already saved in the Gene table doesn't match '%s' from Excel file" %(g.gene_name, g.ensembl_id, names[2]) )
+    if g.ensembl_id != ensembl_id: print("WARNING: For gene '%s': Ensembl_id '%s' already saved in the Gene table doesn't match '%s' from Excel file" %(g.gene_name, g.ensembl_id, ensembl_id) )
 
   except ObjectDoesNotExist: # Not found by the objects.get()
-    if name not in hgnc:
-      print("WARNING: Gene '%s' NOT found in HGNC dictionary" %(name) )
-      g = Gene.objects.create(gene_name=name, original_name = original_name, is_driver=is_driver, entrez_id=names[1], ensembl_id=names[2])
-    else:  
-      this_hgnc = hgnc[name] # cache in a local variable to simplify code and reduce lookups.
-      if names[1] != '' and names[1] != this_hgnc[ientrez_id]:
-        print("WARNING: For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from Excel file" %(name, hgnc[name][ihgnc['entrez_id']], names[1]) )
-        this_hgnc[ientrez_id] = names[1]        # So change it to use the one from the Excel file.
-      if names[2] != this_hgnc[iensembl_id]:
-        print("WARNING: For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(name, this_hgnc[iensembl_id], names[2]) )
-        this_hgnc[iensembl_id] = names[2]  # So change it to use the one from the Excel file.
+    # if gene_name == 'PIK3CA': print("PIK3CA Here B")
+    if gene_name not in hgnc:
+      print("WARNING: Gene '%s' NOT found in HGNC dictionary" %(gene_name) )
+      g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, entrez_id=entrez_id, ensembl_id=ensembl_id)
+    else:
+      this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
+      if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
+        print("WARNING: For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[ientrez_id], entrez_id) )
+        this_hgnc[ientrez_id] = entrez_id        # So change it to use the one from the Excel file.
+      if ensembl_id != this_hgnc[iensembl_id]:
+        print("WARNING: For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[iensembl_id], ensembl_id) )
+        this_hgnc[iensembl_id] = ensembl_id  # So change it to use the one from the Excel file.
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
-      g = Gene.objects.create(gene_name  = name,         # hgnc[name][ihgnc['symbol']]  eg. ERBB2
-               original_name = original_name,
+      g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
+               original_name = original_gene_name,
                is_driver  = is_driver,
                full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
                synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
@@ -174,6 +185,7 @@ def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entre
     # print( "*****", this_hgnc[iuniprot_id])
     # g.save() # Using create() above instead of Gene(...) and g.save.
     
+  # if gene_name == 'PIK3CA': print("PIK3CA Here C")
   return g
 
 def get_boxplot_histotype(histotype):
@@ -243,7 +255,31 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
   print("Finished importing table.")
 
 
+def add_study_and_target_counts_to_drivers():
+  print("Adding study and target counts to drivers")
+  # select driver, count(distinct target), count(distinct pmid) from gendep_dependency group by driver;
+  counts = Dependency.objects.values('driver').annotate(num_targets=Count('target', distinct=True), num_studies=Count('study', distinct=True))
+  # There is probably a faster SQL type quesry, or bulk_update
+  for count in counts:
+    try:
+      print("gene_name: %s %d %d" %(count['driver'], count['num_studies'], count['num_targets']))
+      g = Gene.objects.get(gene_name=count['driver'])  # .gene_name
+      
+      # Double-check that name is same:
+      if g.gene_name != count['driver']:
+        print("*** ERROR: count gene_name mismatch for '%s' and '%s'" %(g.gene_name,count['driver']))
+      elif not g.is_driver:
+        print("*** ERROR: count gene isn't marked as a driver '%s'" %(g.gene_name))
+      else:
+        g.num_studies = count['num_studies']
+        g.num_targets = count['num_targets']
+        g.save()
+    except ObjectDoesNotExist: # Not found by the objects.get()
+      print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(count['driver']))
+  print("Finished adding study and target counts to drivers")
 
+    
+    
 if __name__ == "__main__":
 
   load_hgnc_dictionary()
@@ -285,3 +321,5 @@ if __name__ == "__main__":
     study_pub_date = "2014, 30 Sep"
     study_old_pmid = "25984343"
     study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date )
+    
+    add_study_and_target_counts_to_drivers()
