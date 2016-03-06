@@ -39,7 +39,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django_extensions',  # Added for the runserver_plus: http://django-extensions.readthedocs.org/en/latest/runserver_plus.html
 ]
+
+#RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',

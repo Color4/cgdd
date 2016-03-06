@@ -138,6 +138,10 @@ $(".tip7").fancybox({
 							scroller_height: 400  // default is 300
 						},  // widgetOptions maybe need to be after the widgets: [...] line.
 					    sortInitialOrder: "asc", // default sort order
+						sortRestart: true, // so sort always reastarts from the specified sortInitialOrder.
+						sortStable: true,
+						ignoreCase: true,  // so sorting ignores case
+						filter_ignoreCase: true, // so filtering ignores case
 					});
 					}
                 if(status == "error")

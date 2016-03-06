@@ -258,24 +258,25 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
 def add_study_and_target_counts_to_drivers():
   print("Adding study and target counts to drivers")
   # select driver, count(distinct target), count(distinct pmid) from gendep_dependency group by driver;
-  counts = Dependency.objects.values('driver').annotate(num_targets=Count('target', distinct=True), num_studies=Count('study', distinct=True))
+  counts = Dependency.objects.values('driver').annotate( num_studies=Count('study', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
   # There is probably a faster SQL type quesry, or bulk_update
-  for count in counts:
+  for row in counts:
     try:
-      print("gene_name: %s %d %d" %(count['driver'], count['num_studies'], count['num_targets']))
-      g = Gene.objects.get(gene_name=count['driver'])  # .gene_name
+      print("gene_name: %s %d %d %d" %(row['driver'], row['num_studies'], row['num_histotypes'], row['num_targets']))
+      g = Gene.objects.get(gene_name=row['driver'])  # .gene_name
       
       # Double-check that name is same:
-      if g.gene_name != count['driver']:
-        print("*** ERROR: count gene_name mismatch for '%s' and '%s'" %(g.gene_name,count['driver']))
-      elif not g.is_driver:
+      if g.gene_name != row['driver']:
+        print("*** ERROR: count gene_name mismatch for '%s' and '%s'" %(g.gene_name,row['driver']))
+      elif not g.is_driver: 
         print("*** ERROR: count gene isn't marked as a driver '%s'" %(g.gene_name))
       else:
-        g.num_studies = count['num_studies']
-        g.num_targets = count['num_targets']
+        g.num_studies = row['num_studies']
+        g.num_histotypes = row['num_histotypes']
+        g.num_targets = row['num_targets']
         g.save()
     except ObjectDoesNotExist: # Not found by the objects.get()
-      print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(count['driver']))
+      print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(row['driver']))
   print("Finished adding study and target counts to drivers")
 
     
