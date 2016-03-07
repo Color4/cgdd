@@ -154,6 +154,10 @@ class Dependency(models.Model):
     def very_significant(self):
         return self.wilcox_p <= 0.005
         
+    def wilcox_p_power10_format(self):
+        # Displays 5E-4 as 5 x 10<sup>-4</sup>
+        return ("%.0E"%(self.wilcox_p)).replace("E", " x 10<sup>")+"</sup>"
+    
     # Based on: https://groups.google.com/forum/#!topic/django-users/SzYgjbrYVCI
     def __setattr__(self, name, value):
         if name == 'histotype':

@@ -25,8 +25,9 @@ span.title {
 }
 
 
-/* padding-top padding-right padding-bottom padding-left   */
-#header, #footer {
+/* padding-top padding-right padding-bottom padding-left */
+/* Removed the " ,#footer" for below, as logos look bettter on white background */
+#header {
     margin: 0;
 	border: 0;
 	padding: 0;
@@ -39,13 +40,38 @@ span.title {
 #header a:visited { color: white; } /* #70DB93; */
 #header a:hover { color: #70DB93; }
 #header a:active { color: red; } /* #70DB93;  */
-
 #header h1 {color: white; padding: 5px; margin: 0; }
 /* #header a:link {color: white;} */
 
+
+#footer {
+    margin: 0;
+	border: 0;
+	padding: 0;
+    min-width:100%;
+	background: white;
+	text-align: center;
+	color: white;
+}
+
 /* * {margin:0; padding:0;} */
 
-#main {
+/* The main text should be not at wide as the page */
+#maintext {
+    margin: 5px;
+	border: 5px;
+	padding: 5px 80px 5px 80px;
+    /* max-width: 80%; */
+	background: white;
+	text-align: left;
+}
+#maintext a:link { color: blue; }  /* #70DB93; */
+#maintext a:visited { color: blue; } /* #70DB93; */
+#maintext a:hover { color: green; }
+#maintext a:active { color: blue; } /* #70DB93;  */
+
+/* For the dependency, drivers and studies tables: */
+#maintable {
     margin: 5px;
 	border: 5px;
 	padding: 5px;
@@ -53,11 +79,10 @@ span.title {
 	background: white;
 	text-align: left;
 }
-
-#main a:link { color: blue; }  /* #70DB93; */
-#main a:visited { color: blue; } /* #70DB93; */
-#main a:hover { color: green; }
-#main a:active { color: blue; } /* #70DB93;  */
+#maintable a:link { color: blue; }  /* #70DB93; */
+#maintable a:visited { color: blue; } /* #70DB93; */
+#maintable a:hover { color: green; }
+#maintable a:active { color: blue; } /* #70DB93;  */
 
 	
 /*

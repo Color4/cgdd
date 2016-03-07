@@ -256,9 +256,9 @@ function is_form_complete() {
 <td><label for="histotype">Tissue type:</label>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype">
-      <option value="ALL_HISTOTYPES">All histotypes</option>
+      <option value="ALL_HISTOTYPES" selected="selected">All histotypes</option>
 	{% for histotype in histotype_list %}
-	  <option value="{{ histotype.0 }}" {% if histotype.0 == "PANCAN" %} selected="selected" {% endif %}>{{ histotype.1 }}</option>  
+	  <option value="{{ histotype.0 }}">{{ histotype.1 }}</option>
 	{% endfor %}
    </select>
 </td>
@@ -276,11 +276,10 @@ function is_form_complete() {
 </tr>
 
 </table>
-
-<br/> 
+{% endblock %}
+{% block table %}
+<br/>
 <div id = "result_table_div"></div>
-
-
 {% endblock %}
 
 {% comment %}

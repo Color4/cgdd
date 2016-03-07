@@ -20,14 +20,17 @@
 <h1>Database of Genetic Dependencies in Cancer</h1>
 </div>
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-<div id="main">
+<div id="maintext">
 {% block content %}{% endblock %}
+</div id="maintable">
+<div id="maintable" style="padding: 30 0">
+{% block table %}{% endblock %}
 </div>
 <div id="footer">
+<hr style="color: #aa66ff;" />
 <a href="http://www.ucd.ie/sbi/" title="Systems Biology Ireland"><img src="{% static 'gendep/images/SBI-logo-138w79h.png' %}" /></a> 
 &nbsp; &nbsp; <a href="http://www.ucd.ie/" title="University College Dublin"><img src="{% static 'gendep/images/UCD_maincore_logo.png' %}" /></a>
 &nbsp; &nbsp; <a href="http://www.icr.ac.uk/" title="The Institute of cancer Research"><img src="{% static 'gendep/images/ICR_logo.png' %}" width="235" height="45" /></a>
-&nbsp; &nbsp; <a href="https://www.broadinstitute.org/achilles" title="Project Achilles at the Broad Institute"><img src="{% static 'gendep/images/project_achilles_logo.png' %}" /></a>
 </div>
 </body>
 </html>

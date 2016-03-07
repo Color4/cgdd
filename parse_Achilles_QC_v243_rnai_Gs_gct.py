@@ -34,9 +34,10 @@ output_file2 = os.path.join(analysis_dir, "Achilles_tissue_types.txt")
 
 
 hgnc = dict() # To read the HGNC ids into a dictionary
+synonyms_to_hgnc = dict()
 #ihgnc = dict() # The column name to number for the above HGNC dict. 
 def load_hgnc_dictionary():
-  global hgnc, isymbol, iensembl_id, ihgnc_id
+  global hgnc, synonyms_to_hgnc, isymbol, isynonyms, iprev_names, iensembl_id, ientrez_id, ihgnc_id
   print("\nLoading HGNC data")
   # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
   infile = os.path.join('input_data','hgnc_complete_set.txt')
@@ -45,13 +46,27 @@ def load_hgnc_dictionary():
     if dataReader.line_num == 1: # The header line.
       ihgnc = dict() # The column name to number for the above HGNC dict. 
       for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
-#      ientrez_id  = ihgnc.get('entrez_id')       # eg: 2064
       isymbol     = ihgnc.get('symbol') # eg: 
+      isynonyms   = ihgnc.get('alias_symbol')    # eg: NEU|HER-2|CD340|HER2
+      iprev_names = ihgnc.get('prev_symbol')     # eg: NGL
+      ientrez_id  = ihgnc.get('entrez_id')       # eg: 2064      
       iensembl_id = ihgnc.get('ensembl_gene_id') # eg: ENSG00000141736
       ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
     else:
       gene_name = row[isymbol]    # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
       hgnc[gene_name] = row # Store the whole row for simplicity. 
+      # print("%s : prev_names=%s, synonyms=%s" %(gene_name,row[iprev_names],row[isynonyms]))
+      synonym_list = row[isynonyms].split('|')
+      synonym_list.extend( row[iprev_names].split('|') )
+      for key in synonym_list:
+        if key == '': continue
+        # print("  key:",key)
+        if key in synonyms_to_hgnc:
+          print("**** ERROR: For gene %s Synonym %s already exists in gene %s:" %(gene_name,key,synonyms_to_hgnc[key]))
+          synonyms_to_hgnc[key] += ';'+gene_name
+        else:
+          synonyms_to_hgnc[key] = gene_name
+      
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
 
 
@@ -88,10 +103,19 @@ def format_tissue(tissue):
 
 def get_ensembl_name(gene_name):
     if gene_name not in hgnc:
-        print("** WARNING: Gene NOT found in hgnc", gene_name)
-        return "NotFound"
-    else:
-        return hgnc.get(gene_name,'')[iensembl_id]
+        if gene_name in synonyms_to_hgnc:
+            # print("Found gene_name %s in synonyms for %s" %(gene_name,synonyms_to_hgnc[gene_name]))
+            new_name = synonyms_to_hgnc[gene_name]
+            if ';' in new_name:
+                print("** WARNING: %s BUT Synonym is ambigious %s" %(gene_name,new_name))
+                return gene_name+"_Unsure_new_name"
+            gene_name = new_name    
+            # so search the: isynonyms, iprev_names   eg: reformat hgnc as: '|'+(iprev_names+'|' + isynonyms)+'|'
+            # then look for   '|'+gene_name+'|'
+        else:
+           print("** WARNING: Gene NOT found in hgnc", gene_name)
+           return gene_name+"_NotFound"
+    return gene_name+'_'+hgnc[gene_name][iensembl_id]
 
     
 print("Writing transformed files")    
@@ -103,7 +127,8 @@ with open(output_file1, "w") as fout:
     # Take leftmost column (col=0):
     for row in range(1,num_rows):
         n = (list_of_lists[row][0]).split("_")
-        fout.write("\t%s_%s" %(n[0],get_ensembl_name(n[0])))  # Not using a variant suffix number at present.
+        fout.write("\t%s" %(get_ensembl_name(n[0])))  # Not using a variant suffix number at present.
+        # fout.write("\t%s_%s" %(n[0],get_ensembl_name(n[0])))  # Not using a variant suffix number at present.
         #fout.write("\t%s%s_%s" %(n[0],n[1],get_ensembl_name(n[0]))) # ie. the original left-most column of names, 'ABL1_1_1110001111' becomes 'ABL11'
     fout.write("\n")
 
