@@ -49,6 +49,23 @@ class Gene(models.Model):
         links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.gene_name)
         links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
         return links
+        
+    def external_links_on_boxplot(self, div='|'):
+        # gene is a row in the Gene table
+        # This is a shortened form of the above as not all needed:
+        # Building these links here, rather than in template as are used twice in the template:
+        links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene=%s" target="_blank">GeneCards<span>Genecards</span></a> ' %(self.gene_name)
+        links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/%s" target="_blank">Entrez<span>Entrez Gene at NCBI</span></a> ' %(self.entrez_id)
+        links += div+' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene</span></a> ' %(self.ensembl_id)
+        # links += div+' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation</span></a> ' %(self.vega_id)
+        #links += div+' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man</span></a> ' %(self.omim_id)
+        links += div+' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ' %(self.hgnc_id)
+        #links += div+' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search</span></a> ' %(self.gene_name)
+        links += div+' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ' %(self.gene_name)
+        links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.gene_name)
+        links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
+        return links
+    
     """
     Previously used the <a title="" attribute (but can't change style, unless two boxes will appear):
     def external_links(self, div='|'):

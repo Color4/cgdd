@@ -111,6 +111,8 @@ def load_hgnc_dictionary():
       ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
     else:
       gene_name = row[ihgnc['symbol']]    # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
+      if gene_name in hgnc:
+        print("*** ERROR: Duplicated gene_name in HGNC file: ",gene_name)
       hgnc[gene_name] = row # Store the whole row for simplicity. 
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
       

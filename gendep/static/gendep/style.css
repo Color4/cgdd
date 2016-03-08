@@ -315,7 +315,7 @@ a.tipright:hover span {
     border: #000000 1px;
     padding: 5px 20px 5px 5px;
     display: block;
-    z-index: 100;
+    z-index: 9000; /* was 100 */
 //    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%;
     background: #ffff66;
     left: 80px;
