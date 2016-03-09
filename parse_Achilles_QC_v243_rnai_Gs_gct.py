@@ -29,14 +29,17 @@ AADAT_2_00101   AADAT   0.540022249007015
 """
 
 import os, csv
+import mygene
 
 analysis_dir = "Achilles_data"
 
 achilles_file = os.path.join(analysis_dir, "Achilles_QC_v2.4.3.rnai.Gs.gct")
-gene_mapping_file = os.path.join(analysis_dir, "shRNA_to_gene_mapping_CP0004_20131120_19mer_trans_v1.chip")
+shRNA_mapping_file = os.path.join(analysis_dir, "shRNA_to_gene_mapping_CP0004_20131120_19mer_trans_v1.chip")
+ATAR_mapping_file =  os.path.join(analysis_dir, "shRNAs_used_in_ATARiS_gene_solutions_Achilles_QC_v2.4.3.shRNA.table.txt")
 
 output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R.txt")
 output_file2 = os.path.join(analysis_dir, "Achilles_tissue_types.txt")
+output_file3 = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map.txt")
 
 """
 mapping is: 
@@ -59,12 +62,50 @@ Achilles_QC_v2.4.3.rnai.Gs.gct
   ACAAACCAACAAGCAGTCGAT   AAK1    NM_014911.3     22848
   (sequence is used for many gene_names, so need sequence+gene_name)
 """
+
+entrez_ids_renamed = {  # better to initialise here using {...} rather than dict(...)
+  '100133046': '115653',   # confirmed on entrez. 'KIR3DL3'
+  '100036519': '349334',   # confirmed on entrez. 'FOXD4L2'
+  '100131392': '729384',   # confirmed on entrez. 'LOC100131392'
+  '100131530': '5435',     # confirmed on entrez. 'LOC100131530'
+  '100288687': '22947',    # BUT *not* same on entrez. DUX4 also known as DUX4L, different from DUX4L1 also known as DUX4
+  '90462'    : '100289635',# 90462 (LOC90462) is withdrawn by entrez as redundant. ZNF605
+  '244'      : '728113',   # 244 (ANXA8L2) replaced by 728113 on entrez
+  '9503'     : '653067',   # 9503 replaced by 653067 on entrez
+  '164022'   : '653505',   # '164022' replaced by '653505' on entrez     
+  '399753'   : '414224',   # The following reported by MyGene, but not manually confirmed on entrez yet:
+  '554045'   : '100288711', 
+  '653048'   : '653067',
+  '653219'   : '653220',
+  '653501'   : '401509',
+  '727787'   : '3812',
+  '728127'   : '653234',
+  '100170939': '11039', 
+  '100287534': '3805', 
+  '100505503': '6218',  
+  '100505793': '10772', 
+  '100506499': '196913', 
+  '100506859': '341676', 
+  '100507018': '101927612', 
+  '100507699': '728806', 
+  '100509575': '280657', 
+  '100509582': '3126', 
+  '100653070': '11026', 
+  '100653112': '266722' 
+}    
+
   
-genemap = dict() # To read mapping of the Achilles gene names to Entrez ids and Transcripts
-def load_gene_mapping():
-  global genemap, jgene_symbol, jentrez_id
-  print("\nLoading Achilles gene mapping data")
-  dataReader = csv.reader(open(gene_mapping_file), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+shRNAmap = dict() # Map of the Achilles shRNA names (sequence_name, eg: AAAAATGGCATCAACCACCAT_RPS6KA1) to Entrez ids (and Transcripts).
+def load_shRNAmap():
+  global shRNAmap, jgene_symbol, jentrez_id
+  print("\nLoading Achilles shRNA mapping data")
+  dataReader = csv.reader(open(shRNA_mapping_file), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+  # Format for file: "shRNA_to_gene_mapping_CP0004_20131120_19mer_trans_v1.chip"
+  # Barcode Sequence        Gene Symbol     Transcript      Gene ID
+  # AAAAATGGCATCAACCACCAT   RPS6KA1         NM_001006665.1  6195
+  # AAAAATGGCATCAACCACCAT   RPS6KA1         NM_002953.3     6195
+  # AAAAGGATAACCCAGGTGTTT   TSC1            NM_000368.4     7248
+
   for row in dataReader:
     if dataReader.line_num == 1: # The header line.
       cols = dict() # The column name to number for the above HGNC dict. 
@@ -74,34 +115,103 @@ def load_gene_mapping():
       jtranscript  = cols.get('Transcript')       # eg: NM_001006665.1
       jentrez_id   = cols.get('Gene ID')          # eg: 6195
     else:
-      #gene_name = row[jgene_symbol]
       key = row[jbarcode] + '_' + row[jgene_symbol]
-      # gene_name = row[jbarcode]
-      if key in genemap:
-        if genemap[key][jentrez_id] != row[jentrez_id]:
-          print("*** ERROR: Duplicated  Entrez_ids %s %s  Transcripts: %s %s  Key %s: " %(genemap[key][jentrez_id], row[jentrez_id], genemap[key][jtranscript], row[jtranscript], key))
+      this_entrez_id = row[jentrez_id]
+      if this_entrez_id in ('-40', '-43'): # "if this_entrez_id in ('-40')" also matches for this_entrez_id is '40'
+              # BECAUSE python treats a single item in brackets as one string, not as a list, so need to use ("-40",) to force python to recognise this as a list
+        print("*** WARNING: Entrez_id '%s' is negative for:" %(this_entrez_id),row)
+        #exit(1)
+        # -43 is 'Luciferase', which isn't a human gene.
+        # -40 is 'BFP', which is probably: Blue Fluorescent Protein (BFP), a Blue variant of Aequoria victoria GFP. so non-human.
+      #print(type(this_entrez_id))
+      if this_entrez_id in entrez_ids_renamed:
+        this_entrez_id = entrez_ids_renamed[this_entrez_id]
+        row[jentrez_id] = this_entrez_id
+
+      if key in shRNAmap:
+        if shRNAmap[key][jentrez_id] != this_entrez_id:
+          print("*** WARNING: Duplicated  Entrez_ids %s %s  Transcripts: %s %s  Key %s: " %(shRNAmap[key][jentrez_id], this_entrez_id, shRNAmap[key][jtranscript], row[jtranscript], key))
+          shRNAmap[key][jentrez_id]  += ';'+this_entrez_id
+          print("************* Joining: '%s' '%s'" %(shRNAmap[key][jentrez_id], this_entrez_id))
+        if shRNAmap[key][jtranscript] != row[jtranscript]:
+          shRNAmap[key][jtranscript] += ';'+row[jtranscript]
         """
 There are three genes with duplictaes:
+*** Duplicated  Entrez_ids 100289635 90462  Transcripts: NM_183238.3 XR_110947.2  Key CAATAGAGAAACCCTACAGTT_ZNF605 (NOT USED)
 
-*** ERROR: Duplicated  Entrez_ids 100289635 90462  Transcripts: NM_183238.3 XR_110947.2  Key CAATAGAGAAACCCTACAGTT_ZNF605 (NOT USED)
+*** Duplicated  Entrez_ids 115653 100133046  Transcripts: NM_153443.3 XM_003119105.2  Key CACAGTTGAATCACTGCGTTT_KIR3DL3 (IS USED in the shRHA studies)
+   this KIR3DL3 is ok as from: http://www.ncbi.nlm.nih.gov/gene/100133046  says "This record was replaced with Gene ID: 115653"
 
-*** ERROR: Duplicated  Entrez_ids 115653 100133046  Transcripts: NM_153443.3 XM_003119105.2  Key CACAGTTGAATCACTGCGTTT_KIR3DL3 (IS USED)
+*** Duplicated  Entrez_ids 22947 100288687  Transcripts: NM_033178.2 NR_038191.1  Key AGATCTGGTTTCAGAATCGAA_DUX4 
 
-*** ERROR: Duplicated  Entrez_ids 22947 100288687  Transcripts: NM_033178.2 NR_038191.1  Key AGATCTGGTTTCAGAATCGAA_DUX4 (NOT USED)
-        """          
-        #if genemap[key][jtranscript] != row[jtranscript]:
-        #  print("*** ERROR: Duplicated key %s:  Transcripts: %s %s" %(key, genemap[key][jtranscript], row[jtranscript]))
+        """
+      else:   
+        shRNAmap[key] = row
 
-        
-        #if genemap[gene_name][jentrez_id] != row[jentrez_id]:
-          #print("*** ERROR: Duplicated gene_name %s with different Entrez_ids %s and %s in genemap file" %(gene_name, genemap[gene_name][jentrez_id], row[jentrez_id]))
-        #if genemap[gene_name][jgene_symbol] != row[jgene_symbol]:
-         # print("*** ERROR: Duplicated gene_name %s with different Gene_symbol %s and %s in genemap file" %(gene_name, genemap[gene_name][jgene_symbol], row[jgene_symbol]))  
-        #if genemap[gene_name][jtranscript] != row[jtranscript]:
-        #  print("*** ERROR: Duplicated gene_name %s with different Transcripts %s and %s in genemap file" %(gene_name, genemap[gene_name][jtranscript], row[jtranscript]))
-      genemap[key] = row
-      #genemap[gene_name] = row
-   
+ATARmap = dict() # Map of the Achilles ATARiS gene solution names (eg: A2ML1_1_01110) to shRNA names (sequence_name, eg: AAAAATGGCATCAACCACCAT_RPS6KA1).
+def load_ATARmap():
+  global ATARmap, jshRNA, jisUsed, jsol_name, jsol_entrez
+  print("\nLoading Achilles ATARiS gene solution mapping")
+  dataReader = csv.reader(open(ATAR_mapping_file), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), 
+  # Format for file: "shRNAs_used_in_ATARiS_gene_solutions_Achilles_QC_v2.4.3.shRNA.table.txt"
+  # shRNA                      gene.symbol isUsed  sol.number   sol.name     sol.id   cscore   pval    qval
+  # CAGTGACAGAAGCAGCCATAT_A1BG      A1BG    FALSE     NA          NA           NA      0.453   0.352   0.715
+  # CCGCCTGTGCTGATGCACCAT_A1BG      A1BG    FALSE     NA          NA           NA      0.191   0.644   0.87
+  # ...
+  # CCTGGTGAAGAAGGTTGAATT_A2ML1     A2ML1   FALSE     NA          NA           NA      0.218   0.605   0.851
+  # CTCACTATTCACACCAGTTAT_A2ML1     A2ML1   TRUE      1        A2ML1_1_01110   01110   0.273   0.533   0.813
+  # GCAACAATTCAGTATTCTGAT_A2ML1     A2ML1   TRUE      1        A2ML1_1_01110   01110   0.478   0.333   0.68
+
+  print("********** CHECK THESE MyGene same id responses below *******") 
+  for row in dataReader:
+    if dataReader.line_num == 1: # The header line.
+      cols = dict() # The column name to number for the above HGNC dict. 
+      for i in range(len(row)): cols[row[i]] = i       # Store column numbers for each header item
+      jshRNA     = cols.get('shRNA')     # eg: CTCACTATTCACACCAGTTAT_A2ML1 (for the shRNA)
+      jisUsed    = cols.get('isUsed')    # FALSE or TRUE
+      jsol_name  = cols.get('sol.name')  # eg: A2ML1_1_01110
+      jsol_entrez = len(cols)  # As below appends the entrez_id col onto the row
+    elif row[jisUsed] == 'TRUE':
+      key = row[jsol_name]
+      # print(key)
+      this_entrez_id = shRNAmap[row[jshRNA]][jentrez_id]
+      if this_entrez_id in ('-40', '-43'):
+        print("*********** WARNING: Entrez_id '%s' is negative for %s" %(this_entrez_id,shRNAmap[row[jshRNA]]))
+      if '349334,' in this_entrez_id:
+        print("Something funny here:", key, this_entrez_id)
+        exit(1)
+      if ';' in this_entrez_id:
+        print('WARNING: %s isUsed and has two or more entrez_ids: %s' %(key,this_entrez_id))
+      if key in ATARmap:
+        shmap_entrez_id = shRNAmap[ATARmap[key][jshRNA]][jentrez_id]
+        if shmap_entrez_id != this_entrez_id and this_entrez_id not in shmap_entrez_id.split(';'):  # split as maybe already has 2 entrez ids:
+          print("*** ERROR: Different Entrez_ids %s %s for sol.name %s: " %(shmap_entrez_id, this_entrez_id,key)) # Transcripts: %s %s  
+          ATARmap[key][jsol_entrez] += ';'+this_entrez_id
+          print("************* ATARmap: Joining: '%s' '%s'" %(ATARmap[key][jsol_entrez], this_entrez_id))
+      else:
+        ATARmap[key] = row
+        if len(ATARmap[key]) != jsol_entrez: print("*** ERROR len(ATARmap[key]) != jsol_entrez") # Just chcek is correct column to append to.
+        ATARmap[key].append(this_entrez_id) # Add the entrez_id 
+    elif row[jsol_name] != 'NA': # As row[jisUsed] != 'TRUE' (ie. must be FALSE)
+      print("*** ERROR: sol.name %s != NA, for ATARiS shRNA %s" %(row[jsol_name], row[jshRNA]))
+
+      
+def write_solname_to_entrez_map_file():
+  print("\nWriting the solname to Entrez_id mapping file")
+  with open(output_file3, "w") as fout:
+#    fout.write("sol.name\tentrez\tmg_ensembl\tmg_symbol\tmg_entrez\n")
+#    for key in sorted(ATARmap):  # .keys() .items()) # , key=itemgetter(jsol_name)):
+#      fout.write("%s\t%s" %(key, ATARmap[key][jsol_entrez]))
+#      if len(ATARmap[key]) > jsol_entrez+1:
+#        fout.write("\t%s\t%s\t%s" %(ATARmap[key][img_ensembl_id], ATARmap[key][img_symbol], ATARmap[key][img_entrezgene])) # The mg_ensembl, mg_symbol, mg_entrezid
+#      fout.write("\n")  
+    fout.write("sol.name\tmg_symbol\tentrez\tmg_entrez\tmg_hgnc\tmg_ensembl\n")
+    for key in sorted(ATARmap):  # .keys() .items()) # , key=itemgetter(jsol_name)):
+      n = key.split('_')
+      if ATARmap[key][img_symbol] == '': print("*** mg_symbol missing for %s" %(key))
+      elif n[0] != ATARmap[key][img_symbol]: print("*** %s differ %s" %(key,ATARmap[key][img_symbol]))
+      fout.write("%s\t%s\t%s\t%s\t%s\t%s\n" %(key, ATARmap[key][img_symbol], ATARmap[key][jsol_entrez], ATARmap[key][img_entrezgene], ATARmap[key][img_hgnc], ATARmap[key][img_ensembl_id]))
+
 
 hgnc = dict() # To read the HGNC ids into a dictionary
 synonyms_to_hgnc = dict()
@@ -112,6 +222,7 @@ def load_hgnc_dictionary():
   # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
   infile = os.path.join('input_data','hgnc_complete_set.txt')
   dataReader = csv.reader(open(infile), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+  num_synonmys_already_exist = 0
   for row in dataReader:
     if dataReader.line_num == 1: # The header line.
       ihgnc = dict() # The column name to number for the above HGNC dict. 
@@ -134,17 +245,219 @@ def load_hgnc_dictionary():
         if key == '': continue
         # print("  key:",key)
         if key in synonyms_to_hgnc:
-          print("**** ERROR: For gene %s Synonym %s already exists in gene %s:" %(gene_name,key,synonyms_to_hgnc[key]))
+          num_synonmys_already_exist += 1
+          # print("**** ERROR: For gene %s Synonym %s already exists in gene %s:" %(gene_name,key,synonyms_to_hgnc[key]))
           synonyms_to_hgnc[key] += ';'+gene_name
         else:
           synonyms_to_hgnc[key] = gene_name
-      
+  if num_synonmys_already_exist > 0: print("**** ERROR: %d synonmys already exist in other genes" %(num_synonmys_already_exist))
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
 
-load_gene_mapping()
-print("GENE:",genemap["ERBB2"])
-exit()
 
+    
+def get_ensembl_and_symbol_from_mygene(entrez_id):
+  # For one entrez_id
+  mg = mygene.MyGeneInfo()
+  fields = mg.get_fields()
+  for k in fields: print("\n",k,fields[k])
+  
+  print("Mygene: %s\r" %(entrez_id))
+  result = mg.getgene(entrez_id, fields="ensembl.gene, symbol", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
+  #result = mg.getgene(entrez_id, fields="all", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
+  # print(result)
+  # for k in result: print("\n",k,result[k])
+
+  if result is None: # or 'notfound' in result: # I think the "'notfound' in result" only applies to the getgenes() below for list of results
+    print("*** Ensembl_id NOT in MyGene for Entrez_id: '%s'" %(entrez_id))
+    return '',''
+  # entrez_ids = ["1017","7248"]
+  #results = mg.getgenes(entrez_ids, fields='ensembl.gene', email="sbridgett@gmail.com") # entrezgene
+  else:
+    if result['_id'] != entrez_id:
+      print("*** ERROR: returned id %s doesn't match query %s" %(result['_id'],entrez_id))
+      
+    # successful result either:
+    # {'ensembl.gene': 'ENSG00000149313', '_id': '60496', 'symbol': 'AASDHPPT'}
+    # {'ensembl': [{'gene': 'ENSG00000275700'}, {'gene': 'ENSG00000276072'}], '_id': '26574', 'symbol': 'AATF'}
+    if 'ensembl.gene' in result:
+      ensembl_id = result['ensembl.gene']
+    elif 'ensembl' in result:
+      ensembl_list = result['ensembl']
+      ensembl_id = ''
+      for gene in ensembl_list:
+        ensembl_id += gene['gene']
+    else: 
+      ensembl_id = ''
+      print("*** Ensembl_id NOT in MyGene for Entrez_id: '%s'" %(entrez_id), result)
+
+    symbol = result['symbol']
+      
+    return ensembl_id, symbol
+
+  
+def get_ensembl_and_symbol_list_from_mygene(entrez_id_list):
+  # A list of entrez_ids
+  mg = mygene.MyGeneInfo()
+  # fields = mg.get_fields()
+  # for k in fields: print("\n",k,fields[k])
+
+  # gene = mg.getgene("1017", fields="ensembl.gene", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
+  # for k in gene: print("\n",k,gene[k])
+
+  # entrez_ids = ["1017","7248"]
+  #print(entrez_id_list)
+  results = mg.getgenes(entrez_id_list, fields='ensembl.gene, symbol, entrezgene, HGNC', email="sbridgett@gmail.com") # entrezgene
+  #print(results)
+  # for k in ensembl_ids: print("\n",k['query'],k['ensembl.gene']) # ,ensembl_ids[k])
+  entrez_to_ensembl = dict()
+  for result in results:
+    entrez_id = result['query']
+    if 'notfound' in result:
+      print("*** Ensembl_id NOT found for Entrez_id: %s" %(entrez_id), result)
+      entrez_to_ensembl[entrez_id] = ('','','','')
+      continue
+
+    entrezgene = str(result['entrezgene'])  # result['entrezgene'] is returned as an integer, not a string, whereas 'query' and '_id' are strings, eg: {'_id': '729384', 'query': '100131392', 'ensembl.gene': 'ENSG00000233802', 'symbol': 'TRIM49D2', 'entrezgene': 729384}
+    if entrezgene != entrez_id:
+      print("*** ERROR: returned entrezgene '%s' doesn't match entrez query '%s'" %(entrezgene,entrez_id), type(entrezgene),type(entrez_id), result)
+    if result['_id'] != entrez_id:
+      print("*** ERROR: returned _id '%s' doesn't match entrez query '%s'" %(result['_id'],entrez_id), type(result['_id']),type(entrez_id), result)
+    if entrezgene != result['_id']:
+      print("******* ERROR: returned entrezgene '%s' doesn't match returned _id '%s'" %(entrezgene,result['_id']), type(entrezgene), type(result['_id']), result)
+
+    if 'ensembl.gene' in result:
+      ensembl_id = result['ensembl.gene']
+    elif 'ensembl' in result:
+      ensembl_list = result['ensembl']
+      ensembl_id = ''
+      for gene in ensembl_list:
+        if ensembl_id != '': ensembl_id += ';' # separate list using semi-colons
+        ensembl_id += gene['gene']
+    else:
+      ensembl_id = ''
+      print("*** Ensembl_id NOT in MyGene for Entrez_id: %s" %(entrez_id), result)
+
+    if 'symbol' in result:
+      symbol = result['symbol']
+    else:
+      symbol = ''
+      print("*** Symbol NOT in MyGene for Entrez_id: %s" %(entrez_id), result)
+
+    if 'HGNC' in result:
+      hgnc = result['HGNC']
+    else:
+      hgnc = ''
+      print("*** HGNC NOT in MyGene for Entrez_id: %s" %(entrez_id), result)
+      
+    if entrez_id in entrez_to_ensembl:
+      print("*** ERROR Entrez_query in result list more than once: ", entrez_id)
+    entrez_to_ensembl[entrez_id] = (entrezgene, symbol, hgnc, ensembl_id)
+  
+  
+  
+  if len(entrez_to_ensembl.keys()) != len(entrez_id_list):
+    print("*** ERROR len(entrez_to_ensembl.keys()) %d != len(entrez_id_list) %d" %(len(entrez_to_ensembl.keys()), len(entrez_id_list)))
+  return entrez_to_ensembl
+
+  
+def format_tissue(tissue):
+    t=tissue.split("_") # eg: A1207_CENTRAL_NERVOUS_SYSTEM
+    return "_".join(t[1:])
+
+def get_ensembl_name_from_solname(solname):
+    n = (solname).split("_")
+    gene_name = n[0]
+    gene_in_hgnc = True
+    ensembl_id = 'NotFound'
+    if gene_name not in hgnc:
+        if gene_name in synonyms_to_hgnc:
+            # print("Found gene_name %s in synonyms for %s" %(gene_name,synonyms_to_hgnc[gene_name]))
+            new_name = synonyms_to_hgnc[gene_name]
+            if ';' in new_name:
+                print("** WARNING: %s BUT Synonym is ambigious %s" %(gene_name,new_name))
+                return gene_name+"_Unsure_"+new_name
+            gene_name = new_name
+            # so search the: isynonyms, iprev_names   eg: reformat hgnc as: '|'+(iprev_names+'|' + isynonyms)+'|'
+            # then look for   '|'+gene_name+'|'
+                #fout.write("\t%s_%s" %(n[0],get_ensembl_name(n[0])))  # Not using a variant suffix number at present.
+    #fout.write("\t%s%s_%s" %(n[0],n[1],get_ensembl_name(n[0]))) # ie. the original left-most column of names, 'ABL1_1_1110001111' becomes 'ABL11'  
+        else:
+           print("** WARNING: Gene NOT found in hgnc", gene_name)
+           gene_in_hgnc = False
+#           return gene_name+"_NotFound"
+        # Does this match the entrez_id from the ATARmap:
+        
+    if gene_in_hgnc:
+      hgnc_entrez_id  = hgnc[gene_name][ientrez_id]
+      hgnc_ensembl_id = hgnc[gene_name][iensembl_id]
+      ensembl_id = hgnc_ensembl_id
+      
+    if solname not in ATARmap:
+      print("********* ERROR: solname '%s' NOT in ATARmap ******" %(solname))
+    else:  
+      AT_entrez_id = ATARmap[solname][jsol_entrez]
+      if AT_entrez_id is None or AT_entrez_id == '':
+          print("***** ERROR: AT_entrez_id is None or Empty for solname '%s' hgnc_entrez_id '%s'" %(AT_entrez_id, hgnc_entrez_id))
+      if gene_in_hgnc and AT_entrez_id != hgnc_entrez_id:
+        print("***** ERROR: AT_entrez_id %s != hgnc_entrez_id '%s'" %(AT_entrez_id, hgnc_entrez_id))
+      mg_ensembl_id, mg_symbol = get_ensembl_and_symbol_from_mygene(AT_entrez_id)
+      if mg_ensembl_id == '':
+        print("*** ERROR: ensembl_id NOT in MyGene for AT_entrez_id %s" %(AT_entrez_id))
+      elif mg_symbol == '':
+        print("*** ERROR: symbol NOT in MyGene for AT_entrez_id %s" %(AT_entrez_id))
+      else:
+        if gene_in_hgnc and mg_ensembl_id != hgnc_ensembl_id:
+          print("***** ERROR: mg_ensembl_id '%s' != hgnc_ensembl_id '%s'" %(mg_ensembl_id, hgnc_ensembl_id))
+        if mg_symbol != gene_name:
+          print("***** ERROR: mg_symbol '%s' != gene_name '%s' in solname %s" %(mg_symbol, gene_name, solname))
+        if len(ATARmap[solname]) <= jsol_entrez:
+          ATARmap[solname].append(mg_ensembl_id)
+          ATARmap[solname].append(mg_symbol)
+        return mg_symbol+'_'+mg_ensembl_id  
+          
+    return gene_name+'_'+ensembl_id
+  
+  
+def add_mygene_to_ATARmap():
+  global img_entrezgene, img_symbol, img_hgnc, img_ensembl_id
+  entrez_dict = dict() # Using a dict first to eliminate duplicates to reduce downloads from mygene
+  for key in ATARmap:
+    entrez_id = ATARmap[key][jsol_entrez]    
+    # print("entrez_id=%s ,ATARmap[key]=%s,jsol_entrez=%s" %(entrez_id,ATARmap[key],jsol_entrez))
+    entrez_dict[entrez_id] = True
+  entrez_id_list = sorted(entrez_dict.keys(), key=int) #  ...., key=int) but doesn't work for, eg: '22947,100288687' 
+  print("Will submit %d queries to MyGene" %(len(entrez_id_list)))
+  #for id in entrez_id_list: print(id)
+  mg_dict = get_ensembl_and_symbol_list_from_mygene(entrez_id_list)
+  # Append to the map:
+  for key in ATARmap:
+    if len(ATARmap[key]) != jsol_entrez+1:
+      print("**** ERROR: len(ATARmap[key]) != jsol_entrez for key %s" %(len(ATARmap[key]),jsol_entrez, key))
+    entrez_id = ATARmap[key][jsol_entrez]
+    ATARmap[key].extend(mg_dict[entrez_id])   # mg_dict contains (ensembl_id, symbol, entrezgene)
+    img_entrezgene = jsol_entrez+1
+    img_symbol = jsol_entrez+2
+    img_hgnc = jsol_entrez+3
+    img_ensembl_id = jsol_entrez+4
+
+    
+# if __name__ == "__main__":
+#ids = get_ensembl_list_from_mygene(["1017","7248","J8888"])
+#for k in ids:
+#  print(k,ids[k])
+  
+#id,sy = get_ensembl_and_symbol_from_mygene("1017")
+#print(id)
+#print(sy)
+#exit()
+
+load_shRNAmap()
+load_ATARmap()
+add_mygene_to_ATARmap()
+write_solname_to_entrez_map_file()
+#print("shRNAmap: ",shRNAmap["CCTGGTGAAGAAGGTTGAATT_A2ML1"])
+#print("ATARmap: ",ATARmap["A2ML1_1_01110"])
+exit()
 
 load_hgnc_dictionary()
 print("Reading Achilles file")
@@ -165,33 +478,10 @@ with open(achilles_file, "r") as f:
         # inner_list = [int(elt.strip()) for elt in line.split("\t")]
         list_of_lists.append(inner_list)
 
-
 # Using this zip would be faster:
 # list_of_lists = zip(*list_of_lists) # transpose rows and columns.
-
 if len(list_of_lists) != num_rows+1: print("**ERROR: len(list_of_lists)=%s != num_rows=%d" %(len(list_of_lists),num_rows+1))
 if len(list_of_lists[0]) != num_cols+2:  print("**ERROR: len(list_of_lists)=%s != num_cols+2=%d" %(len(list_of_lists[0]),num_cols+2))
-
-
-def format_tissue(tissue):
-    t=tissue.split("_") # eg: A1207_CENTRAL_NERVOUS_SYSTEM
-    return "_".join(t[1:])
-
-def get_ensembl_name(gene_name):
-    if gene_name not in hgnc:
-        if gene_name in synonyms_to_hgnc:
-            # print("Found gene_name %s in synonyms for %s" %(gene_name,synonyms_to_hgnc[gene_name]))
-            new_name = synonyms_to_hgnc[gene_name]
-            if ';' in new_name:
-                print("** WARNING: %s BUT Synonym is ambigious %s" %(gene_name,new_name))
-                return gene_name+"_Unsure_"+new_name
-            gene_name = new_name    
-            # so search the: isynonyms, iprev_names   eg: reformat hgnc as: '|'+(iprev_names+'|' + isynonyms)+'|'
-            # then look for   '|'+gene_name+'|'
-        else:
-           print("** WARNING: Gene NOT found in hgnc", gene_name)
-           return gene_name+"_NotFound"
-    return gene_name+'_'+hgnc[gene_name][iensembl_id]
 
     
 print("Writing transformed files")    
@@ -202,10 +492,7 @@ with open(output_file1, "w") as fout:
     fout.write("cell.line")
     # Take leftmost column (col=0):
     for row in range(1,num_rows):
-        n = (list_of_lists[row][0]).split("_")
-        fout.write("\t%s" %(get_ensembl_name(n[0])))  # Not using a variant suffix number at present.
-        # fout.write("\t%s_%s" %(n[0],get_ensembl_name(n[0])))  # Not using a variant suffix number at present.
-        #fout.write("\t%s%s_%s" %(n[0],n[1],get_ensembl_name(n[0]))) # ie. the original left-most column of names, 'ABL1_1_1110001111' becomes 'ABL11'
+        fout.write("\t%s" %(get_ensembl_name_from_solname(list_of_lists[row][0])))  # Not using a variant suffix number at present.
     fout.write("\n")
 
     # Skip column 2 (col=1)
@@ -250,6 +537,8 @@ with open(output_file2, "w") as fout:
         #print(c,tissue,tissue_types[tissue],s)        
         fout.write("\n")
 
+#write_solname_to_entrez_map_file()
+        
 """    
 
 i = 0

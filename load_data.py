@@ -90,7 +90,7 @@ def split_target_gene_name(long_name):
 hgnc = dict() # To read the HGNC ids into a dictionary
 #ihgnc = dict() # The column name to number for the above HGNC dict. 
 def load_hgnc_dictionary():
-  global hgnc, ifull_name, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
+  global hgnc, isymbol, ifull_name, istatus, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
   print("\nLoading HGNC data")
   # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
   infile = os.path.join('input_data','hgnc_complete_set.txt')
@@ -99,7 +99,9 @@ def load_hgnc_dictionary():
     if dataReader.line_num == 1: # The header line.
       ihgnc = dict() # The column name to number for the above HGNC dict. 
       for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
+      isymbol     = ihgnc.get('symbol')
       ifull_name  = ihgnc.get('name')            # eg: erb-b2 receptor tyrosine kinase 2
+      istatus     = ihgnc.get('status')
       isynonyms   = ihgnc.get('alias_symbol')    # eg: NEU|HER-2|CD340|HER2
       iprev_names = ihgnc.get('prev_symbol')     # eg: NGL
       ientrez_id  = ihgnc.get('entrez_id')       # eg: 2064
@@ -109,11 +111,16 @@ def load_hgnc_dictionary():
       iuniprot_id = ihgnc.get('uniprot_ids')     # eg: P04626  NOTE: This could be more than one Id
       ivega_id    = ihgnc.get('vega_id')         # eg: 
       ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
+    elif row[istatus] == 'Entry Withdrawn':
+       continue  # So skip this entry.
     else:
-      gene_name = row[ihgnc['symbol']]    # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
+      gene_name = row[isymbol] # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
+      cosmic_name = row[icosmic_id]
+      if cosmic_name !='' and cosmic_name != gene_name:
+        print("**** ERROR: COSMIC '%s' != gene_name '%s'" %(cosmic_name,gene_name))
       if gene_name in hgnc:
-        print("*** ERROR: Duplicated gene_name in HGNC file: ",gene_name)
-      hgnc[gene_name] = row # Store the whole row for simplicity. 
+        print("*** ERROR: Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s'" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id]), "\n",hgnc[gene_name], "\n",row )
+      hgnc[gene_name] = row # Store the whole row for simplicity.
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
       
 def fix_gene_name(name):
