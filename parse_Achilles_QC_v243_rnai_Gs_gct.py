@@ -40,9 +40,12 @@ ATAR_mapping_file =  os.path.join(analysis_dir, "shRNAs_used_in_ATARiS_gene_solu
 read_R_cnv_muts_file = "198_boxplots_for_Colm/data_sets/func_mut_calls/combined_exome_cnv_all_muts_150225.txt"
 read_R_kinome_file = "198_boxplots_for_Colm/data_sets/siRNA_Zscores/Intercell_v18_rc4_kinome_zp0_for_publication.txt"
 
+
+analysis_dir = "Achilles_data_test"
 output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R.txt")
 output_file2 = os.path.join(analysis_dir, "Achilles_tissue_types.txt")
 output_file3 = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map.txt")
+output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R.txt")
 
 
 
@@ -200,21 +203,27 @@ def load_ATARmap():
 
       
       
-def write_solname_to_entrez_map_file():
+def write_solname_to_entrez_map_file(outfile,new_names_dict=None):
   print("\nWriting the solname to Entrez_id mapping file")
-  with open(output_file3, "w") as fout:
+  with open(outfile, "w") as fout:
 #    fout.write("sol.name\tentrez\tmg_ensembl\tmg_symbol\tmg_entrez\n")
 #    for key in sorted(ATARmap):  # .keys() .items()) # , key=itemgetter(jsol_name)):
 #      fout.write("%s\t%s" %(key, ATARmap[key][jsol_entrez]))
 #      if len(ATARmap[key]) > jsol_entrez+1:
 #        fout.write("\t%s\t%s\t%s" %(ATARmap[key][img_ensembl_id], ATARmap[key][img_symbol], ATARmap[key][img_entrezgene])) # The mg_ensembl, mg_symbol, mg_entrezid
 #      fout.write("\n")  
-    fout.write("sol.name\tmg_symbol\tentrez\tmg_entrez\tmg_hgnc\thgnc_ensembl\tmg_ensembl\n") # if change these titles, then update the 'read_ATARmap_from_file()' function too
+    fout.write("sol.name\tmg_symbol\tentrez\tmg_entrez\tmg_hgnc\thgnc_ensembl\tmg_ensembl") # if change these titles, then update the 'read_ATARmap_from_file()' function too
+    if new_names_dict is not None:
+        fout.write("\tname_used_for_R")
+    fout.write("\n")
     for key in sorted(ATARmap):  # .keys() .items()) # , key=itemgetter(jsol_name)):
       n = key.split('_')  # eg: A2ML1_1_01110
       if ATARmap[key][img_symbol] == '': print("*** mg_symbol missing for %s" %(key))
       elif n[0] != ATARmap[key][img_symbol]: print("*** %s differ %s" %(key,ATARmap[key][img_symbol]))
-      fout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\n" %(key, ATARmap[key][img_symbol], ATARmap[key][jsol_entrez], ATARmap[key][img_entrezgene], ATARmap[key][img_hgnc], ATARmap[key][ihgnc_ensembl_id], ATARmap[key][img_ensembl_id]))
+      fout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s" %(key, ATARmap[key][img_symbol], ATARmap[key][jsol_entrez], ATARmap[key][img_entrezgene], ATARmap[key][img_hgnc], ATARmap[key][ihgnc_ensembl_id], ATARmap[key][img_ensembl_id]))
+      if new_names_dict is not None and key in new_names_dict:
+        fout.write("\t%s" %(new_names_dict[key]) )
+      fout.write("\n")
 
 
 hgnc = dict() # To read the HGNC ids into a dictionary
@@ -505,6 +514,48 @@ def add_mygene_to_ATARmap():
 #print(sy)
 #sys.exit
 
+def get_ensembl_name_from_ATARmap(solname,gene_ensembl_names_dict):
+    # gene_ensembl_names_dict contains existing names, to check to ensure new name is unique by incrementing num
+    # This function assumes the caller adds the new names to this dict
+    
+    if solname not in ATARmap:
+      print("**ERROR: solname '%s' not found in ATARmap" %(solname))
+    row = ATARmap[solname]
+
+    solname_symbol, solname_num, solname_barcode = solname.split('_')
+    
+    gene_symbol = row[img_symbol]
+    if gene_symbol == '': # As wasn't found in HGNC
+        gene_symbol = solname_symbol
+    if ';' in gene_symbol:
+      #print("**WARNING solname '%s' has two gene_symbols %s, so just using first symbol" %(solname,gene_symbol),row)
+      #gene_symbol = gene_symbol.split(';')[0]
+      print("**WARNING solname '%s' has two gene_symbols %s, so will use the solname symbol" %(solname,gene_symbol),row)
+      gene_symbol = solname_symbol
+      if gene_symbol not in gene_symbol.split(';'):
+        print("**BUT the solname symbol %s isn't in the gene_symbols" %(solname),gene_symbol)
+       
+    ensembl_id = row[ihgnc_ensembl_id]
+    if ensembl_id == '':
+      ensembl_id = row[img_ensembl_id]
+    elif row[img_ensembl_id] !='' and ensembl_id != row[img_ensembl_id] and ensembl_id not in row[img_ensembl_id].split(';'):
+      print("**Solname %s HGNC ensembl id %s, is not in MG %s" %(solname,ensembl_id,row[img_ensembl_id]) )
+    
+    if ';' in ensembl_id:
+      print("**Solname %s has more than one ensembl id, so just using the first one: " %(solname),ensembl_id)
+      ensembl_id = ensembl_id.split(';')[0]  # Just take the first ensmbl_id
+    if ensembl_id == '':
+      ensembl_id = 'NoEnsemblIdFound'
+       
+    solname_num = int(solname_num)
+    while True:
+       new_name = gene_symbol+str(solname_num)+'_'+ensembl_id
+       if new_name not in gene_ensembl_names_dict: break
+       solname_num += 1
+       
+    return new_name # Using the solname_num to try to keep names unique.
+
+
 
 #### Script to convert the 
 def build_ATARmap():
@@ -517,7 +568,7 @@ def build_ATARmap():
     if len(ATARmap[key]) != ihgnc_ensembl_id+1:
       print(len(ATARmap[key]), ihgnc_ensembl_id+1, ATARmap[key],"\n")
     else: print("OK")
-  write_solname_to_entrez_map_file()
+  write_solname_to_entrez_map_file(output_file3)
   
 
   
@@ -547,36 +598,6 @@ def read_ATARmap_from_file():
 
 
       
-def get_ensembl_name_from_ATARmap(solname):
-    if solname not in ATARmap:
-      print("**ERROR: solname '%s' not found in ATARmap" %(solname))
-    row = ATARmap[solname]
-
-    gene_symbol = row[img_symbol]
-    if gene_symbol == '': # As wasn't found in HGNC
-      gene_symbol, num, barcode = solname.split('_')
-    if ';' in gene_symbol:
-      #print("**WARNING solname '%s' has two gene_symbols %s, so just using first symbol" %(solname,gene_symbol),row)
-      #gene_symbol = gene_symbol.split(';')[0]
-      print("**WARNING solname '%s' has two gene_symbols %s, so will use the solname symbol" %(solname,gene_symbol),row)
-      gene_symbol, num, barcode = solname.split('_')
-      if gene_symbol not in gene_symbol.split(';'):
-        print("**BUT the solname symbol %s isn't in the gene_symbols" %(solname),gene_symbol)
-       
-    ensembl_id = row[ihgnc_ensembl_id]
-    if ensembl_id == '':
-      ensembl_id = row[img_ensembl_id]
-    elif row[img_ensembl_id] !='' and ensembl_id != row[img_ensembl_id] and ensembl_id not in row[img_ensembl_id].split(';'):
-      print("**Solname %s HGNC ensembl id %s, is not in MG %s" %(solname,ensembl_id,row[img_ensembl_id]) )
-    
-    if ';' in ensembl_id:
-      print("**Solname %s has more than one ensembl id, so just using the first one: " %(solname),ensembl_id)
-      ensembl_id = ensembl_id.split(';')[0]  # Just take the first ensmbl_id
-    if ensembl_id == '':
-      ensembl_id = 'NoEnsemblIdFound'
-       
-    return gene_symbol+'_'+ensembl_id
-
 
     
 
@@ -629,6 +650,8 @@ if len(list_of_lists[0]) != num_cols+2:  print("**ERROR: len(list_of_lists)=%s !
 
     
 print("Writing transformed files")    
+gene_ensembl_names = dict()
+new_names_dict = dict()
 cell_lines = []
 tissue_types = dict()   # Tissue types eg: "HAEMATOPOIETIC AND LYMPHOID TISSUE" from "697_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"
 # Write transposed file:
@@ -637,7 +660,15 @@ with open(output_file1, "w") as fout:
     # Take leftmost column (col=0):
     for row in range(1,num_rows):
         # fout.write("\t%s" %(get_ensembl_name_from_solname(list_of_lists[row][0])))  # Not using a variant suffix number at present.
-        fout.write("\t%s" %(get_ensembl_name_from_ATARmap(list_of_lists[row][0])))  # Not using a variant suffix number at present.        
+        gene_ensembl_name = get_ensembl_name_from_ATARmap(list_of_lists[row][0], gene_ensembl_names)
+        if list_of_lists[row][0] in new_names_dict:
+          if new_names_dict[list_of_lists[row][0]] != gene_ensembl_name: print("ERROR Name '%s' for %s already in new_names dict, and is different")
+        else:   
+          new_names_dict[list_of_lists[row][0]] = gene_ensembl_name # To write names to file.
+          
+        if gene_ensembl_name in gene_ensembl_names: print("******* Duplicate gene_ensembl_name '%s' already exists" %(gene_ensembl_name))
+        else: gene_ensembl_names[gene_ensembl_name] = True
+        fout.write("\t%s" %(gene_ensembl_name))  # Not using a variant suffix number at present.        
     fout.write("\n")
 
     # Skip column 2 (col=1)
@@ -683,6 +714,10 @@ with open(output_file2, "w") as fout:
         fout.write("\n")
 
 
+# Write the new names to file for use later:
+write_solname_to_entrez_map_file(output_file4_newnames,new_names_dict)
+
+
 def diff_dictionaries(dict1,dict2,name1,name2):
   inboth=[]
   in1only=[]
@@ -708,34 +743,34 @@ def get_only_codes_dict(dictfull):
     dict_codes[key.split('_')[0]]=True
   return dict_codes  
 
-cell_line_dict = dict()
-for key in cell_lines: 
-  if key in cell_line_dict: print("Duplicate celline '%s' in Achilles data" %(key))
-  cell_line_dict[key] = True
-  
+#cell_line_dict = dict()
+#for key in cell_lines: 
+#  if key in cell_line_dict: print("Duplicate celline '%s' in Achilles data" %(key))
+#  cell_line_dict[key] = True
+#  
 # Just compare the codes now, eg: HT55 for HT55_LARGE_INTESTINE
-cell_line_codes_dict = get_only_codes_dict(cell_line_dict)
-
+#cell_line_codes_dict = get_only_codes_dict(cell_line_dict)
+#
 # Now check if cellines match with existing cnv/mutation files:
-R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "cell_line")
-R_cellline_codes = get_only_codes_dict(R_cellines)
-inboth = diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_cnv_muts_celllines")
-inboth_codes = diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
-
-for key_code in inboth_codes:
-  found=False
-  for key in inboth:
-    key = key.split('_')[0]
-    if key_code == key:
-      found=True
-      break
-  if found==False: print("Not Found",key_code)
-print("BUT the 'TT' codes found in both is very different: 'TT_THYROID' 'TT_OESOPHAGUS'")
-
-R_cellines = read_cellines_from_R_analysis_file(read_R_kinome_file, "cell.line")
-R_cellline_codes = get_only_codes_dict(R_cellines)
-diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_kinome_celllines")
-diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
+#R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "cell_line")
+#R_cellline_codes = get_only_codes_dict(R_cellines)
+#inboth = diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_cnv_muts_celllines")
+#inboth_codes = diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
+#
+#for key_code in inboth_codes:
+#  found=False
+#  for key in inboth:
+#    key = key.split('_')[0]
+#    if key_code == key:
+#      found=True
+#      break
+#  if found==False: print("Not Found",key_code)
+#print("BUT the 'TT' codes found in both is very different: 'TT_THYROID' 'TT_OESOPHAGUS'")
+#
+#R_cellines = read_cellines_from_R_analysis_file(read_R_kinome_file, "cell.line")
+#R_cellline_codes = get_only_codes_dict(R_cellines)
+#diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_kinome_celllines")
+#diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
 
 
 """    
