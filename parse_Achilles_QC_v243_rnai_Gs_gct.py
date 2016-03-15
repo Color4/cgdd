@@ -41,12 +41,11 @@ read_R_cnv_muts_file = "198_boxplots_for_Colm/data_sets/func_mut_calls/combined_
 read_R_kinome_file = "198_boxplots_for_Colm/data_sets/siRNA_Zscores/Intercell_v18_rc4_kinome_zp0_for_publication.txt"
 
 
-analysis_dir = "Achilles_data_test"
-output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R.txt")
-output_file2 = os.path.join(analysis_dir, "Achilles_tissue_types.txt")
+analysis_dir = "Achilles_data"
+output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R_kinome_v3_12Mar2016.txt")
+output_file2 = os.path.join(analysis_dir, "Achilles_tissues_v3_12Mar2016.txt")
 output_file3 = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map.txt")
-output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R.txt")
-
+output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt")
 
 
 """
@@ -636,11 +635,18 @@ with open(achilles_file, "r") as f:
     print("Version: %s Rows: %d Cols: %d" %(version,num_rows,num_cols))
     header = f.readline().rstrip().split("\t")
     if header[0] != 'Name' or header[1] != 'Description': print("*** ERROR: expected Name and Description, but read: '%s' '%s'" %(header[0], header[1]))
+    
+    # Using "for i ...", rather than eg. "for cellline in header:", as want to change the value, removing the "NCI" (National Cancer Institute) so that will match with some known cell line names in Campbell et al data:
+    for i in range(2,len(header)):
+        if header[i][:3] == "NCI":  # ie. characters 0,1,2
+            header[i] = header[i][3:]  # eg: "NCIH1299_LUNG" => "H1299_LUNG"
+    # The Achilles cell lines with NCI prefix are: NCIH1299_LUNG, NCIH1437_LUNG, NCIH1650_LUNG, NCIH1792_LUNG, NCIH196_LUNG, NCIH1975_LUNG, NCIH2052_PLEURA, NCIH2122_LUNG, NCIH2171_LUNG, NCIH23_LUNG, NCIH2452_PLEURA, NCIH441_LUNG, NCIH508_LARGE_INTESTINE, NCIH660_PROSTATE, NCIH661_LUNG, NCIH716_LARGE_INTESTINE, NCIH838_LUNG, NCIN87_STOMACH
+
     list_of_lists.append(header)
     for line in f:
         inner_list = [elt.rstrip() for elt in line.split("\t")]
         # in alternative, if you need to use the file content as numbers
-        # inner_list = [int(elt.strip()) for elt in line.split("\t")]
+        # inner_list = [int(elt.strip()) for elt in line.split("\t")] 
         list_of_lists.append(inner_list)
 
 # Using this zip would be faster:
@@ -648,6 +654,35 @@ with open(achilles_file, "r") as f:
 if len(list_of_lists) != num_rows+1: print("**ERROR: len(list_of_lists)=%s != num_rows=%d" %(len(list_of_lists),num_rows+1))
 if len(list_of_lists[0]) != num_cols+2:  print("**ERROR: len(list_of_lists)=%s != num_cols+2=%d" %(len(list_of_lists[0]),num_cols+2))
 
+
+# List of drivers from run_......R
+# Define the set of 21 genes with
+# good represention (≥ 7 mutants).
+# This list can be used to filter
+# the complete set of tests
+cgc_vogel_genes = (
+	"CCND1_595_ENSG00000110092",
+	"CDKN2A_1029_ENSG00000147889",
+	"EGFR_1956_ENSG00000146648",
+	"ERBB2_2064_ENSG00000141736",
+	"GNAS_2778_ENSG00000087460",
+	"KRAS_3845_ENSG00000133703",
+	"SMAD4_4089_ENSG00000141646",
+	"MDM2_4193_ENSG00000135679",
+	"MYC_4609_ENSG00000136997",
+	"NF1_4763_ENSG00000196712",
+	"NOTCH2_4853_ENSG00000134250",
+	"NRAS_4893_ENSG00000213281",
+	"PIK3CA_5290_ENSG00000121879",
+	"PTEN_5728_ENSG00000171862",
+	"RB1_5925_ENSG00000139687",
+	"MAP2K4_6416_ENSG00000065559",
+	"SMARCA4_6597_ENSG00000127616",
+	"STK11_6794_ENSG00000118046",
+	"TP53_7157_ENSG00000141510",
+	"ARID1A_8289_ENSG00000117713",
+	"FBXW7_55294_ENSG00000109670"
+	)
     
 print("Writing transformed files")    
 gene_ensembl_names = dict()
@@ -733,7 +768,13 @@ def diff_dictionaries(dict1,dict2,name1,name2):
         # print("%s ce)ll line '%s' not found in %s" %(name1,key,name2))
         in2only.append(key)    
   print("InBoth: %d   In %s only: %d  In %s only: %d\n" %(len(inboth),name1,len(in1only),name2,len(in2only)))
-  print("inboth", inboth, "\n1only", in1only, "\n2only", in2only, "\n")
+  # for inboth, "\n1only", in1only, "\n2only", in2only)
+  print("inboth:")
+  for key in inboth: print("  ",key)
+  print("\nonly in",name1)
+  for key in in1only: print("  ",key) 
+  print("\nonly in",name2)
+  for key in in2only: print("  ",key)
   return inboth # in1only, in2only
 
 
@@ -743,36 +784,43 @@ def get_only_codes_dict(dictfull):
     dict_codes[key.split('_')[0]]=True
   return dict_codes  
 
-#cell_line_dict = dict()
-#for key in cell_lines: 
-#  if key in cell_line_dict: print("Duplicate celline '%s' in Achilles data" %(key))
-#  cell_line_dict[key] = True
+  
+def cell_lines_in_common():  
+  cell_line_dict = dict()
+  for key in cell_lines: 
+    if key in cell_line_dict: print("Duplicate celline '%s' in Achilles data" %(key))
+    cell_line_dict[key] = True
 #  
 # Just compare the codes now, eg: HT55 for HT55_LARGE_INTESTINE
-#cell_line_codes_dict = get_only_codes_dict(cell_line_dict)
-#
+#  cell_line_codes_dict = get_only_codes_dict(cell_line_dict)
+
 # Now check if cellines match with existing cnv/mutation files:
-#R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "cell_line")
-#R_cellline_codes = get_only_codes_dict(R_cellines)
-#inboth = diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_cnv_muts_celllines")
-#inboth_codes = diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
-#
-#for key_code in inboth_codes:
-#  found=False
-#  for key in inboth:
-#    key = key.split('_')[0]
-#    if key_code == key:
-#      found=True
-#      break
-#  if found==False: print("Not Found",key_code)
+  R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "cell_line")
+  #R_cellline_codes = get_only_codes_dict(R_cellines)
+  inboth = diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_cnv_muts_celllines")
+  #inboth_codes = diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
+
+  #for key_code in inboth_codes:
+  #  found=False
+  #  for key in inboth:
+  #    key = key.split('_')[0]
+  #    if key_code == key:
+  #      found=True
+  #      break
+  #  if found==False: print("Not Found",key_code)
 #print("BUT the 'TT' codes found in both is very different: 'TT_THYROID' 'TT_OESOPHAGUS'")
 #
-#R_cellines = read_cellines_from_R_analysis_file(read_R_kinome_file, "cell.line")
-#R_cellline_codes = get_only_codes_dict(R_cellines)
-#diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_kinome_celllines")
-#diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
+  R_cellines = read_cellines_from_R_analysis_file(read_R_kinome_file, "cell.line")
+  # R_cellline_codes = get_only_codes_dict(R_cellines)
+  diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_kinome_celllines")
+  # diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
 
+"NCI"
 
+  
+
+cell_lines_in_common()
+  
 """    
 
 i = 0

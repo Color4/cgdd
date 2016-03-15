@@ -7,13 +7,32 @@
 # or django-adapters: http://stackoverflow.com/questions/14504585/good-ways-to-import-data-into-django
 #                     http://django-adaptors.readthedocs.org/en/latest/
 
-import os, csv
+
+import os, csv, re
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from distutils import file_util  # Single file operations, eg: copy_file()
 from django.db.models import Count # For the distincy study and target counts for drivers.
 
-FETCH_BOXPLOTS = False
+# In mysqlite database, the max_length parameter for fields is ignored as "Note that numeric arguments in parentheses that following the type name (ex: "VARCHAR(255)") are ignored by SQLite - SQLite does not impose any length restrictions (other than the large global SQLITE_MAX_LENGTH limit) on the length of strings, ...." (unless use sqlites CHECK contraint option)
+
+# BUT MySQL does enforce max_length, so will truncate dtrings that are too long, so need to check for data truncation
+import warnings # To convert the MySQL data truncation (due to field max_length being too small) into raising an exception."
+
+# To use the warning category  below, might need to use: import MySQLdb
+# Also see: http://www.nomadjourney.com/2010/04/suppressing-mysqlmysqldb-warning-messages-from-python/
+# warnings.filterwarnings('error', category=MySQLdb.Warning) # Raises exceptions on a MySQL warning. From: http://stackoverflow.com/questions/2102251/trapping-a-mysql-warning
+ # or:  warnings.filterwarnings('ignore', 'Unknown table .*')
+warnings.filterwarnings('error', 'Data truncated .*') # regular expression to catch: Warning: Data truncated for column 'gene_name' at row 1
+ 
+ # options are: (action, message='', category=Warning, module='', lineno=0, append=False)
+ # message is a string containing a regular expression that the warning message must match (the match is compiled to always be case-insensitive). eg. Turncated ....
+ # Can also run script with the "-W error" (or ignore) flag as for python.
+ 
+
+
+ 
+FETCH_BOXPLOTS = True
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
@@ -21,8 +40,8 @@ PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my djang
 
 # Paths to extract the boxplots images produced by R:
 analysis_dir = "198_boxplots_for_Colm/analyses/"
-combined_boxplots_dir = os.path.join(analysis_dir, "combined_histotypes")
-separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes")
+combined_boxplots_dir = os.path.join(analysis_dir, "combined_histotypes_medium")
+separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes_medium")
 
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
@@ -48,7 +67,7 @@ def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_nam
 #  else:
 #    fromfilename = "separate_boxplots_dir/%s_%s_%s__PMID%s.png" %(driver, target, histotype, pmid)  # eg: AKT2_ACVR1_LUNG__PMIDnnnnnnnn.png  or: ERBB2_MAP3K2_BREAST__PMIDnnnnnnnn
     #  or: filename = driver + "_" + target + "_" + histotype + "_" + "_PMIDnnnnnnnn.png"
-  # print( from_filename, " ====> ", to_filename)
+  print( from_filename, " ====> ", to_filename)
   file_util.copy_file(from_filename, to_filename, preserve_mode=1, preserve_times=1, update=1, dry_run=0) 
 
 
@@ -131,13 +150,20 @@ def fix_gene_name(name):
   else: return name
 
 
+
+RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
+
 def find_or_add_gene(names, is_driver):  # names is a tuple of: gene_name, entrez_id, ensembl_id
   # if names[0] == 'PIK3CA' and is_driver: print("**** PIK3CA  is_driver: ",names)
+  #global RE_GENE_NAME
   original_gene_name = names[0]
   names[0] = fix_gene_name(names[0])
   gene_name = names[0]
   entrez_id = names[1]
   ensembl_id = names[2]
+  
+  # Check that gene name_matches the current regexp in the gendep/urls.py file:
+  assert RE_GENE_NAME.match(gene_name), "gene_name %s doesn't match regexp"%(gene_name)
   
   # if gene_name == 'PIK3CA': print("PIK3CA Here 0")
   try:
@@ -243,7 +269,8 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
     # Using bulk_create() would be faster I think. See: http://vincent.is/speeding-up-django-postgres/  and https://www.caktusgroup.com/blog/2011/09/20/bulk-inserts-django/
     
     # Bulk create is actually slightly slower than adding record by record
-    d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], histotype=histotype, mutation_type=mutation_type, study=study)
+    d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], effect_size="", histotype=histotype, mutation_type=mutation_type, study=study)
+    # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
     # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
     dependencies.append( d )
 
@@ -264,8 +291,8 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
   print("Finished importing table.")
 
 
-def add_study_and_target_counts_to_drivers():
-  print("Adding study and target counts to drivers")
+def add_counts_of_study_tissue_and_target_to_drivers():
+  print("Adding study, tissue and target counts to drivers")
   # select driver, count(distinct target), count(distinct pmid) from gendep_dependency group by driver;
   counts = Dependency.objects.values('driver').annotate( num_studies=Count('study', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
   # There is probably a faster SQL type quesry, or bulk_update
@@ -294,7 +321,7 @@ if __name__ == "__main__":
 
   load_hgnc_dictionary()
   
-  study_pmid = "Pending001"
+  study_pmid = "26947069"
   study_short_name = "Campbell(2016)"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
   study_authors = "James Campbell, Colm J. Ryan, Rachel Brough, Ilirjana Bajrami, Helen Pemberton, Irene Chong, Sara Costa-Cabral,Jessica Frankum, Aditi Gulati, Harriet Holme, Rowan Miller, Sophie Postel-Vinay, Rumana Rafiq, Wenbin Wei,Chris T Williamson, David A Quigley, Joe Tym, Bissan Al-Lazikani, Timothy Fenton, Rachael Natrajan, Sandra Strauss, Alan Ashworth and Christopher J Lord"
@@ -302,9 +329,9 @@ if __name__ == "__main__":
   study_summary = "siRNA screen of 714 kinase and kinase-related genes in 117 different tumor cell lines"
   experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
-  study_pub_date = "2016"
+  study_pub_date = "2016, 2 Mar"
   study_old_pmid = "nnnnnnnn" # This is the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
-
+  study_old_pmid = "26947069"
  
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
@@ -326,10 +353,11 @@ if __name__ == "__main__":
     study_authors = "Cowley GS, Weir BA, Vazquez F, Tamayo P, Scott JA, Rusin S, East-Seletsky A, Ali LD, Gerath WF, Pantel SE, Lizotte PH, Jiang G, Hsiao J, Tsherniak A, Dwinell E, Aoyama S, Okamoto M, Harrington W, Gelfand E, Green TM, Tomko MJ, Gopal S, Wong TC, Li H, Howell S, Stransky N, Liefeld T, Jang D, Bistline J, Hill Meyers B, Armstrong SA, Anderson KC, Stegmaier K, Reich M, Pellman D, Boehm JS, Mesirov JP, Golub TR, Root DE, Hahn WC"
     study_abstract = "Using a genome-scale, lentivirally delivered shRNA library, we performed massively parallel pooled shRNA screens in 216 cancer cell lines to identify genes that are required for cell proliferation and/or viability. Cell line dependencies on 11,000 genes were interrogated by 5 shRNAs per gene. The proliferation effect of each shRNA in each cell line was assessed by transducing a population of 11M cells with one shRNA-virus per cell and determining the relative enrichment or depletion of each of the 54,000 shRNAs after 16 population doublings using Next Generation Sequencing. All the cell lines were screened using standardized conditions to best assess differential genetic dependencies across cell lines. When combined with genomic characterization of these cell lines, this dataset facilitates the linkage of genetic dependencies with specific cellular contexts (e.g., gene mutations or cell lineage). To enable such comparisons, we developed and provided a bioinformatics tool to identify linear and nonlinear correlations between these features."
     study_summary = "shRNA screen of 11,000 genes in 216 different cancer cell lines, with 5 shRNAs per gene"
-    experiment_type = "kinome shRNA"
+    experiment_type = "genome shRNA"
     study_journal = "Scientific Data"
     study_pub_date = "2014, 30 Sep"
     study_old_pmid = "25984343"
     study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date )
-    
-    add_study_and_target_counts_to_drivers()
+  
+  
+    add_counts_of_study_tissue_and_target_to_drivers()

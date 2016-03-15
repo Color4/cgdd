@@ -3,9 +3,17 @@ from django.db import models
 from django.core.urlresolvers import reverse
 from django.conf.urls import url
 
+
+# To manually modify field to match the changed Gene gene_name increased to 20 characters.
+# mysql -u sbridgett -h sbridgett.mysql.pythonanywhere-services.com
+# use sbridgett$gendep
+# describe gendep_dependency;
+# ALTER TABLE gendep_dependency MODIFY driver varchar(20) NOT NULL;
+
+
 # Information about each gene:
 class Gene(models.Model):
-    gene_name   = models.CharField('Gene name', max_length=10, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
+    gene_name   = models.CharField('Gene name', max_length=20, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
     original_name = models.CharField('Original name', max_length=30) # As some names are changed, especially needed for the other studies.
     is_driver   = models.BooleanField('Is driver', db_index=True) # So will know for search menus which to list in the dropdown menu
     full_name   = models.CharField('Full name', max_length=200)
@@ -108,13 +116,16 @@ class Study(models.Model):
         # return self.pmid+' '+self.authors+' '+self.title+' '+self.abstract+' '+self.journal+' '+self.pub_date
         return self.pmid
 
-    def weblink(self):
+    def url(self):
         #        if self.pmid[0:7] == 'Pending': href = reverse('gendep:study', kwargs={'pmid': self.pmid})
         #if self.pmid[0:7] == 'Pending': href = reverse('gendep:study')
         # Fix the problem with reverse() later.
         if self.pmid[0:7] == 'Pending': href = '/gendep/study/%s/' %(self.pmid)
         else: href = 'http://www.ncbi.nlm.nih.gov/pubmed/%s' %(self.pmid)
-        return '<a class="tipright" href="%s" target="_blank">%s<span>%s, %s et al, %s, %s</span></a>' %(href, self.short_name, self.title, self.authors[0:30], self.journal, self.pub_date)
+        return href
+        
+    def weblink(self):
+        return '<a class="tipright" href="%s" target="_blank">%s<span>%s, %s et al, %s, %s</span></a>' %(self.url(), self.short_name, self.title, self.authors[0:30], self.journal, self.pub_date)
         # <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.short_name }} {{ dependency.study.pmid }}</a>
 """
     def weblink(self):
@@ -150,9 +161,11 @@ class Dependency(models.Model):
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
     wilcox_p    = models.FloatField('Wilcox P-value')     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9)
+    effect_size = models.CharField('Effect size', max_length=20, blank=True) # or should this be an integer or float?
+    interaction = models.NullBooleanField('Functional interaction', db_index=True, ) # True if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values
     study       = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
     study_table = models.CharField('Study Table', max_length=10) # The table the data is from.
-    inhibitors  = models.ManyToManyField(Drug, related_name='+')
+    inhibitors  = models.ManyToManyField(Drug, related_name='+', blank=True) # , null=True has no effect on ManyToMany fields
 
     # histotype   = models.ForeignKey(Histotype, verbose_name='Histotype', db_column='histotype', to_field='histotype', related_name='+', db_index=True, on_delete=models.PROTECT)
     # Now using a choices field instead of the above Foreign key to a separate table. 
@@ -185,8 +198,9 @@ class Dependency(models.Model):
                     break
             if not found: raise ValueError('Invalid value "%s" for histotype choices: %s' %(value, Dependency.HISTOTYPE_CHOICES))
         models.Model.__setattr__(self, name, value)
-
-
+        
+    def boxplot_filename(self):
+       return self.driver.gene_name + "_" + self.target.gene_name + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
 
 # NOTES:
 # =====

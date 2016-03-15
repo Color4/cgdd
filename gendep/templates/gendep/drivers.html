@@ -5,16 +5,16 @@
 {% endblock %}
 {% block table %}
 <table cellpadding="3" class="tabler"> <!-- style="border: 1px solid blue;" -->
-<thead><tr><th>Driver gene</th><th>Synonyms</th><th>Full name</th><th>Num studies</th><th>Num histotypes</th><th>Num targets</th><th>External links</th></tr></thead>
+<thead><tr><th>Driver gene</th><th>Full name</th><th>Synonyms</th><th>Num studies</th><th>Num tissues</th><th>Num targets</th><th>External links</th></tr></thead>
 <tbody>
 {% for driver in driver_list %}
 <tr>
-<td><a href="{% url 'gendep:driver' driver.gene_name %}">{{ driver.gene_name }}</a></td>
-<td><font size="-1">{{ driver.prev_names_and_synonyms_spaced }}</font></td>
+<td><a href="{% url 'gendep:driver' driver=driver.gene_name %}">{{ driver.gene_name }}</a></td>
 <td>{{ driver.full_name }}</td>
-<td>{{ driver.num_studies }}</td>
-<td>{{ driver.num_histotypes }}</td>
-<td>{{ driver.num_targets }}</td>
+<td><font size="-1">{{ driver.prev_names_and_synonyms_spaced }}</font></td>
+<td align="center">{{ driver.num_studies }}</td>
+<td align="center">{{ driver.num_histotypes }}</td>
+<td align="center">{{ driver.num_targets }}</td>
 <td><font size="-2">{{ driver.external_links|safe }}</font></td>
 </tr>
 {% endfor %}

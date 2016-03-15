@@ -4,10 +4,12 @@
 {% block links %}
 {# jQuery and jQuery-UI google hosted libraries for the autocomplete search box: #}
 
+
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+
 {# when running my laptop offline, temporarily using these local files instead of the above google server ones #}
 {% comment %}
   <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/external/jquery/jquery.js' %}"></script>
@@ -67,8 +69,8 @@ $(document).ready(function() {
 
     $(".fancybox").fancybox({
         preload: 0, // Number of gallary images to preload
-        minWidth: 600,
-        maxHeight: 500,
+        //minWidth: 600,
+        //maxHeight: 500,
         aspectRatio: true,
         fitToView: false,
         arrows: false,
@@ -139,10 +141,24 @@ $(".tip7").fancybox({
 						// size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option. 
 						showProcessing: true,
 					    theme: 'blue',
-					    widgets: ["zebra", 'filter', 'scroller'],
+					    widgets: ["zebra", "filter", "scroller"],
 					    widgetOptions: {
 						    zebra: ["even", "odd"], 
-							scroller_height: 400  // default is 300
+							scroller_height: 400,  // default is 300
+							filter_functions: {
+                             // Note that only the normalized (n) value will contain numerical data
+                             // If you use the exact text, you'll need to parse it (parseFloat or parseInt)
+							 // These column indexes are zero-based:
+                                1 : {
+                                    "&le; 0.05"   : function(e, n, f, i) { alert(e); return n <= 0.05; },
+                                    "&le; 0.01"   : function(e, n, f, i) { alert(n); return n <= 0.01; },
+                                    "&le; 5 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.005; },
+	                                "&le; 1 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.001; },
+	                                "&le; 5 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0005; },
+	                                "&le; 1 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0001; }	
+                                    }
+                            }
+							
 						},  // widgetOptions maybe need to be after the widgets: [...] line.
 					    sortInitialOrder: "asc", // default sort order
 						sortRestart: true, // so sort always reastarts from the specified sortInitialOrder.
@@ -248,10 +264,11 @@ function is_form_complete() {
 {% endblock %}
 {% block content %}
 <div id="welcome_div" {% if driver %}style="display:none"{% endif %} >
-<p>Welcome to the Genetic Dependencies in Cancer database, which contains results from <a href ="{% url 'gendep:studies' %}" title="Studies"> several studies</a> of siRNA and shRNA silencing of target genes in cancer cell lines with known <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations ........</p>
+<p>Welcome to the database of genetic dependencies in cancer, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens. 
+
 <p>Enter your driver search criteria below. (In the "Driver gene" search box, typing two letters of a driver gene name will display a menu of matching gene names)</p>
 </div>
-<table align="center" cellpadding="5" style="background-color: #ddddff; border: 1px solid blue;">
+<table align="center" cellpadding="5" style="background-color: #ddddff; margin-top: 10px; margin-bottom: 10px; border: 1px solid blue;">
 <tr>
 <td>Search filter:</td>
 <td>
@@ -263,7 +280,7 @@ function is_form_complete() {
 <td><label for="histotype">Tissue type:</label>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype">
-      <option value="ALL_HISTOTYPES" selected="selected">All histotypes</option>
+      <option value="ALL_HISTOTYPES" selected="selected">All tissues</option>
 	{% for histotype in histotype_list %}
 	  <option value="{{ histotype.0 }}">{{ histotype.1 }}</option>
 	{% endfor %}

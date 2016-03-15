@@ -14,16 +14,27 @@ import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+DEVELOPMENT = ('Django_projects' in BASE_DIR) # To indicate that is running on my local Windows computer, then set settings below accordingly:
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'hi0b%owp27jefp==#xz34=3d5x4f3-)0ezh0%o+4ba=8#&apju'
+# SJB - Instead automatically build a secret key - from: https://gist.github.com/airtonix/6204802
+# We can put setting.py into github, but don't put base/settings/key.py into github.
+#try:
+#    from .key import *
+#except ImportError:
+#    from base.lib.generate_key import generate_key
+#    secret_key_file = open(os.path.join(HERE_DIR, "key.py"), "w")
+#    secret_key_file.write("""SECRET_KEY = "{0}" """.format(generate_key(40, 128)))
+#    secret_key_file.close()
+#    from .key import *
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = DEVELOPMENT  # DEBUG = True
 
 ALLOWED_HOSTS = []
 
@@ -32,7 +43,6 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     'gendep.apps.GendepConfig',
-    'livereload',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,8 +51,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django_extensions',  # Added for the runserver_plus: http://django-extensions.readthedocs.org/en/latest/runserver_plus.html
 ]
-
-#RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
 
 MIDDLEWARE_CLASSES = [
     'django.middleware.security.SecurityMiddleware',
@@ -53,10 +61,12 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'livereload.middleware.LiveReloadScript',
 ]
-
-# LIVERELOAD_PORT = 
+if DEVELOPMENT:
+    INSTALLED_APPS.append('livereload') # For the livereload server
+    MIDDLEWARE_CLASSES.append('livereload.middleware.LiveReloadScript')
+    # LIVERELOAD_PORT = 
+    # RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
 
 ROOT_URLCONF = 'cgdd.urls'
 
@@ -88,39 +98,54 @@ WSGI_APPLICATION = 'cgdd.wsgi.application'
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
 
 
-# For webserver I should change ENGINE to: 'django.db.backends.postgresql' OR 'django.db.backends.mysql'
-# And set a database name.
-# And add:  USER, PASSWORD, and HOST
-# For PostgreSQL or MySQL, make sure youve created a database by this point. Do that with CREATE DATABASE database_name; within your databases interactive prompt.
-# See: https://docs.djangoproject.com/en/1.9/ref/settings/#std:setting-DATABASES
-# For MySql on PythonAnywhere, see: https://help.pythonanywhere.com/pages/UsingMySQL/
-
-# For HOST, An empty string means localhost.
-# eg:
-# DATABASES = {
-#    'default': {
-#        'ENGINE': 'django.db.backends.postgresql',
-#        'NAME': 'mydatabase',
-#        'USER': 'mydatabaseuser',
-#        'PASSWORD': 'mypassword',
-#        'HOST': '127.0.0.1',
-#        'PORT': '5432',
-#    }
-# }
-# Also can include test db name:
-#        'TEST': {
-#            'NAME': 'mytestdatabase',
-#        },
-
-
-# Using sqlite3 for now:
-DATABASES = {
-    'default': {
+if DEVELOPMENT:
+   # Using sqlite3 on my windows computer:
+    DATABASES = {
+      'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+      }
     }
-}
+else:
+    # Using MySQL on production PythonAnywhere server: https://help.pythonanywhere.com/pages/UsingMySQL/
+    # MySQL notes: https://docs.djangoproject.com/en/1.9/ref/databases/#mysql-notes
+    # On pythonanywhere, using the 'mysqlclient' library.
+    DATABASES = {
+      'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'sbridgett$gendep',
+        'TEST_NAME': 'sbridgett$test_gendep',
+        'USER': 'sbridgett',
+        'PASSWORD': 'drivers0',
+        'HOST': 'sbridgett.mysql.pythonanywhere-services.com',
+      }
+    }
 
+  # For webserver I should change ENGINE to: 'django.db.backends.postgresql' OR 'django.db.backends.mysql'
+  # And set a database name.
+  # And add:  USER, PASSWORD, and HOST
+  # For PostgreSQL or MySQL, make sure youve created a database by this point. Do that with CREATE DATABASE database_name; within your databases interactive prompt.
+  # See: https://docs.djangoproject.com/en/1.9/ref/settings/#std:setting-DATABASES
+
+  # For HOST, An empty string means localhost.
+  # eg:
+  # DATABASES = {
+  #    'default': {
+  #        'ENGINE': 'django.db.backends.postgresql',
+  #        'NAME': 'mydatabase',
+  #        'USER': 'mydatabaseuser',
+  #        'PASSWORD': 'mypassword',
+  #        'HOST': '127.0.0.1',
+  #        'PORT': '5432',
+  #    }
+  # }
+  # Also can include test db name:
+  #        'TEST': {
+  #            'NAME': 'mytestdatabase',
+  #        },
+
+  
+  
 
 # Password validation
 # https://docs.djangoproject.com/en/1.9/ref/settings/#auth-password-validators
@@ -162,10 +187,12 @@ USE_TZ = True
 STATIC_ROOT = os.path.join(BASE_DIR, "static") 
 
 STATIC_URL = '/static/'
+# STATIC_URL = '/static/' if DEVELOPMENT else 'http://sbridgett.pythonanywhere.com/static/'
 
 """
-# SJB added logging, based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
-LOGGING = {
+if DEVELOPMENT:
+  # SJB added logging, based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
+  LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
@@ -196,5 +223,5 @@ LOGGING = {
             'level': 'DEBUG',
         },
     }
-}
+  }
 """
