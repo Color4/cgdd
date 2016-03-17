@@ -54,7 +54,7 @@ class Gene(models.Model):
         links += div+' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ' %(self.hgnc_id)
         links += div+' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search</span></a> ' %(self.gene_name)
         links += div+' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.gene_name)
+        if self.cosmic_id != '': links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.cosmic_id)
         links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
         return links
         
@@ -146,19 +146,33 @@ class Dependency(models.Model):
     HISTOTYPE_CHOICES = (
       ("BREAST", "Breast"),
       ("LUNG", "Lung"),
-      ("OESOPHAGUS", "Oesophagus"),
+      ("OESOPHAGUS", "Esophagus"),  # or "Oesophagus"
       ("OSTEOSARCOMA", "Osteosarcoma"),
       ("OVARY", "Ovary"),
-      ("PANCAN", "Pan cancer"),      
-      )
+      # More added below for Achilles data - may need to add these to the index template
+	  # ("ENDOMETRIUM", "Endometrium"),  only 2 cell lines so not analysed by R
+	  ("PANCREAS", 	"Pancreas"),
+      ("CENTRAL_NERVOUS_SYSTEM", "CNS"),
+	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),
+	  ("INTESTINE", "Intestine"),
+	  ("KIDNEY", "Kidney"),  # doesn't seem to be kidney in results even though 10 cell lines
+      # ("LIVER", "Liver"), only 1 cell line so not analysed by R
+	  ("PROSTATE", "Prostate"),
+	  ("SKIN", "Skin"),
+	  # ("SOFT_TISSUE", "Soft tissue"), only 2 celllines so not analysed by R
+	  ("STOMACH", "Stomach"),
+	  ("URINARY_TRACT", "Urinary tract"),
+      ("PANCAN", "Pan cancer"),
+    )
 
     class Meta:
-        unique_together = (('driver', 'target', 'histotype', 'study'),) # This should be unique  (previously also incuded 'study_table')
+        unique_together = (('driver', 'target', 'target_variant', 'histotype', 'study'),) # This should be unique  (previously also incuded 'study_table')
         # This 'histotype' needed added to this unique_together otherwise when the S1K table is added to the S1I table there is a conflict.
         verbose_name_plural = "Dependencies" # Otherwise the Admin page just adds a 's', ie. 'Dependencys'
 
     driver      = models.ForeignKey(Gene, verbose_name='Driver gene', db_column='driver', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
+    target_variant = models.CharField('Achilles gene variant_number', max_length=2, blank=True) # As Achilles has some genes entered with 2 or 3 variants.
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
     wilcox_p    = models.FloatField('Wilcox P-value')     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9)
     effect_size = models.CharField('Effect size', max_length=20, blank=True) # or should this be an integer or float?
@@ -200,7 +214,7 @@ class Dependency(models.Model):
         models.Model.__setattr__(self, name, value)
         
     def boxplot_filename(self):
-       return self.driver.gene_name + "_" + self.target.gene_name + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
+       return self.driver.gene_name + "_" + self.target.gene_name+self.target_variant + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
 
 # NOTES:
 # =====

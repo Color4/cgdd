@@ -12,6 +12,7 @@ import math # For ceil()
 #def log_error(): logger.error("this is an error message!!")
 
 
+ 
 def index(request, driver=''): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     # histotype_list = Histotype.objects.order_by('full_name')
@@ -155,13 +156,17 @@ def contact(request):
 column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'Known interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
     
 # ===========================================    
-def download_dependencies_as_tsv_file(request, driver_name, histotype_name, study_pmid):
-    # Creates then downloads the currect dependency result table as a tab-deliminate file.
+def download_dependencies_as_csv_file(request, driver_name, histotype_name, study_pmid, delim_type='csv'):
+    # Creates then downloads the current dependency result table as a tab-delimited file.
     # The download get link needs to contain driver, tissue, study parameters.
+
+    # In Windows at least, 'csv' files are associated with Excel. To also associate tsv file with excel: In your browser, create a helper preference associating file type 'text/tab-separated values' and file extensions 'tsv' with application 'Excel'. Pressing Download will then launch Excel with the data.
     import csv, time
     
     mimetype = 'text/html' # was: 'application/json'
-
+    
+    # For downloading large csv files, can use streaming: https://docs.djangoproject.com/en/1.9/howto/outputting-csv/#streaming-large-csv-files
+    
     # request_method = request.method # 'POST' or 'GET'
     # if request_method != 'GET': return HttpResponse('Expected a GET request, but got a %s request' %(request_method), mimetype)
     # driver_name = request.GET.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
@@ -208,12 +213,20 @@ def download_dependencies_as_tsv_file(request, driver_name, histotype_name, stud
     # if DEVELOPMENT == True: STATIC_URL = '/static/'
     # else: STATIC_URL = 'https://www.mywebsite.com/static/'
 
-    
-  # Create the HttpResponse object with the appropriate CSV header.
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
+    if delim_type=='csv':
+        dialect = csv.excel
+        content_type='text/csv'
+    elif delim_type=='tsv':
+        dialect = csv.excel_tab
+        content_type='text/tab-separated-values'
+    else:
+        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
 
-    writer = csv.writer(response, dialect=csv.excel)  # An alternative would be: csv.unix_dialect
+    # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
+    response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?
+    response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
+    
+    writer = csv.writer(response, dialect=dialect)  # An alternative would be: csv.unix_dialect
     # csv.excel_tab doesn't display well
     # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
     

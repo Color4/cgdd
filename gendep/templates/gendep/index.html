@@ -74,6 +74,7 @@ $(document).ready(function() {
         aspectRatio: true,
         fitToView: false,
         arrows: false,
+		closeEffect : 'none',
         helpers: {
             title: {
                 type: 'inside'
@@ -128,7 +129,7 @@ $(".tip7").fancybox({
         // result_start = "1";
         // var numrows = "25"; // Max rows to return for now
 		
-		
+		$("#result_table_div").html("<b>Fetching data from server....</b>")
 		 
         $("#result_table_div").load("{% url 'gendep:ajax_results' %}", 
 	        //{"driver":driver, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
@@ -148,8 +149,8 @@ $(".tip7").fancybox({
 							filter_functions: {
                              // Note that only the normalized (n) value will contain numerical data
                              // If you use the exact text, you'll need to parse it (parseFloat or parseInt)
-							 // These column indexes are zero-based:
-                                1 : {
+							 // These column indexes are zero-based, and must correspond with the column position in the "ajax_results.html" template
+                                2 : {
                                     "&le; 0.05"   : function(e, n, f, i) { alert(e); return n <= 0.05; },
                                     "&le; 0.01"   : function(e, n, f, i) { alert(n); return n <= 0.01; },
                                     "&le; 5 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.005; },

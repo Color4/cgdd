@@ -23,25 +23,28 @@ For driver gene <b>{{ driver.gene_name }}</b>, a total of <b>{{ dependency_list.
 
 {# data-fancybox-width="700" #}
 
-  {# <a href="{% url 'gendep:download_tsv' driver_name=driver.gene_name histotype_name=histotype study_pmid=study %}">[Download tabbed file]</a> #}
+  {# <a href="{% url 'gendep:download_csv' driver_name=driver.gene_name histotype_name=histotype study_pmid=study %}">[Download tabbed file]</a> #}
   
-  <p align="right" style="margin-top: 0; margin-bottom: 0;"><button type="button" name="Download" onClick = window.open("{% url 'gendep:download_tsv' driver_name=driver.gene_name histotype_name=histotype study_pmid=study %}")>Download as CSV file</button></p>
+  <p align="right" style="margin-top: 0; margin-bottom: 0;"><button type="button" name="Download" onClick = window.open("{% url 'gendep:download_csv' driver_name=driver.gene_name histotype_name=histotype study_pmid=study %}")>Download as CSV file</button></p>
   
   <table id="result_table" class="tablesorter" style="font-size:80%;"> <!-- tabler  -->
   <thead>
-    <tr><th>Dependency</th>
-	<th class="filter-select">P-value</th>
+    <tr><th>Dependency</th><th>Variant</th>
+	<th class="filter-select">P-value</th> {# The position of this P-value column needs to correspond with the index.htm javascript for "filter-select:" #}
 	<th>Effect size</th><th>Study</th><th>Tissue</th><th>Inhibitors</th><th>Experiment Type</th><th><a class="tipleft">Interaction<span>Known functional interaction between {{ driver.gene_name }} and dependency gene, from string-db.org</span></a></th></tr>
   </thead>
   <tbody>
     {% for dependency in dependency_list %}
     <tr> 
+	{# PLOT THE BOXPLOT AND LEGEND SEPARATELY - LEGEND MIGHT BE SPECIFIC TO THE STUDY - ie. Achilles has more tissues, and doesn't have some tissues - so "Legend_PMID.....png" #}
         <td>
-		<a class="fancybox tipright" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.boxplot_filename }}" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> mutant cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b><br/>(p={{ dependency.wilcox_p_power10_format|safe }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links_on_boxplot|safe }}</font>' >{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font><span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
+		<a class="fancybox tipright" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.boxplot_filename }}" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> altered cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b><br/>(p={{ dependency.wilcox_p_power10_format|safe }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links_on_boxplot|safe }}</font>' >{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font><span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
 
+		<td>{{ dependency.target_variant }}</td>
+		
         {# <td align="center" width="100">{  { dependency.wilcox_p|stringformat:".0E" }  }</td> #}
 		
-        <td align="center" width="100">{{ dependency.wilcox_p_power10_format|safe }}</td>
+        <td align="center" width="100">{#{ dependency.wilcox_p}#}{{ dependency.wilcox_p_power10_format|safe }}</td>
 				
 		<td align="center">{{ dependency.effect_size }}</td>
 		
