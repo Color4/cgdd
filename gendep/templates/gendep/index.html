@@ -1,31 +1,20 @@
 {% extends 'gendep/base.html' %}
 {% load staticfiles %}
 {# For defining template blocks see: https://docs.djangoproject.com/en/1.9/ref/templates/language/ #}
-{% block links %}
-{# jQuery and jQuery-UI google hosted libraries for the autocomplete search box: #}
-
-
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
-  <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
+{% block links_top %}
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
-  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-
-{# when running my laptop offline, temporarily using these local files instead of the above google server ones #}
-{% comment %}
-  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/external/jquery/jquery.js' %}"></script>
-  <link rel="stylesheet" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.theme.min.css' %}" class="ui-theme" />
-  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.min.js' %}"></script>
-{% endcomment %}
-  
- {# Table sorter, and optional widgets: #}
   <link rel="stylesheet" href="{% static 'gendep/tablesorter/css/theme.blue.min.css' %}" class="theme blue" />
-  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script>
-  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.widgets.min.js' %}"></script>
-  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.min.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.theme.min.css' %}" class="ui-theme" />
+  <link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" />
+  <link rel="stylesheet" href="{% static 'gendep/qtip/jquery.qtip.min.css' %}" type="text/css" />
   
-{# Fancybox: #}
-  <link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" media="screen" />
-  <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+  <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->    
+  <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+  
+  <!-- Size of script from: http://code.stephenmorley.org/javascript/finding-the-memory-usage-of-objects/ -->
+  <script type="text/javascript" src="{% static 'gendep/sizeof.js' %}"></script>
+
 {% endblock %}
 {% block scripts %}
 <style type="text/css">
@@ -46,6 +35,152 @@ var driver_array = [
 ];
 
 
+// Could use a study hash:
+//var study_array =[
+//   {#% for study in study_list %#}
+// .....
+//   {#% endfor %#}
+//]
+// But probably faster using a switch statement as just four studies:
+function study_info(pmid) {
+  switch (pmid) {
+   {% for s in study_list %}
+   case "{{s.pmid}}": return([ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", "{{s.title}}, {{s.authors}}, {{s.journal}}, {{s.pub_date}}" ]); // break;
+   {% endfor %}
+   default: return([ "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found" ]);
+  }
+}  
+
+// A dictionary might be faster:
+function histotype_display(histotype) {
+  switch (histotype) {
+	{% for histotype in histotype_list %}
+	  case "{{ histotype.0 }}": return "{{ histotype.1 }}";  // break;
+	{% endfor %}
+   default: return('Error: Histotype Not Found');
+  }
+}
+
+function study_link(pmid) {
+
+}
+
+function study_summary(pmid) {}
+
+function show_driver_info(data) {
+  var qi = data['query_info']; // best to test if this exists in the query
+  console.log(qi);
+  $("#driver_name").html(qi['driver_name']);
+  $("#driver_synonyms").html(qi['driver_synonyms']);
+  $("#driver_full_name").html(qi['driver_full_name']);
+  $("#driver_weblinks").html(qi['driver_weblinks']);
+  
+  $("#result_info").html( "For driver gene <b>" + qi['driver_name'] + "</b>, a total of <b>" + qi['dependency_count'] + "dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
+}
+
+
+function populate_table(data) {
+  var html = '';
+	// The position of the P-value column needs to correspond with the index.htm javascript for "filter-select:"
+	
+	// PLOT THE BOXPLOT AND LEGEND SEPARATELY - LEGEND MIGHT BE SPECIFIC TO THE STUDY - ie. Achilles has more tissues, and doesn't have some tissues - so "Legend_PMID.....png" #}
+
+	/*
+	// By lines
+    var lines = this.result.split('\n');
+    for(var line = 0; line < lines.length; line++){
+        // By tabs
+        var tabs = lines[line].split('\\t');
+        for(var tab = 0; tab < tabs.length; tab++){    
+                alert(tabs[tab]);
+        }   
+    }
+  };
+  */
+	//str.split(',') // or use '\t' as using comma assumes that no fields contain a comma - checked before data was added to the database.
+	// if need to parse CSV that has quoted strings containing commas, then use: https://github.com/evanplaice/jquery-csv/
+	results = data['results']
+	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list
+	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using resulst[i]
+	  var study = study_info(d['s']); // name,type,summary,details for 'study_pmid'
+	  // perhaps 'map ......join' might be more efficient?
+	  // To minimise the size of the transfer from webserver, used single characters for these dependency fields:
+	  //     t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
+      html += '<tr>'+
+        '<td><a class="tipright" href="plot(\"' + d['t'] + '\");">' + d['t'] + '</a></td>' +
+		'<td>' + d['p'].replace('E', ' x 10<sup>')+'</sup></td>' + // inlined this replace()
+        '<td>' + d['e'] + '</td>' + 
+		'<td>' + study[0] + '</td>' + // study_weblink
+        '<td>' + histotype_display(d['h']) + '</td>' +
+		'<td>' + d['i'] + '</td>' +
+		'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
+		'<td>' + d['a'] + '</td>' +  // 'interaction'
+		'</tr>\n';
+	}
+	//console.log(html);
+    //$("#result_table_tbody").replaceWith(html);
+	$("#result_table_tbody").html(html);
+    $("table").trigger("update"); // let the plugin know that we made a update 
+
+    //$("#result_table_tbody").html(html);
+    //$("#result_table").trigger("update"); // let the plugin know that we made a update 
+
+//	Maybe need to reset the scroller height to make the added rows visible?
+//	Also see the addRows() functions: https://mottie.github.io/tablesorter/docs/#methods
+	
+//	Use config.totalRows to see the number of rows.	
+//	var $table = $( 'table' ),
+//    config = $table[ 0 ].config;
+
+	//alert(html)
+    //		<a class="fancybox tipright" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.boxplot_filename }}" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> altered cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b><br/>(p={{ dependency.wilcox_p_power10_format|safe }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links_on_boxplot|safe }}</font>' >{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font><span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
+}
+
+function external_links_on_boxplot(index, div='|') {
+    // gene is a row in the Gene table
+    // This is a shortened form of the above as not all needed:
+    // Building these links here, rather than in template as are used twice in the template:
+	// Could either store these links in dependency array, or use an ajax call to server when loading the boxplot image.
+	return(
+        '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene='+gene_name+'" target="_blank">GeneCards<span>Genecards</span></a> ' +
+        div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+entrez_id+'" target="_blank">Entrez<span>Entrez Gene at NCBI</span></a> ' +
+        div+' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g='+ensembl_id+'" target="_blank">Ensembl<span>Ensembl Gene</span></a> ' +
+        div+' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id='+hgnc_id+'" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ' +
+        div+' <a class="tip" href="http://www.cbioportal.org/ln?q='+gene_name+'" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ' +
+        div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln='+gene_name+'" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' +
+        div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/'+uniprot_id+'/" target="_blank">CanSAR<span>CanSAR</span></a>' )
+}
+
+function sup10_format(num) {
+  // Could also replace pythons leading zero in the exponent, but already replaced on server in the views.py script, eg: if (num.indexOf("E-0")>=0) {return num.replace("E-0", " x 10<sup>-")+"</sup>";}
+  return num.replace("E", " x 10<sup>")+"</sup>"; 
+}
+
+
+
+function plot(index) { // The index number of the dependency in the array
+  // eg: http://jsfiddle.net/STgGM/
+/*  
+ $(".fancybox").open([{
+  href: "{% static 'gendep/boxplots/' %}"+driver+'_'target+'__PMID'+pmid+'.png'; // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
+  // or $(...).content - Overrides content to be displayed - maybe for inline content
+  
+  title: '<b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+power10_format(d..wilcox_p) +' | Tissues='+ get_histotype_display(d.histotype) +' | Source='+ study_weblink(pmid) +')<br/>'+target+'links: '+ external_links_on_boxplot(d.....) +'</font>';
+		
+		  // the data can be stored as an array of in fields with id names.
+				
+	{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font>
+		<span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span>
+		
+		</a>
+		
+		</td>
+*/		
+  }
+
+
+var dependency_array = [];
+
 //         'height': 800,
 //        width: 1000,
 //        'autoSize': false,
@@ -65,8 +200,36 @@ var driver_array = [
 
 $(document).ready(function() {
 
-    // $("#dummy").tablesorter();
+	$("#result_table").tablesorter({
+	    // size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option. 
+		showProcessing: true,
+		theme: 'blue',
+		widgets: ["zebra", "filter", "scroller"],
+		widgetOptions: {
+            zebra: ["even", "odd"], 
+			scroller_height: 400,  // default is 300
+			filter_functions: {
+                // Note that only the normalized (n) value will contain numerical data
+                // If you use the exact text, you'll need to parse it (parseFloat or parseInt)
+				// These column indexes are zero-based, and must correspond with the 'wilcox_p' column position in the "populate_table()" javascript function
+                1 : {
+                    "&le; 0.05"   : function(e, n, f, i) { alert(e); return n <= 0.05; },
+                    "&le; 0.01"   : function(e, n, f, i) { alert(n); return n <= 0.01; },
+                    "&le; 5 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.005; },
+	                "&le; 1 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.001; },
+	                "&le; 5 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0005; },
+	                "&le; 1 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0001; }	
+                }
+            }				
+        },  // widgetOptions maybe need to be after the widgets: [...] line.
+		sortInitialOrder: "asc", // default sort order
+		sortRestart: true, // so sort always reastarts from the specified sortInitialOrder.
+		sortStable: true,
+		ignoreCase: true,  // so sorting ignores case
+		filter_ignoreCase: true, // so filtering ignores case
+	});
 
+	
     $(".fancybox").fancybox({
         preload: 0, // Number of gallary images to preload
         //minWidth: 600,
@@ -84,7 +247,43 @@ $(document).ready(function() {
             }
         }
     });
+	
+	$('[data-url]').qtip({
+/*
+	content: {
+	show: {
+	event: 'mouseenter'
+},
+hide: {
+	event: 'mouseleave'
+}
+See: http://craigsworks.com/projects/forums/showthread.php?tid=3115
 
+Alternatives to qtip2 are:
+Tipped (has paid pro version):  http://www.tippedjs.com/documentation
+Tool Tipster (looks good): http://iamceege.github.io/tooltipster/
+	
+            text: function(event, api) {
+                $.ajax({
+                    url: "{% url 'gendep:qtip' query='myurl' %}".replace('myurl', element.data('url')), // Use data-url attribute for the URL.
+					{# As the url reverse is generated by python on server, and replace() is client side javascript. This replace() idea is from: http://stackoverflow.com/questions/1795701/django-reverse-for-javascript but https://github.com/ierror/django-js-reverse might be better if needed in several js functions. #}
+					dataType: 'json',
+                })
+                .then(function(content) {
+                    // Set the tooltip content upon successful retrieval
+                    api.set('content.text', content);
+                }, function(xhr, status, error) {
+                    // Upon failure... set the tooltip content to the status and error value
+                    api.set('content.text', status + ': ' + error);
+                });
+            return 'Loading...'; // Set some initial text
+            }
+        }
+*/
+    });
+
+
+	
 /*
         showNavArrows: false,
         autoSize: false,
@@ -97,7 +296,6 @@ $(document).ready(function() {
         minHeight: 600,
         maxWidth: 900,
         maxHeight: 600,
-
 */
 //=========================================================
 
@@ -129,44 +327,51 @@ $(".tip7").fancybox({
         // result_start = "1";
         // var numrows = "25"; // Max rows to return for now
 		
-		$("#result_table_div").html("<b>Fetching data from server....</b>")
-		 
-        $("#result_table_div").load("{% url 'gendep:ajax_results' %}", 
+		$("#result_progress_div").html("<b>Fetching data from server....</b>");
+		
+		var url = "{% url 'gendep:ajax_results_get' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
+		
+		//alert("Get from: "+url);
+	    
+		$.ajax({ // ajax call starts
+            url: url,
+            // data: 'button=' + $(this).val(), // Optional
+            dataType: 'json', 
+        })
+        .done(function(data, textStatus, jqXHR) {
+		    // when you return the data from django, that is a success. "Error" in jQuery means a communication error, not a semantic error (eg. you need to return a 400/500 error code from django to have fail called).
+			// use: data['success'] = False
+			// Maybe need to use  json = JSON.parse(data) ?
+			$("#result_progress_div").html("External content loaded successfully!");
+  	        $("#welcome_div").hide(); // hide the welcome text...
+			// console.log(Object.keys(data).length);
+			// console.log(sizeof(data)); // This sizeof() script slows loading.
+		    populate_table(data);
+			$("result_div").show();
+		})
+		.fail(function(jqXHR, textStatus, errorThrown) {  // See: https://github.com/jquery/api.jquery.com/issues/49
+            // alert( "fail: '"+textStatus+"'  '"+errorThrown+"'");
+			$("#result_progress_div").html("Ajax Fail: '"+textStatus+"'  '"+errorThrown+"'");
+        });
+
+        return false; // keeps the page from not refreshing 
+    });
+/*
+       $.get(url, 
+		      function(response, status, xhr) {if(status == "success") {}
+*/
+ 
+/*	
+		 // If a "complete" callback is provided, it is executed after post-processing and HTML insertion has been performed.
+		 // so load suits if data returned is HTML, but for other data 
+        $("#result_div").load("{% url 'gendep:ajax_results_post' %}", 
 	        //{"driver":driver, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
 			{"driver":driver, "histotype":histotype, "study":study, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
             function(response, status, xhr){
-                if(status == "success") {
+                if(status == "success") {				
 				    // alert("External content loaded successfully!");
 	                $("#welcome_div").hide() // hide the welcome text...
-					$("#result_table").tablesorter({
-						// size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option. 
-						showProcessing: true,
-					    theme: 'blue',
-					    widgets: ["zebra", "filter", "scroller"],
-					    widgetOptions: {
-						    zebra: ["even", "odd"], 
-							scroller_height: 400,  // default is 300
-							filter_functions: {
-                             // Note that only the normalized (n) value will contain numerical data
-                             // If you use the exact text, you'll need to parse it (parseFloat or parseInt)
-							 // These column indexes are zero-based, and must correspond with the column position in the "ajax_results.html" template
-                                2 : {
-                                    "&le; 0.05"   : function(e, n, f, i) { alert(e); return n <= 0.05; },
-                                    "&le; 0.01"   : function(e, n, f, i) { alert(n); return n <= 0.01; },
-                                    "&le; 5 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.005; },
-	                                "&le; 1 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.001; },
-	                                "&le; 5 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0005; },
-	                                "&le; 1 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0001; }	
-                                    }
-                            }
-							
-						},  // widgetOptions maybe need to be after the widgets: [...] line.
-					    sortInitialOrder: "asc", // default sort order
-						sortRestart: true, // so sort always reastarts from the specified sortInitialOrder.
-						sortStable: true,
-						ignoreCase: true,  // so sorting ignores case
-						filter_ignoreCase: true, // so filtering ignores case
-					});
+
 					}
                 if(status == "error")
                     alert("Error: " + xhr.status + ": " + xhr.status);
@@ -174,6 +379,7 @@ $(".tip7").fancybox({
 	    ); // Appends the returned html data to this id.
 	   // see: http://www.w3schools.com/jquery/ajax_load.asp and  https://api.jquery.com/load/	   
     });
+*/	
     // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
 
 
@@ -189,6 +395,19 @@ $(".tip7").fancybox({
             .append( "<a><b>" + item.value + "</b> | " + item.synonyms_spaced + '<br/><font size="-2">' + item.full_name + "</font></a>" )
             .appendTo( ul );
     };
+	
+	// From: http://stackoverflow.com/questions/13508166/jquery-autocomplete-enter-keypress-action-in-firefox-not-working-properly
+	// Test this:
+	$("#driver").keypress(function(e){
+        if (e.which == 13) {
+            //if(!isSelected) // could set to true if using the autrocomplete 'select' event
+            //{
+				 // alert("Enter key pressed - so can fire event now."); // window.location.href = "index.php/pages/no-results";
+				 $("#search_button").click() // Start the search
+            //}
+            return false;
+        }
+    });
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
 
@@ -281,9 +500,9 @@ function is_form_complete() {
 <td><label for="histotype">Tissue type:</label>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype">
-      <option value="ALL_HISTOTYPES" selected="selected">All tissues</option>
+      <option value="ALL_HISTOTYPES">All tissues</option>
 	{% for histotype in histotype_list %}
-	  <option value="{{ histotype.0 }}">{{ histotype.1 }}</option>
+	  <option value="{{ histotype.0 }}"{% if histotype.0 == "PANCAN" %} selected="selected"{% endif %}>{{ histotype.1 }}</option>
 	{% endfor %}
    </select>
 </td>
@@ -304,7 +523,32 @@ function is_form_complete() {
 {% endblock %}
 {% block table %}
 <br/>
-<div id = "result_table_div"></div>
+
+<div id ="result_progress_div"></div>
+
+<div id="result_div">
+<p><b>Driver Gene: <span id="driver_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="driver_synonyms"></span></p>
+<p><u>Gene Descripion:</u> <span id="driver_full_name"></span></p>
+<p><u>External links:</u> <span id="driver_weblinks"></span></p>
+
+<p id="result_info"></p>
+<p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results )</p>
+
+<table id="result_table" class="tablesorter" style="font-size:80%;">
+<thead><tr>
+  <th>Dependency</th>
+  <th class="filter-select">P-value</th>
+  <th>Effect size</th>
+  <th>Study</th>
+  <th>Tissue</th>
+  <th>Inhibitors</th>
+  <th>Experiment Type</th>
+  <th><a class="tipleft">Interaction<span>Known functional interaction between {{ driver.gene_name }} and dependency gene, from string-db.org</span></a></th>
+</tr></thead>
+<tbody id="result_table_tbody">
+</tbody>
+</table>
+</div>
 {% endblock %}
 
 {% comment %}
@@ -330,4 +574,27 @@ function show_plot(driver,target)
 <p id="plot_title"></p>
 <img id="plot_image"/>
 <p id="plot_description" style="font-size: 95%;"></p>
-{% endcomment%}
+{% endcomment %}
+
+
+{% block links_bottom %}
+<!-- or bbetter to use defer or async keywords, but for IE<10 need window.onload.... : http://stackoverflow.com/questions/436411/where-is-the-best-place-to-put-script-tags-in-html-markup -->
+  {# when running my laptop offline, temporarily using these local files instead of the above google server ones #}
+{% comment %}
+  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/external/jquery/jquery.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.min.js' %}"></script>
+{% endcomment %}
+  
+ {# Table sorter, and optional widgets: #}
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.widgets.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.min.js' %}"></script>
+
+  {# Tips2 - The qtip2 tooltips js & css file size can be reduced, see: http://qtip2.com/download #}
+  <script type="text/javascript" src="{% static 'gendep/qtip/jquery.qtip.min.js' %}"></script>
+  {# Optional: imagesLoaded script to better support images inside your qtip tooltips: #}
+  <script type="text/javascript" src="{% static 'gendep/qtip/jquery.imagesloaded.pkg.min.js' %}"></script>
+  
+  {# Fancybox: #}
+  <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>
+{% endblock %}

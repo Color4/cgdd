@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8"/>
   {% load staticfiles %}
   {% block title %}<title>*** {{ current_url }} TESTING*** - Database of Genetic Dependencies in Cancer</title>{% endblock %}
-  {% block links %}{% endblock %}
+  {% block links_top %}{% endblock %} {# Putting non-essential scripts at bottom can speedup display of webpage #}
   {# Need to call my style sheet after jQuery one, so that mine overwrites the jquery defaults #}
   <link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
-  {% block scripts %}{% endblock %}
+  {% block scripts %}{% endblock %} 
 </head>
 <body>
 
@@ -32,5 +32,6 @@
 &nbsp; &nbsp; <a href="http://www.ucd.ie/" title="University College Dublin"><img src="{% static 'gendep/images/UCD_maincore_logo.png' %}" /></a>
 &nbsp; &nbsp; <a href="http://www.icr.ac.uk/" title="The Institute of cancer Research"><img src="{% static 'gendep/images/ICR_logo.png' %}" width="235" height="45" /></a>
 </div>
+{% block links_bottom %}{% endblock %}
 </body>
 </html>

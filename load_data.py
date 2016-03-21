@@ -538,7 +538,7 @@ if __name__ == "__main__":
   experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
   study_pub_date = "2016, 2 Mar"
-  study_old_pmid = "nnnnnnnn" # This is the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
+  study_old_pmid = "nnnnnnnn" # This is  the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
   study_old_pmid = "26947069"
  
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()

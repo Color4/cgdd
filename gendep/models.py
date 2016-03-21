@@ -57,7 +57,8 @@ class Gene(models.Model):
         if self.cosmic_id != '': links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.cosmic_id)
         links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
         return links
-        
+    """   
+    # Now is in the javascript for "index.html"
     def external_links_on_boxplot(self, div='|'):
         # gene is a row in the Gene table
         # This is a shortened form of the above as not all needed:
@@ -73,6 +74,7 @@ class Gene(models.Model):
         links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.gene_name)
         links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
         return links
+    """
     
     """
     Previously used the <a title="" attribute (but can't change style, unless two boxes will appear):
@@ -174,8 +176,8 @@ class Dependency(models.Model):
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target_variant = models.CharField('Achilles gene variant_number', max_length=2, blank=True) # As Achilles has some genes entered with 2 or 3 variants.
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
-    wilcox_p    = models.FloatField('Wilcox P-value')     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9)
-    effect_size = models.CharField('Effect size', max_length=20, blank=True) # or should this be an integer or float?
+    wilcox_p    = models.FloatField('Wilcox P-value', db_index=True)     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9). Index on wilcox_p because this is the order_by clause for the dependency result query.
+    effect_size = models.CharField('Effect size', max_length=20, blank=True) # or should this be an integer or float? If use float and is part of query then could index this field.
     interaction = models.NullBooleanField('Functional interaction', db_index=True, ) # True if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values
     study       = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
     study_table = models.CharField('Study Table', max_length=10) # The table the data is from.

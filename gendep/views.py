@@ -12,7 +12,10 @@ import math # For ceil()
 #def log_error(): logger.error("this is an error message!!")
 
 
- 
+def json_error(message, status_code='0'):
+    return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), 'application/json' ) # eg: str(exception)
+
+
 def index(request, driver=''): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     # histotype_list = Histotype.objects.order_by('full_name')
@@ -63,7 +66,7 @@ def get_drivers(request):
     return HttpResponse(data, mimetype)
 
 
-def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.05):
+def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p'):
     error_msg = ""
     
     if driver_name == "":
@@ -96,11 +99,14 @@ def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.0
             return error_msg, None, None, None, None
     else:
         study = "ALL_STUDIES"
-    
+
+    if order_by != None and order_by != '':
+        q = q.order_by('wilcox_p')  # was: order_by('target__gene_name')
+        
     return error_msg, q, driver, histotype_full_name, study
     
     
-def ajax_results(request):
+def ajax_results_slow_full_detail_version(request):
     # View for the dependency search result table.
     # Ajax sends four fields: driver, histotype, pmid, [start(row for pagination):
     mimetype = 'text/html' # was: 'application/json'
@@ -113,10 +119,9 @@ def ajax_results(request):
     histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
     study_pmid = request.POST.get('study', "ALL_STUDIES")
 
-    error_msg, query, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
+    error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
+    
     if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
-
-    dependency_list = query.order_by('wilcox_p')  # was: order_by('target__gene_name')
 
     gene_weblinks = driver.external_links('|')
        
@@ -126,7 +131,138 @@ def ajax_results(request):
     return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
 
+# The following are cached so don't need to reload on each request:
+# These map the study_pmid and histotype short name to an integer:
+study_dict = dict()  # Maybe simpler to hard code the studies in 'models.py' in future.
+# Then could use small integer in the dependency table for study and histotype.
+study_json = None
+study_last_reloaded = None
+histotype_dict = dict() # As histotypes are hardcoded in 'models.py' then won't change while server running.
+histotype_json = None
 
+    
+def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name, study_pmid):
+    # View for the dependency search result table.
+    # Ajax sends four fields: driver, histotype, pmid, [start(row for pagination):
+    # returns json - should also return the error message as json format?
+    # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
+    # mimetype = 'text/html' # for error messages. was: 'application/json'
+    mimetype = 'application/json'
+    #request_method = request.method # 'POST' or 'GET'
+    #if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), mimetype)
+
+    # if not request.is_ajax(): return HttpResponse('fail', 'text/html')
+
+    #driver_name = request.POST.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
+    #histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
+    #study_pmid = request.POST.get('study', "ALL_STUDIES")
+    # effect_size = request.POST.get('effect_size', "ALL_EFFECT_SIZES")
+    # return json_error('Hello') # HttpResponse("Hello", mimetype)
+    
+    error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
+    if error_msg != '': return json_error("Error: "+error_msg)
+
+    gene_weblinks = driver.external_links('|')
+       
+    current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
+
+    results = []
+    # From server-side, a csv file format is probably more efficient as is just commas as separater, rather than repeating the keys multiple times.
+    # Maybe even use raw sql for maybe faster query: https://docs.djangoproject.com/en/1.9/topics/db/sql/#passing-parameters-into-raw
+    # In MySQL can directly use:   SELECT CONCAT_WS(',', field1, field2, field3) FROM table; 
+    #   http://stackoverflow.com/questions/707473/how-do-you-output-mysql-query-results-in-csv-format-to-the-screen-not-to-a-fil
+    #   CONCAT_WS() does not skip empty strings. However, it does skip any NULL values after the separator argument. 
+    #   https://ariejan.net/2008/11/27/export-csv-directly-from-mysql/
+    # Is there anything similar for sqlite?
+    
+    # If need to acccess fields in a related table, use: ...select_related('fieldname')  https://www.neustar.biz/blog/optimizing-django-queries
+    # Although just works on 1-to-1 relationships, tthen use dict approach.
+    # Other ideas: https://blog.mozilla.org/webdev/2011/12/15/django-optimization-story-thousand-times-faster/
+    
+    # Maybe use: json = serializers.serialize('json', playlists)
+    #            return HttpResponse(json, mimetype="application/json")
+    for d in dependency_list:
+        d_json = {}
+        # Using single characters for the field keys below would reduce the size of the json to be transfered to client.
+        # eg: t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
+        d_json['t'] =  d.target_id # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
+        # or on the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
+        # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
+            
+        d_json['p'] = format(d.wilcox_p, ".0E").replace("E-0", "E-")  # was 'wilcox_p' Scientific format and remove the leading zero from the exponent  # in template use: |stringformat:....
+        d_json['e'] = d.effect_size # was 'effect_size'
+        d_json['s'] = d.study_id # was: 'study_pmid' or maybe id # can use the foreign key value directly as it is the pmid. https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
+        # But maybe I need to call field the default name of 'study_id'
+        #    study    = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
+            
+        # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
+            
+        d_json['h'] = d.histotype   # was 'histotype' get_histotype_display()  # or could use 'd.histotype' shortened names, with a hash in javascript in the index.html file.
+        d_json['i'] = '' # d.inhibitors  was 'inhibitors' - but empty for now.
+        # d_json['study_summary'] = d.study.summary  # Info about all the studies separately embedded in the index.html template file is small.  dependency.study.weblink|safe
+        d_json['a'] = '' # d.interaction  was: 'interaction'
+        """
+        # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
+        # results.append([d.target_id, d.wilcox_p, .....etc])  # optionally an id: d_json['1'] = 
+        
+        # As cannot use target and key, as assumes that target is unique within this driver's data: (currently it isn't due to target_variant & study_pmid & table)
+        # Need to check for commas in the input fields:
+        d.target_id+ # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
+        # or on the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
+        # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
+            
+        format(d.wilcox_p, ".0E").replace("E-0", "E-")  # was 'wilcox_p' Scientific format and remove the leading zero from the exponent  # in template use: |stringformat:....
+        d.effect_size # was 'effect_size'
+        d.study_id # was: 'study_pmid' or maybe id # can use the foreign key value directly as it is the pmid. https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
+        # But maybe I need to call field the default name of 'study_id'
+        #    study    = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
+            
+        # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
+            
+        d.histotype   # was 'histotype' get_histotype_display()  # or could use 'd.histotype' shortened names, with a hash in javascript in the index.html file.
+         '' # d.inhibitors  was 'inhibitors' - but empty for now.
+        # d_json['study_summary'] = d.study.summary  # Info about all the studies separately embedded in the index.html template file is small.  dependency.study.weblink|safe
+         '' # d.interaction  w
+        """
+        
+        results.append(d_json)
+    
+    histotype_details = "<b>All tissues</b>" if histotype_name == "ALL_HISTOTYPES" else ("tissue type <b>"+histotype_full_name+"</b>")
+    study_details = "<b>All studies</b>" if study_pmid == "ALL_STUDIES" else ("study "+study.weblink()+" "+study.title+", "+ study.authors[:30]+" et al, "+study.journal+", "+ study.pub_date)
+
+    query_info = {'driver_name': driver_name,
+                  'driver_full_name': driver.full_name,
+                  'driver_synonyms': driver.prev_names_and_synonyms_spaced(),
+                  'driver_weblinks': driver.external_links('|'),
+                  'histotype_name': histotype_name,
+                  'histotype_full_name': histotype_full_name, # Not read
+                  'histotype_details': histotype_details,
+                  'study_pmid': study_pmid,
+                  'study_details': study_details,
+                  'dependency_count': dependency_list.count(), # should be same as number of elements passed in the results array.
+                  'current_url': current_url
+                  }
+                # study.weblink|safe
+                
+    data = json.dumps({'success': True, 'query_info': query_info, 'results': results}, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
+        # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
+        # eg: format is:
+        # [ {"id": "3", "value":"3","label":"Matching employee A"},
+        #   {"id": "5", "value":"5","label":"Matching employee B"},
+        # ]
+    # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
+    
+    return HttpResponse(data, mimetype)
+
+    #    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
+    # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
+
+    
+def qtip(tip):
+    # Returns the ajax request to qtips
+    return 
+    
+    
 def graph(request, target_id):
     requested_target = get_object_or_404(Dependency, pk=target_id)
     return render(request, 'gendep/graph.html', {'target': requested_target})
