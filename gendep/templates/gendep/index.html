@@ -326,7 +326,7 @@ $(".tip7").fancybox({
         var study = $("#study").val();
         // result_start = "1";
         // var numrows = "25"; // Max rows to return for now
-		
+		$("result_div").hide();
 		$("#result_progress_div").html("<b>Fetching data from server....</b>");
 		
 		var url = "{% url 'gendep:ajax_results_get' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
@@ -342,16 +342,19 @@ $(".tip7").fancybox({
 		    // when you return the data from django, that is a success. "Error" in jQuery means a communication error, not a semantic error (eg. you need to return a 400/500 error code from django to have fail called).
 			// use: data['success'] = False
 			// Maybe need to use  json = JSON.parse(data) ?
-			$("#result_progress_div").html("External content loaded successfully!");
+			$("#result_progress_div").html("Data received from server. Building results table ....");
   	        $("#welcome_div").hide(); // hide the welcome text...
 			// console.log(Object.keys(data).length);
 			// console.log(sizeof(data)); // This sizeof() script slows loading.
+			show_driver_info(data);
 		    populate_table(data);
+			$("#result_progress_div").html("Results table built.");
 			$("result_div").show();
+			//$("#result_progress_div").html("");
 		})
 		.fail(function(jqXHR, textStatus, errorThrown) {  // See: https://github.com/jquery/api.jquery.com/issues/49
             // alert( "fail: '"+textStatus+"'  '"+errorThrown+"'");
-			$("#result_progress_div").html("Ajax Fail: '"+textStatus+"'  '"+errorThrown+"'");
+			$("#result_progress_div").html("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
         });
 
         return false; // keeps the page from not refreshing 
@@ -526,7 +529,10 @@ function is_form_complete() {
 
 <div id ="result_progress_div"></div>
 
-<div id="result_div">
+<div id="result_div">  <!-- style="display:none;" -->
+<table align="center" cellpadding="6" style="margin: 0; padding: 0px; border: 1px solid blue;">
+<tr><td>
+
 <p><b>Driver Gene: <span id="driver_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="driver_synonyms"></span></p>
 <p><u>Gene Descripion:</u> <span id="driver_full_name"></span></p>
 <p><u>External links:</u> <span id="driver_weblinks"></span></p>
@@ -547,6 +553,8 @@ function is_form_complete() {
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>
+</table>
+
 </table>
 </div>
 {% endblock %}

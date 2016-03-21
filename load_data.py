@@ -33,7 +33,7 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 
  
 FETCH_BOXPLOTS = False # Should also test that is running on development computer.
-ACHILLES_FETCH_BOXPLOTS = True # Should also test that is running on development computer.
+ACHILLES_FETCH_BOXPLOTS = False # Should also test that is running on development computer.
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
@@ -567,10 +567,10 @@ if __name__ == "__main__":
     study_old_pmid = "25984343"
     study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date )
   
-    csv_filepathname=os.path.join(analysis_dir, "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312.txt")
+    csv_filepathname=os.path.join(analysis_dir, "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt")
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN')
     
-    csv_filepathname=os.path.join(analysis_dir, "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312.txt")
+    csv_filepathname=os.path.join(analysis_dir, "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt")
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE')
 
     add_counts_of_study_tissue_and_target_to_drivers()
