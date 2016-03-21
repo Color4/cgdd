@@ -69,13 +69,13 @@ function study_summary(pmid) {}
 
 function show_driver_info(data) {
   var qi = data['query_info']; // best to test if this exists in the query
-  console.log(qi);
+  //console.log(qi);
   $("#driver_name").html(qi['driver_name']);
   $("#driver_synonyms").html(qi['driver_synonyms']);
   $("#driver_full_name").html(qi['driver_full_name']);
   $("#driver_weblinks").html(qi['driver_weblinks']);
   
-  $("#result_info").html( "For driver gene <b>" + qi['driver_name'] + "</b>, a total of <b>" + qi['dependency_count'] + "dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
+  $("#result_info").html( "For driver gene <b>" + qi['driver_name'] + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
 }
 
 
@@ -100,12 +100,31 @@ function populate_table(data) {
 	//str.split(',') // or use '\t' as using comma assumes that no fields contain a comma - checked before data was added to the database.
 	// if need to parse CSV that has quoted strings containing commas, then use: https://github.com/evanplaice/jquery-csv/
 	results = data['results']
-	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list
-	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using resulst[i]
-	  var study = study_info(d['s']); // name,type,summary,details for 'study_pmid'
+	//console.log(results);
+	
+	var t0 = performance.now();	
+
+	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list	  
+	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
+	  // result array indexes:  0=target, 1=wilcox_p, 2=effect_size, 3=study, 4=histotype, 5=inhibitors, 6=interaction
+	  // In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
+	  var study = study_info(d[3]); // name,type,summary,details for 'study_pmid'
 	  // perhaps 'map ......join' might be more efficient?
+	  
+	  html += '<tr>'+
+        '<td><a class="tipright" href="plot(\"' + d[0] + '\");">' + d[0] + '</a></td>' +
+		'<td>' + d[1].replace('E', ' x 10<sup>') + '</sup></td>' + // inlined this replace()
+        '<td>' + d[2] + '</td>' + 
+		'<td>' + study[0] + '</td>' + // study_weblink
+        '<td>' + histotype_display(d[4]) + '</td>' +
+		'<td>' + d[5] + '</td>' +
+		'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
+		'<td>' + d[6] + '</td>' +  // 'interaction'
+		'</tr>\n';
+	  
 	  // To minimise the size of the transfer from webserver, used single characters for these dependency fields:
-	  //     t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
+	  //  t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
+	  /*
       html += '<tr>'+
         '<td><a class="tipright" href="plot(\"' + d['t'] + '\");">' + d['t'] + '</a></td>' +
 		'<td>' + d['p'].replace('E', ' x 10<sup>')+'</sup></td>' + // inlined this replace()
@@ -116,14 +135,16 @@ function populate_table(data) {
 		'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		'<td>' + d['a'] + '</td>' +  // 'interaction'
 		'</tr>\n';
+		*/
 	}
+
+    //	var t1 = performance.now();
+    // console.log("String Loop took " + (t1 - t0) + " milliseconds.")
+	
 	//console.log(html);
     //$("#result_table_tbody").replaceWith(html);
 	$("#result_table_tbody").html(html);
-    $("table").trigger("update"); // let the plugin know that we made a update 
-
-    //$("#result_table_tbody").html(html);
-    //$("#result_table").trigger("update"); // let the plugin know that we made a update 
+    $("#result_table").trigger("update"); // let the plugin know that we made a update 
 
 //	Maybe need to reset the scroller height to make the added rows visible?
 //	Also see the addRows() functions: https://mottie.github.io/tablesorter/docs/#methods
@@ -247,9 +268,9 @@ $(document).ready(function() {
             }
         }
     });
-	
+
+/*	
 	$('[data-url]').qtip({
-/*
 	content: {
 	show: {
 	event: 'mouseenter'
@@ -279,9 +300,8 @@ Tool Tipster (looks good): http://iamceege.github.io/tooltipster/
             return 'Loading...'; // Set some initial text
             }
         }
-*/
     });
-
+*/
 
 	
 /*
@@ -326,7 +346,7 @@ $(".tip7").fancybox({
         var study = $("#study").val();
         // result_start = "1";
         // var numrows = "25"; // Max rows to return for now
-		$("result_div").hide();
+		$("#result_div").hide();
 		$("#result_progress_div").html("<b>Fetching data from server....</b>");
 		
 		var url = "{% url 'gendep:ajax_results_get' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
@@ -344,12 +364,12 @@ $(".tip7").fancybox({
 			// Maybe need to use  json = JSON.parse(data) ?
 			$("#result_progress_div").html("Data received from server. Building results table ....");
   	        $("#welcome_div").hide(); // hide the welcome text...
-			// console.log(Object.keys(data).length);
-			// console.log(sizeof(data)); // This sizeof() script slows loading.
+			//console.log(Object.keys(data).length);
+			//console.log(sizeof(data)); // This sizeof() script slows loading.
 			show_driver_info(data);
 		    populate_table(data);
 			$("#result_progress_div").html("Results table built.");
-			$("result_div").show();
+			$("#result_div").show();
 			//$("#result_progress_div").html("");
 		})
 		.fail(function(jqXHR, textStatus, errorThrown) {  // See: https://github.com/jquery/api.jquery.com/issues/49
@@ -487,7 +507,7 @@ function is_form_complete() {
 {% endblock %}
 {% block content %}
 <div id="welcome_div" {% if driver %}style="display:none"{% endif %} >
-<p>Welcome to the database of genetic dependencies in cancer, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens. 
+<p>Welcome to the database of genetic dependencies in cancer, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
 
 <p>Enter your driver search criteria below. (In the "Driver gene" search box, typing two letters of a driver gene name will display a menu of matching gene names)</p>
 </div>
@@ -529,7 +549,7 @@ function is_form_complete() {
 
 <div id ="result_progress_div"></div>
 
-<div id="result_div">  <!-- style="display:none;" -->
+<div id="result_div" style="display:none;"> 
 <table align="center" cellpadding="6" style="margin: 0; padding: 0px; border: 1px solid blue;">
 <tr><td>
 
@@ -539,7 +559,7 @@ function is_form_complete() {
 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results )</p>
-
+<p style="color: red">This web interface is currently being redesigned so the links and boxplot display are not yet working.</p>
 <table id="result_table" class="tablesorter" style="font-size:80%;">
 <thead><tr>
   <th>Dependency</th>
@@ -601,7 +621,7 @@ function show_plot(driver,target)
   {# Tips2 - The qtip2 tooltips js & css file size can be reduced, see: http://qtip2.com/download #}
   <script type="text/javascript" src="{% static 'gendep/qtip/jquery.qtip.min.js' %}"></script>
   {# Optional: imagesLoaded script to better support images inside your qtip tooltips: #}
-  <script type="text/javascript" src="{% static 'gendep/qtip/jquery.imagesloaded.pkg.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/qtip/imagesloaded.pkg.min.js' %}"></script>
   
   {# Fancybox: #}
   <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>

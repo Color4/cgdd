@@ -92,11 +92,11 @@ span.title {
  .ui-autocomplete.ui-menu{fontSize: 10px, width:300px}
 
  
-//    targets the first result's <a> element, 
-//    remove the a at the end to target the li itself 
-// .ui-autocomplete.ui-menu li:first-child a{color:blue;}
+    targets the first result's <a> element, 
+    remove the a at the end to target the li itself 
+ .ui-autocomplete.ui-menu li:first-child a{color:blue;}
 
-// ul.ui-autocomplete.ui-menu
+ ul.ui-autocomplete.ui-menu
 */
 
 
@@ -145,10 +145,10 @@ span.title {
 }
 
 /*
-// The following tool tip styles is from: http://www.lets-develop.com/html5-html-css-css3-php-wordpress-jquery-javascript-photoshop-illustrator-flash-tutorial/css-css3-css-3-style-styling/style-tooltip-css-how-to-style-the-title-attribute-with-css/
+ The following tool tip styles is from: http://www.lets-develop.com/html5-html-css-css3-php-wordpress-jquery-javascript-photoshop-illustrator-flash-tutorial/css-css3-css-3-style-styling/style-tooltip-css-how-to-style-the-title-attribute-with-css/
 
 a {
-  //color: #d6005e;
+  // color: #d6005e;
 }
 
 a:hover{
@@ -249,14 +249,15 @@ border: 1px solid #8c8c8c;
 }
 */
 
-// From: http://stackoverflow.com/questions/2011142/how-to-change-the-style-of-title-attribute-inside-the-anchor-tag
-// Use, eg: <a href="#" class="tip">Link<span>This is the CSS tooltip showing up when you mouse over the link</span></a>
+/* From: http://stackoverflow.com/questions/2011142/how-to-change-the-style-of-title-attribute-inside-the-anchor-tag
+ Use, eg: <a href="#" class="tip">Link<span>This is the CSS tooltip showing up when you mouse over the link</span></a>
+ */
 a.tip {
-    //border-bottom: 1px dashed;
+    /* border-bottom: 1px dashed; */
     text-decoration: none
 }
 a.tip:hover {
-    cursor: pointer; // was: help;
+    cursor: pointer; /* was: help; */
     position: relative
 }
 a.tip span {
@@ -267,7 +268,7 @@ a.tip:hover span {
     padding: 5px 20px 5px 5px;
     display: block;
     z-index: 100;
-//    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%;
+/*    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%; */
     background: #ffff66;
     left: 40px;
     margin: 10px;
@@ -278,11 +279,11 @@ a.tip:hover span {
 }
 
 a.tipleft {
-    //border-bottom: 1px dashed;
+    /* border-bottom: 1px dashed; */
     text-decoration: none
 }
 a.tipleft:hover {
-    cursor: pointer; // was: help;
+    cursor: pointer; /* was: help; */
     position: relative
 }
 a.tipleft span {
@@ -293,7 +294,7 @@ a.tipleft:hover span {
     padding: 5px 20px 5px 5px;
     display: block;
     z-index: 100;
-//    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%;
+/*    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%; */
     background: #ffff66;
     left: -310px;
     margin: 10px;
@@ -304,11 +305,11 @@ a.tipleft:hover span {
 }
 
 a.tipright {
-    //border-bottom: 1px dashed;
+    /* border-bottom: 1px dashed; */
     text-decoration: none
 }
 a.tipright:hover {
-    cursor: pointer; // was: help;
+    cursor: pointer; /* was: help; */
     position: relative
 }
 a.tipright span {
@@ -319,7 +320,7 @@ a.tipright:hover span {
     padding: 5px 20px 5px 5px;
     display: block;
     z-index: 9000; /* was 100 */
-//    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%;
+/*    background: url(../images/status-info.png) #f0f0f0 no-repeat 100% 5%; */
     background: #ffff66;
     left: 80px;
     margin: 10px;
@@ -330,9 +331,11 @@ a.tipright:hover span {
 }
 
 
-// Cursor types: http://www.w3schools.com/cssref/playit.asp?filename=playcss_cursor&preval=alias
+/* Cursor types: http://www.w3schools.com/cssref/playit.asp?filename=playcss_cursor&preval=alias */
+
+
 /*
-// From: http://sixrevisions.com/css/css-only-tooltips/
+From: http://sixrevisions.com/css/css-only-tooltips/
 .tooltip {
   border-bottom: 1px dotted #000000;
   color: #000000; outline: none;

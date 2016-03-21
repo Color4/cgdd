@@ -183,6 +183,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     #            return HttpResponse(json, mimetype="application/json")
     for d in dependency_list:
         d_json = {}
+        """
         # Using single characters for the field keys below would reduce the size of the json to be transfered to client.
         # eg: t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
         d_json['t'] =  d.target_id # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
@@ -201,32 +202,33 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
         d_json['i'] = '' # d.inhibitors  was 'inhibitors' - but empty for now.
         # d_json['study_summary'] = d.study.summary  # Info about all the studies separately embedded in the index.html template file is small.  dependency.study.weblink|safe
         d_json['a'] = '' # d.interaction  was: 'interaction'
-        """
-        # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
-        # results.append([d.target_id, d.wilcox_p, .....etc])  # optionally an id: d_json['1'] = 
-        
-        # As cannot use target and key, as assumes that target is unique within this driver's data: (currently it isn't due to target_variant & study_pmid & table)
-        # Need to check for commas in the input fields:
-        d.target_id+ # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
-        # or on the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
-        # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
-            
-        format(d.wilcox_p, ".0E").replace("E-0", "E-")  # was 'wilcox_p' Scientific format and remove the leading zero from the exponent  # in template use: |stringformat:....
-        d.effect_size # was 'effect_size'
-        d.study_id # was: 'study_pmid' or maybe id # can use the foreign key value directly as it is the pmid. https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
-        # But maybe I need to call field the default name of 'study_id'
-        #    study    = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
-            
-        # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
-            
-        d.histotype   # was 'histotype' get_histotype_display()  # or could use 'd.histotype' shortened names, with a hash in javascript in the index.html file.
-         '' # d.inhibitors  was 'inhibitors' - but empty for now.
-        # d_json['study_summary'] = d.study.summary  # Info about all the studies separately embedded in the index.html template file is small.  dependency.study.weblink|safe
-         '' # d.interaction  w
-        """
         
         results.append(d_json)
+        """
+        
+        # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
+        # But cannot use target and key, as assumes that target is unique within this driver's data: (currently it isn't due to target_variant & study_pmid & table)
+
+        results.append([
+                    d.target_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
+                    format(d.wilcox_p, ".0E").replace("E-0", "E-"),  # Scientific format, remove leading zero from the exponent
+                    d.effect_size,  # As a percentage
+                    d.study_id, # returns the underlying pmid number rather than the Study object
+                    d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
+                    '',  # d.inhibitors - but empty for now.
+                    ''  # d.interaction - but empty for now
+                    ])  # optionally an id: d_json['1'] = 
+        
+        # If use simple CSV rather than json, then would need to check for commas in the input fields.
+        
+        # To add join to the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
+        # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
+                        
+        # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
+                    
+        
     
+    # results_column_names = ['Target','Wilcox_p','Effect_size','Study_pmid','Histotype','Inhibitors','Interactions'] # Could add this to the returned 'query_info'
     histotype_details = "<b>All tissues</b>" if histotype_name == "ALL_HISTOTYPES" else ("tissue type <b>"+histotype_full_name+"</b>")
     study_details = "<b>All studies</b>" if study_pmid == "ALL_STUDIES" else ("study "+study.weblink()+" "+study.title+", "+ study.authors[:30]+" et al, "+study.journal+", "+ study.pub_date)
 
