@@ -144,6 +144,58 @@ span.title {
   background-color: #ddddff
 }
 
+
+/* Custom styles for jquery-ui tooltip, from: https://jqueryui.com/tooltip/#custom-style */
+.ui-tooltip, .arrow:after {
+    /* background: black; */
+	background: yellow;
+    /* border: 2px solid white; */
+	border: 1px solid black;
+}
+.ui-tooltip {
+    padding: 10px 20px;
+    color: black;
+	/* color: white; */
+    border-radius: 20px;
+    /* font: bold 14px "Helvetica Neue", Sans-Serif; */
+    /* text-transform: uppercase; */
+    box-shadow: 0 0 7px black;
+	max-width: 400px; /* Setting it wider than default as gene names are often longer than the tooltip box, which puts arrow in wrong place */
+}
+.arrow {
+    width: 70px;
+    height: 16px;
+    overflow: hidden;
+    position: absolute;
+    left: 50%;
+    margin-left: -35px;
+    bottom: -16px;
+}
+.arrow.top {
+    top: -16px;
+    bottom: auto;
+}
+.arrow.left {
+    left: 20%;
+}
+.arrow:after {
+    content: "";
+    position: absolute;
+    left: 20px;
+    top: -20px;
+    width: 25px;
+    height: 25px;
+    box-shadow: 6px 5px 9px -9px black;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
+}
+.arrow.top:after {
+    bottom: -20px;
+    top: auto;
+}
+  
+
 /*
  The following tool tip styles is from: http://www.lets-develop.com/html5-html-css-css3-php-wordpress-jquery-javascript-photoshop-illustrator-flash-tutorial/css-css3-css-3-style-styling/style-tooltip-css-how-to-style-the-title-attribute-with-css/
 

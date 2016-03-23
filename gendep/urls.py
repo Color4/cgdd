@@ -30,6 +30,8 @@ urlpatterns = [
     
     url(r'^download_csv/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
     
+    url(r'^gene_info/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.gene_info, name='gene_info'), # tip=element.data('url'),
+    
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
     
     url(r'^(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_driver'), # Needs to be at end as could otherwise interpret 'about' as driver name. 

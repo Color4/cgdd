@@ -1,11 +1,22 @@
 #!/usr/bin/env python
 
+# This script to to generate the data for input to R.
+
+
+# 22 March 2016:
+Partly added the ensembl_protein_id - but NOT finished - (simpler to annotate database after data is loaded into database) - so use the earlier script if need to rebuild the Achilles R input data.
+
+# To load the Achilles data after R, use load_data.py
+
+
 # The Windows 'py' launcher should also recognise the above shebang line.
 # Script for reformatting the Achilles data, which is in gene pattern file format
 
 # Achilles data from the Broad institute:
 #     https://www.broadinstitute.org/achilles/datasets/5/download
 #     Downloaded this file: Achilles_QC_v2.4.3.rnai.Gs.gct
+
+
 
 """
 # The paper from: http://www.nature.com/articles/sdata201435
@@ -205,13 +216,13 @@ def load_ATARmap():
 def write_solname_to_entrez_map_file(outfile,new_names_dict=None):
   print("\nWriting the solname to Entrez_id mapping file")
   with open(outfile, "w") as fout:
-#    fout.write("sol.name\tentrez\tmg_ensembl\tmg_symbol\tmg_entrez\n")
+#    fout.write("sol.name\tentrez\tmg_ensembl_gene\tmg_symbol\tmg_entrez\n")
 #    for key in sorted(ATARmap):  # .keys() .items()) # , key=itemgetter(jsol_name)):
 #      fout.write("%s\t%s" %(key, ATARmap[key][jsol_entrez]))
 #      if len(ATARmap[key]) > jsol_entrez+1:
-#        fout.write("\t%s\t%s\t%s" %(ATARmap[key][img_ensembl_id], ATARmap[key][img_symbol], ATARmap[key][img_entrezgene])) # The mg_ensembl, mg_symbol, mg_entrezid
+#        fout.write("\t%s\t%s\t%s" %(ATARmap[key][img_ensembl_gene_id], ATARmap[key][img_symbol], ATARmap[key][img_entrezgene])) # The mg_ensembl_gene, mg_symbol, mg_entrezid
 #      fout.write("\n")  
-    fout.write("sol.name\tmg_symbol\tentrez\tmg_entrez\tmg_hgnc\thgnc_ensembl\tmg_ensembl") # if change these titles, then update the 'read_ATARmap_from_file()' function too
+    fout.write("sol.name\tmg_symbol\tentrez\tmg_entrez\tmg_hgnc\thgnc_ensembl\tmg_ensembl_gene\tmg_ensembl_protein") # if change these titles, then update the 'read_ATARmap_from_file()' function too
     if new_names_dict is not None:
         fout.write("\tname_used_for_R")
     fout.write("\n")
@@ -219,7 +230,7 @@ def write_solname_to_entrez_map_file(outfile,new_names_dict=None):
       n = key.split('_')  # eg: A2ML1_1_01110
       if ATARmap[key][img_symbol] == '': print("*** mg_symbol missing for %s" %(key))
       elif n[0] != ATARmap[key][img_symbol]: print("*** %s differ %s" %(key,ATARmap[key][img_symbol]))
-      fout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s" %(key, ATARmap[key][img_symbol], ATARmap[key][jsol_entrez], ATARmap[key][img_entrezgene], ATARmap[key][img_hgnc], ATARmap[key][ihgnc_ensembl_id], ATARmap[key][img_ensembl_id]))
+      fout.write("%s\t%s\t%s\t%s\t%s\t%s\t%s" %(key, ATARmap[key][img_symbol], ATARmap[key][jsol_entrez], ATARmap[key][img_entrezgene], ATARmap[key][img_hgnc], ATARmap[key][ihgnc_ensembl_id], ATARmap[key][img_ensembl_gene_id], ATARmap[key][img_ensembl_protein_id]))
       if new_names_dict is not None and key in new_names_dict:
         fout.write("\t%s" %(new_names_dict[key]) )
       fout.write("\n")
@@ -282,8 +293,8 @@ def compare_ATARmap_with_hgnc_add_ensemblid():
         Hrow = hgnc[name]
         if Hrow[ientrez_id] != ATrow[img_entrezgene]: print("** Entrez: hgnc='%s' BUT ATAR='%s' (jsol='%s') for key '%s', '%s'" %(Hrow[ientrez_id],  ATrow[jsol_entrez], ATrow[img_entrezgene], key, name))  # also: jsol_entrez
         
-        if Hrow[iensembl_id]!= ATrow[img_ensembl_id] and Hrow[iensembl_id] not in ATrow[img_ensembl_id].split(';'):        
-          print("** Ensembl: hgnc='%s' BUT ATAR='%s' for key '%s', '%s'" %(Hrow[iensembl_id],ATrow[img_ensembl_id], key, name))
+        if Hrow[iensembl_id]!= ATrow[img_ensembl_gene_id] and Hrow[iensembl_id] not in ATrow[img_ensembl_gene_id].split(';'):        
+          print("** Ensembl: hgnc='%s' BUT ATAR='%s' for key '%s', '%s'" %(Hrow[iensembl_id],ATrow[img_ensembl_gene_id], key, name))
         if (HGNC_ensembl_id != '') and (HGNC_ensembl_id !=Hrow[iensembl_id]):
           HGNC_ensembl_id += ';'+Hrow[iensembl_id]
         else:
@@ -303,7 +314,8 @@ def get_ensembl_and_symbol_from_mygene(entrez_id):
   for k in fields: print("\n",k,fields[k])
   
   print("Mygene: %s\r" %(entrez_id))
-  result = mg.getgene(entrez_id, fields="ensembl.gene, symbol", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
+  # To see the available fields, see eg: http://mygene.info/v2/gene/1017
+  result = mg.getgene(entrez_id, fields="ensembl.gene, symbol, ensembl.gene", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
   #result = mg.getgene(entrez_id, fields="all", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
   # print(result)
   # for k in result: print("\n",k,result[k])
@@ -447,26 +459,26 @@ def get_ensembl_name_from_solname(solname):
           print("***** ERROR: AT_entrez_id is None or Empty for solname '%s' hgnc_entrez_id '%s'" %(AT_entrez_id, hgnc_entrez_id))
       if gene_in_hgnc and AT_entrez_id != hgnc_entrez_id:
         print("***** ERROR: AT_entrez_id %s != hgnc_entrez_id '%s'" %(AT_entrez_id, hgnc_entrez_id))
-      mg_ensembl_id, mg_symbol = get_ensembl_and_symbol_from_mygene(AT_entrez_id)
-      if mg_ensembl_id == '':
+      mg_ensembl_gene_id, mg_symbol = get_ensembl_and_symbol_from_mygene(AT_entrez_id)
+      if mg_ensembl_gene_id == '':
         print("*** ERROR: ensembl_id NOT in MyGene for AT_entrez_id %s" %(AT_entrez_id))
       elif mg_symbol == '':
         print("*** ERROR: symbol NOT in MyGene for AT_entrez_id %s" %(AT_entrez_id))
       else:
-        if gene_in_hgnc and mg_ensembl_id != hgnc_ensembl_id:
-          print("***** ERROR: mg_ensembl_id '%s' != hgnc_ensembl_id '%s'" %(mg_ensembl_id, hgnc_ensembl_id))
+        if gene_in_hgnc and mg_ensembl_gene_id != hgnc_ensembl_id:
+          print("***** ERROR: mg_ensembl_gene_id '%s' != hgnc_ensembl_id '%s'" %(mg_ensembl_gene_id, hgnc_ensembl_id))
         if mg_symbol != gene_name:
           print("***** ERROR: mg_symbol '%s' != gene_name '%s' in solname %s" %(mg_symbol, gene_name, solname))
         if len(ATARmap[solname]) <= jsol_entrez:
-          ATARmap[solname].append(mg_ensembl_id)
+          ATARmap[solname].append(mg_ensembl_gene_id)
           ATARmap[solname].append(mg_symbol)
-        return mg_symbol+'_'+mg_ensembl_id  
+        return mg_symbol+'_'+mg_ensembl_gene_id  
           
     return gene_name+'_'+ensembl_id
   
   
 def add_mygene_to_ATARmap():
-  global img_entrezgene, img_symbol, img_hgnc, img_ensembl_id, ihgnc_ensembl_id
+  global img_entrezgene, img_symbol, img_hgnc, img_ensembl_gene_id, ihgnc_ensembl_id
   entrez_dict = dict() # Using a dict first to eliminate duplicates to reduce downloads from mygene
   for key in ATARmap:
     entrez_id = ATARmap[key][jsol_entrez]    
@@ -500,7 +512,7 @@ def add_mygene_to_ATARmap():
     img_entrezgene = jsol_entrez+1
     img_symbol = jsol_entrez+2
     img_hgnc = jsol_entrez+3
-    img_ensembl_id = jsol_entrez+4
+    img_ensembl_gene_id = jsol_entrez+4
     ihgnc_ensembl_id = jsol_entrez+5  # Is added by the compare_ATARmap_with_hgnc_add_ensemblid()
     
 # if __name__ == "__main__":
@@ -536,9 +548,9 @@ def get_ensembl_name_from_ATARmap(solname,gene_ensembl_names_dict):
        
     ensembl_id = row[ihgnc_ensembl_id]
     if ensembl_id == '':
-      ensembl_id = row[img_ensembl_id]
-    elif row[img_ensembl_id] !='' and ensembl_id != row[img_ensembl_id] and ensembl_id not in row[img_ensembl_id].split(';'):
-      print("**Solname %s HGNC ensembl id %s, is not in MG %s" %(solname,ensembl_id,row[img_ensembl_id]) )
+      ensembl_id = row[img_ensembl_gene_id]
+    elif row[img_ensembl_gene_id] !='' and ensembl_id != row[img_ensembl_gene_id] and ensembl_id not in row[img_ensembl_gene_id].split(';'):
+      print("**Solname %s HGNC ensembl id %s, is not in MG %s" %(solname,ensembl_id,row[img_ensembl_gene_id]) )
     
     if ';' in ensembl_id:
       print("**Solname %s has more than one ensembl id, so just using the first one: " %(solname),ensembl_id)
@@ -572,7 +584,7 @@ def build_ATARmap():
 
   
 def read_ATARmap_from_file():
-  global ATARmap, jsol_name, jsol_entrez, img_entrezgene, img_symbol, img_hgnc, ihgnc_ensembl_id, img_ensembl_id
+  global ATARmap, jsol_name, jsol_entrez, img_entrezgene, img_symbol, img_hgnc, ihgnc_ensembl_id, img_ensembl_gene_id, img_ensembl_protein_id
   
   print("\nLoading ATARmap from file:", output_file3)
   dataReader = csv.reader(open(output_file3), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), 
@@ -588,7 +600,8 @@ def read_ATARmap_from_file():
       img_symbol = cols.get('mg_symbol')
       img_hgnc = cols.get('mg_hgnc')
       ihgnc_ensembl_id = cols.get('hgnc_ensembl')
-      img_ensembl_id = cols.get('mg_ensembl')
+      img_ensembl_gene_id = cols.get('mg_ensembl_gene')
+      img_ensembl_protein_id = cols.get('mg_ensembl_protein')
     else:
       key = row[jsol_name]
       if key in ATARmap:

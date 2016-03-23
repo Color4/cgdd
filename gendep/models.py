@@ -17,7 +17,8 @@ class Gene(models.Model):
     original_name = models.CharField('Original name', max_length=30) # As some names are changed, especially needed for the other studies.
     is_driver   = models.BooleanField('Is driver', db_index=True) # So will know for search menus which to list in the dropdown menu
     full_name   = models.CharField('Full name', max_length=200)
-    ensembl_id  = models.CharField('Ensembl Id', max_length=20, blank=True) # Ensembl
+    ensembl_id  = models.CharField('Ensembl Gene Id', max_length=20, blank=True) # Ensembl gene
+    # ensembl_protein_id  = models.CharField('Ensembl Protein Id', max_length=20, blank=True) # Ensembl protein
     entrez_id   = models.CharField('Entrez Id', max_length=10, blank=True)  # Entrez
     cosmic_id   = models.CharField('COSMIC Id', max_length=10, blank=True) # Same as gene_name, or empty if not in COSMIC
     cancerrxgene_id = models.CharField('CancerRxGene Id', max_length=10, blank=True) # Not available yet
@@ -168,8 +169,10 @@ class Dependency(models.Model):
     )
 
     class Meta:
-        unique_together = (('driver', 'target', 'target_variant', 'histotype', 'study'),) # This should be unique  (previously also incuded 'study_table')
+        
+        unique_together = (('driver', 'target', 'histotype', 'study'),) # This should be unique  (previously also incuded 'study_table')
         # This 'histotype' needed added to this unique_together otherwise when the S1K table is added to the S1I table there is a conflict.
+        # The 'target_variant' is no longer part of unique key, as only keeping the variant with the lowest wilcox_p value
         verbose_name_plural = "Dependencies" # Otherwise the Admin page just adds a 's', ie. 'Dependencys'
 
     driver      = models.ForeignKey(Gene, verbose_name='Driver gene', db_column='driver', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
@@ -177,7 +180,7 @@ class Dependency(models.Model):
     target_variant = models.CharField('Achilles gene variant_number', max_length=2, blank=True) # As Achilles has some genes entered with 2 or 3 variants.
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
     wilcox_p    = models.FloatField('Wilcox P-value', db_index=True)     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9). Index on wilcox_p because this is the order_by clause for the dependency result query.
-    effect_size = models.CharField('Effect size', max_length=20, blank=True) # or should this be an integer or float? If use float and is part of query then could index this field.
+    effect_size = models.FloatField('Effect size', db_index=True) # or should this be an integer or float? If use float and is part of query then could index this field.
     interaction = models.NullBooleanField('Functional interaction', db_index=True, ) # True if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values
     study       = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
     study_table = models.CharField('Study Table', max_length=10) # The table the data is from.

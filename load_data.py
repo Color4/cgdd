@@ -2,6 +2,12 @@
 
 # The Windows 'py' launcher should also recognise the above shebang line.
 
+# Add the Effect size results now - present as percentage values - so x100
+# No longer using the target variants - only keep the variant with the lowest (ie. best) p-value.
+# Do the annotation with entrez, ensembl, etc as a separate script later.
+# Add the ensembl_protein - as is used by StringDB for interactions.
+
+
 # Script to import the data into the database tables
 # An alternative if loading data into empty database is using 'Fixtures': https://docs.djangoproject.com/en/1.9/howto/initial-data/
 # or django-adapters: http://stackoverflow.com/questions/14504585/good-ways-to-import-data-into-django
@@ -354,6 +360,9 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
   print("\nImporting table: ",csv_filepathname)
   print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
 
+  effect_size = -1
+  print("**** import_data_from_tsv_table: Setting effect size to %f" %(effect_size))
+  
   dataReader = csv.reader(open(csv_filepathname), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   
   count_added = 0
@@ -379,7 +388,7 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
     # Using bulk_create() would be faster I think. See: http://vincent.is/speeding-up-django-postgres/  and https://www.caktusgroup.com/blog/2011/09/20/bulk-inserts-django/
     
     # Bulk create is actually slightly slower than adding record by record
-    d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], effect_size="", histotype=histotype, mutation_type=mutation_type, study=study)
+    d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, wilcox_p=row[2], effect_size=effect_size, histotype=histotype, mutation_type=mutation_type, study=study)
     # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
     # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
     dependencies.append( d )
@@ -428,10 +437,19 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
   print("\nImporting table: ",result_file)
   print("ACHILLES FETCH_BOXPLOTS is: ",ACHILLES_FETCH_BOXPLOTS)
 
+  target_dict = dict()  # To find and replace any dependecies thart have different wilcox_p, just keeping the dependency with the lowest wilcox_p value.
+  
   dataReader = csv.reader(open(result_file), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
 
-  count_added = 0
+  # The file format for bytissues is: (the pancan doesn't have the 'tissue' column)
+  # marker  target  nA      nB      wilcox.p        CLES    tissue
+  # MYC_4609_ENSG00000136997        A2ML11_ENSG00000166535  5       7       0.946969696969697       0.228571428571429       BREAST
+  # MYC_4609_ENSG00000136997        AADAC1_ENSG00000114771  5       7       0.734848484848485       0.4     BREAST
+
   count_skipped = 0
+  count_added = 0
+  count_replaced = 0
+  count_not_replaced = 0
   dependencies = []
   for row in dataReader:
     if dataReader.line_num == 1:
@@ -441,12 +459,21 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
       idriver = header_dict['marker']
       itarget = header_dict['target']
       iwilcox = header_dict['wilcox.p'] # should be 16 if zero based
-      itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.
+      ieffect_size = header_dict['CLES'] # CLES = 'common language effect size'
+      itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.      
       continue  # Ignore the header row, import everything else
-
-    if float(row[iwilcox]) > 0.05:
+            
+    # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
+    
+    # Convert to numbers:
+    # print(row)
+    # print(row[idriver], row[itarget], row[iwilcox], row[ieffect_size])    
+    row[iwilcox] = float(row[iwilcox])
+    row[ieffect_size] = float(row[ieffect_size])
+    
+    if row[iwilcox] > 0.05 or row[ieffect_size] < 0.65:
       count_skipped += 1
-      continue  # Skip as the wilcox_p value isn't significant
+      continue  # Skip as either the wilcox_p value or effect_size isn't significant
 
     names = split_driver_gene_name(row[idriver])
     # driver_variant = names[0][-1:] # Seems we can ignore the driver variant as is trimming MYC to MY
@@ -469,25 +496,54 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     # Using bulk_create() would be faster I think. See: http://vincent.is/speeding-up-django-postgres/  and https://www.caktusgroup.com/blog/2011/09/20/bulk-inserts-django/
     
     # Bulk create is actually slightly slower than adding record by record in SQLite, but in MySQL it will be faster
-    d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size="", histotype=histotype, mutation_type=mutation_type, study=study)
-    # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
-    # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
-    dependencies.append( d )
 
-    # Fetch the boxplot:
-    if ACHILLES_FETCH_BOXPLOTS:
-        fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles=True, target_variant=target_variant)
+    key = driver_gene.gene_name + '_' + target_gene.gene_name + ' ' + histotype + '_' + study.pmid # Could maybe use the gene object id as key ?
+    if key in target_dict:
+        d = target_dict[key]
+        if row[iwilcox] < d.wilcox_p:
+            if d.study_table != table_name: 
+                print("d.study_table(%s)            != table_name(%s)" %(d.study_table, table_name))
+            if d.mutation_type != mutation_type:
+                print("d.mutation_type(%s) != mutation_type(%s)" %(d.mutation_type, mutation_type))
+            d.wilcox_p = row[iwilcox]
+            d.effect_size = row[ieffect_size]
+            d.target_variant = target_variant # Need to update the target_variant, as it is needed to retrieve the correct boxplot from the R boxplots, where image file is: driver_gene_target_gene+target_variant_histotype_Pmid.png
+            count_replaced += 1
+        else:
+            count_not_replaced += 1        
+    else:
+        d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], histotype=histotype, mutation_type=mutation_type, study=study)
+        # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
+        # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
+        dependencies.append( d )
+        target_dict[key] = d
 
     print("\r",count_added, end=" ")
     count_added += 1
-  
-  print( "%d dependency rows were added to the database" %(count_added))  
-  print( "%d dependency rows were skipped as wilcox_p > 0.05" %(count_skipped))
+    
+  # Now fetch the boxplots for those added:
+  count_boxplots = 0
+  if ACHILLES_FETCH_BOXPLOTS:
+     for d in dependencies:
+        fetch_boxplot_file(d.driver_gene, d.target_gene, d.histotype, isAchilles=True, target_variant=d.target_variant)
+        count_boxplots += 1
+        
+  print( "%d dependency rows were added to the database, %d replaced and %d not replaced, so %d target_variants" %(count_added,count_replaced, count_not_replaced, count_replaced+count_not_replaced))
+  print( "%d dependency rows were skipped as wilcox_p > 0.05 or effect_size < 0.65" %(count_skipped))
+  print( "%d boxplot images were fetched" %(count_boxplots))
   print("Bulk_create Achilles ....")  
   Dependency.objects.bulk_create(dependencies) # Comparisons for Postgres:  http://stefano.dissegna.me/django-pg-bulk-insert.html
   print("Finished importing table.")
 
 
+# Achilles data:  
+# Pan-cancer:
+#  113,970 dependency rows were skipped as wilcox_p > 0.05 or effect_size < 0.65
+#   5,940 dependency rows were added to the database, (15 replaced and 56 not replaced, so 71 target_variants)
+
+# By tissue:
+#  289,592 dependency rows were skipped as wilcox_p > 0.05 or effect_size < 0.65
+#   12,807 dependency rows were added to the database, (12 replaced and 68 not replaced, so 80 target_variants)
 
 
 """
@@ -566,11 +622,16 @@ if __name__ == "__main__":
     study_pub_date = "2014, 30 Sep"
     study_old_pmid = "25984343"
     study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date )
-  
-    csv_filepathname=os.path.join(analysis_dir, "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt")
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN')
+
+    #Achilles_results_pancan =
+    "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt"
+    Achilles_results_pancan ="univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_180312_witheffectsize.txt"
+    csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN')    
     
-    csv_filepathname=os.path.join(analysis_dir, "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt")
+    #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
+    Achilles_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
+    csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE')
 
     add_counts_of_study_tissue_and_target_to_drivers()

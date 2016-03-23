@@ -27,8 +27,44 @@
 
 <script type="text/javascript">
 
+
+
+ // a simple sprintf() function.
+ // For a more comprehensive one, use: https://raw.githubusercontent.com/azatoth/jquery-sprintf/master/jquery.sprintf.js
+ // or: http://www.masterdata.se/r/string_format_for_javascript/
+ // var msg = 'the department';
+ // in doc ready:
+ // g: $('#txt').html(sprintf('<span>Teamwork in </span> <strong>%s</strong>', msg));
+var sprintf = function(str) {
+  var args = arguments,
+    flag = true,
+    i = 1;
+
+  str = str.replace(/%s/g, function() {
+    var arg = args[i++];
+
+    if (typeof arg === 'undefined') {
+      flag = false;
+      return '';
+    }
+    return arg;
+  });
+  return flag ? str : '';
+};
+/* or simpler is:
+function sprintf( format )
+{
+  for( var i=1; i < arguments.length; i++ ) {
+    format = format.replace( /%s/, arguments[i] );
+  }
+  return format;
+}
+*/
+
 // Using this preloaded array gives faster response than AJAX call - but in future the driver list may grow too big to preload quickly.
 // The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
+var global_selected_driver = ''; // The currently selected driver gene name, eg. ERBB2 
+
 var driver_array = [
    {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
    {% endfor %}
@@ -67,19 +103,91 @@ function study_link(pmid) {
 
 function study_summary(pmid) {}
 
+
+function gene_info(gene_name) {
+	var url = "{% url 'gendep:gene_info' gene_name='mygene' %}".replace('mygene',gene_name);
+	
+}
+		
+function external_links(id, div) {
+  // id is a dictionary returned by ajax from: view.py : gene_ids_as_dictionary()
+  // gene is a row in the Gene table
+  // was previously in 'models.py'
+  // Note the above sprinf() returns empty string if variable is undefined.
+  //console.log("external_links ids=",id)
+  links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene='+id['gene_name']+'" target="_blank">GeneCards<span>Genecards</span></a> ';
+  links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+id['entrez_id']+'" target="_blank">Entrez<span>Entrez Gene at NCBI</span></a> '; 
+  links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene</span></a> ', id['ensembl_id']);
+  links += div + sprintf(' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation</span></a> ', id['vega_id']);
+  links += div + sprintf(' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man</span></a> ', id['omim_id']);
+  links += div + sprintf(' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ', id['hgnc_id']);
+  links += div + sprintf(' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search</span></a> ', id['gene_name']);
+  links += div + sprintf(' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ', id['gene_name']);
+  if (id['cosmic_id'] != '') {links += div + sprintf(' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ', id['cosmic_id']);}
+  links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>', id['uniprot_id']);
+  return links;
+}
+
 function show_driver_info(data) {
   var qi = data['query_info']; // best to test if this exists in the query
   //console.log(qi);
-  $("#driver_name").html(qi['driver_name']);
+  var driver = qi['driver_name'];
+  if (driver != global_selected_driver) {alert("ERROR: query returned driver("+driver+") != global_selected_driver("+global_selected_driver+")")}
+  $("#driver_name").html(driver);
   $("#driver_synonyms").html(qi['driver_synonyms']);
   $("#driver_full_name").html(qi['driver_full_name']);
-  $("#driver_weblinks").html(qi['driver_weblinks']);
+  // was: $("#driver_weblinks").html(qi['driver_weblinks']);
+  $("#driver_weblinks").html(external_links(data['driver_ids'],'|'));
   
-  $("#result_info").html( "For driver gene <b>" + qi['driver_name'] + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
+  $("#result_info").html( "For driver gene <b>" + driver + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
 }
 
 
-function populate_table(data) {
+
+function setup_qtips() {
+// ideas: filter: http://stackoverflow.com/questions/22262325/how-to-create-a-tooltip-for-the-filter-widget-of-the-jquery-tablesorter-plugin
+
+//dataTable({
+//    bLengthChange: false,
+//    bFilter: false
+//  })
+  console.log("Adding qtips to table")
+// selector was:  'tr[data-browser]'
+	// set up the qtips
+  $('#result_table_tbody td')
+  .on('mouseenter', null, function (event) {
+    //var browser = $(this).data('browser');
+    var browser = 'Hello';
+	
+    $(this).qtip({
+        overwrite: false,
+        content: 'Test', // '<img src="http://media1.juggledesign.com/qtip2/images/browsers/64-' + browser + '.png" alt="' + browser + '"/>',
+        position: {
+            my: 'right center',
+            at: 'left center',
+            target: $('td:eq(1)', this),
+            // viewport: $('#datatables')
+        },
+        show: {
+            event: event.type,
+            ready: true
+        },
+        hide: {
+            fixed: true
+        }
+    }, event); // Note we passed the event as the second argument. Always do this when binding within an event handler!
+   // =================================== end of qtips setup ===================
+   
+   // http://stackoverflow.com/questions/16059315/tooltip-on-hover-of-elements-generated-by-ajax-request
+   // $(document).on('hover', '.best-item-option', function(){        
+   // $('.best-item-option').tooltipster();
+   // $('.best-item-option').tooltipster('show');
+   //});
+   
+});
+}
+
+function populate_table(data,t0) {
   var html = '';
 	// The position of the P-value column needs to correspond with the index.htm javascript for "filter-select:"
 	
@@ -102,26 +210,41 @@ function populate_table(data) {
 	results = data['results']
 	//console.log(results);
 	
-	var t0 = performance.now();	
-
 	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list	  
 	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
-	  // result array indexes:  0=target, 1=wilcox_p, 2=effect_size, 3=study, 4=histotype, 5=inhibitors, 6=interaction
+	  // result array indexes:  0=target, 1=wilcox_p, 2=effect_size, 3=histotype, 4=study_pmid, 5=interaction, 6=inhibitors
 	  // In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
-	  var study = study_info(d[3]); // name,type,summary,details for 'study_pmid'
+	  var study = study_info(d[4]); // name,type,summary,details for 'study_pmid'
 	  // perhaps 'map ......join' might be more efficient?
 	  
 	  html += '<tr>'+
-        '<td><a class="tipright" href="plot(\"' + d[0] + '\");">' + d[0] + '</a></td>' +
+        '<td><a gene="" class="tipright" href="#" onclick="plot(\'' + d[0] + '\', \'' + d[3] + '\', \'' + d[4] +'\');">' + d[0] + '</a></td>' +
+		// In future could use the td class - but need to add on hoover colours, etc....
+		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
+		//'<td>' + d[0] + '</td>' +
 		'<td>' + d[1].replace('E', ' x 10<sup>') + '</sup></td>' + // inlined this replace()
+		//'<td>' + d[1] + '</td>' + // inlined this replace()
         '<td>' + d[2] + '</td>' + 
-		'<td>' + study[0] + '</td>' + // study_weblink
-        '<td>' + histotype_display(d[4]) + '</td>' +
-		'<td>' + d[5] + '</td>' +
-		'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
-		'<td>' + d[6] + '</td>' +  // 'interaction'
-		'</tr>\n';
-	  
+        '<td>' + histotype_display(d[3]) + '</td>' +
+		'<td>' + study[0] + '</td>' + // study_weblink		
+		//'<td>' + d[4] + '</td>' +
+		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
+		'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
+		'<td>' + d[5] + '</td>' +  // 'interaction'
+	    '<td>' + d[6] + '</td>' +  // 'inhibitors'
+		'</tr>';  // The newline cahracter was removed from end of each row, as the direct trigger update method complains about undefined value.
+/*
+	  html += '<tr>'+
+		'<td>A</td>' +
+		'<td>B</td>' + // inlined this replace()
+        '<td>C</td>' + 
+		'<td>D</td>' + // study_weblink
+		'<td>E</td>' +
+		'<td>F</td>' +
+		'<td>G</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
+		'<td>H</td>' +  // 'interaction'
+		'</tr>';
+*/		
 	  // To minimise the size of the transfer from webserver, used single characters for these dependency fields:
 	  //  t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
 	  /*
@@ -138,14 +261,47 @@ function populate_table(data) {
 		*/
 	}
 
+
+	
     //	var t1 = performance.now();
     // console.log("String Loop took " + (t1 - t0) + " milliseconds.")
 	
 	//console.log(html);
     //$("#result_table_tbody").replaceWith(html);
+	console.log("Data formatted as html: ",performance.now()-t0); t0 = performance.now();
+	
+	// $("#result_table_tbody").html(html);
 	$("#result_table_tbody").html(html);
-    $("#result_table").trigger("update"); // let the plugin know that we made a update 
+	console.log("Data added to table tbody: ",performance.now()-t0); t0 = performance.now();
+	//setup_qtips();
+	
+	// or from: https://github.com/Mottie/tablesorter/blob/master/docs/example-add-rows.html
+	//resort = false;
+	//$rows = $(html)
+	//$("#result_table_tbody").append($rows)
+    //$("#result_table").trigger('addRows', [$rows, resort]);
+	
+	// $tbodies = $( 'table' ).
+	// $("table").trigger("updateCache", [ callback, $tbodies ] );
+	
+    triggercallback = function( table ){
+     //   alert( 'update applied' );
+	 console.log("Table updated: ",performance.now()-t0); t0 = performance.now();
+    };
+    $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
+	// or: .trigger( 'addRows', [ $row, resort, callback ] );
+	
+	// triggered event method:
+    //$table.trigger( 'addRows', [ html, true ] );
 
+    // direct method:
+	//var $table = $( "#result_table" );
+    //var config = $table[ 0 ].config;
+	//alert(html);
+    //$.tablesorter.addRows( config, html, true );  // So instead of making a jQuery object, appending it to the table, then passing the reference to the method, you can just pass a string. This method doesn't work if a table has multiple tbodies, because the plugin doesn't know where you want to add the rows.
+	
+	
+	
 //	Maybe need to reset the scroller height to make the added rows visible?
 //	Also see the addRows() functions: https://mottie.github.io/tablesorter/docs/#methods
 	
@@ -155,6 +311,7 @@ function populate_table(data) {
 
 	//alert(html)
     //		<a class="fancybox tipright" rel="group" href="{% static 'gendep/boxplots/' %}{{ dependency.boxplot_filename }}" data-fancybox-title='<b>{{ dependency.driver.gene_name }}</b> altered cell lines have an increased dependency upon <b>{{ dependency.target.gene_name}}</b><br/>(p={{ dependency.wilcox_p_power10_format|safe }} | Tissues={{ dependency.get_histotype_display }} | Source={{ dependency.study.weblink|safe }})<br/>{{ dependency.target.gene_name }} links: {{ dependency.target.external_links_on_boxplot|safe }}</font>' >{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font><span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span></a></td>
+	return t0;
 }
 
 function external_links_on_boxplot(index, div='|') {
@@ -179,24 +336,30 @@ function sup10_format(num) {
 
 
 
-function plot(index) { // The index number of the dependency in the array
+//function plot(index) { // The index number of the dependency in the array
+function plot(target,histotype,pmid) { // The index number of the dependency in the array
   // eg: http://jsfiddle.net/STgGM/
-/*  
- $(".fancybox").open([{
-  href: "{% static 'gendep/boxplots/' %}"+driver+'_'target+'__PMID'+pmid+'.png'; // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
-  // or $(...).content - Overrides content to be displayed - maybe for inline content
-  
-  title: '<b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+power10_format(d..wilcox_p) +' | Tissues='+ get_histotype_display(d.histotype) +' | Source='+ study_weblink(pmid) +')<br/>'+target+'links: '+ external_links_on_boxplot(d.....) +'</font>';
+  var driver = global_selected_driver;
+ 
+  $.fancybox.open({
+    href: "{% static 'gendep/boxplots/' %}"+driver+'_'+target+'_'+histotype+'__PMID'+pmid+'.png',
+    // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
+    // or $(...).content - Overrides content to be displayed - maybe for inline content
+
+    title: '<b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p=....)',
+   });  
+    //+power10_format(d..wilcox_p) +' | Tissues='+ get_histotype_display(d.histotype) +' | Source='+ study_weblink(pmid) +')<br/>'+target+'links: '+ external_links_on_boxplot(d.....) +'</font>';
 		
 		  // the data can be stored as an array of in fields with id names.
-				
+				/*
 	{{ dependency.target.gene_name }} &nbsp; <font size="-2">{{ dependency.target.prev_names_and_synonyms_spaced }}</font>
 		<span>{{ dependency.target.full_name }}: {{ dependency.target.prev_names_and_synonyms_spaced }}</span>
 		
 		</a>
 		
 		</td>
-*/		
+*/
+	
   }
 
 
@@ -222,7 +385,9 @@ var dependency_array = [];
 $(document).ready(function() {
 
 	$("#result_table").tablesorter({
-	    // size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option. 
+	    // For diocs see: https://mottie.github.io/tablesorter/docs/
+	    // size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option.
+        // debug: true, // to output debug info to the firebug console.
 		showProcessing: true,
 		theme: 'blue',
 		widgets: ["zebra", "filter", "scroller"],
@@ -244,13 +409,98 @@ $(document).ready(function() {
             }				
         },  // widgetOptions maybe need to be after the widgets: [...] line.
 		sortInitialOrder: "asc", // default sort order
-		sortRestart: true, // so sort always reastarts from the specified sortInitialOrder.
+		sortRestart: true, // so sort always restarts from the specified sortInitialOrder.
 		sortStable: true,
 		ignoreCase: true,  // so sorting ignores case
 		filter_ignoreCase: true, // so filtering ignores case
 	});
-
 	
+   // From: https://jqueryui.com/tooltip/#custom-content
+/*
+   In style.css can set:
+   
+   .ui-tooltip {
+    max-width: 350px;
+  }
+*/
+    //$( document ).tooltip({
+	$('#result_table_tbody').tooltip({
+      //items: "img, [title]",
+	  items: "[gene]",
+	  // track:true,
+      delay: 0,
+	  position: {
+        my: "center bottom-20",
+        at: "center top",
+	    using: function( position, feedback ) {
+          $( this ).css( position );
+          // The arrow is in wrong ploace when the text is wider than the tooltip box.
+		  
+		  $( "<div>" )
+            .addClass( "arrow" )
+            .addClass( feedback.vertical )
+            .addClass( feedback.horizontal )
+            .appendTo( this );
+        }
+	  },
+	  
+      content: function(callback) {  // note the 'callback' which is called below with the data.
+	  
+	  // See: http://html5beta.com/jquery-2/a-little-guide-about-jqueryui-tooltip-ajax-callback/
+	  // $(document).tooltip({
+      //   items:'#lists .table a.btn-preview',
+      //   tooltipClass:'preview-tip',
+      //   position: { my: "left+15 top", at: "right center" },
+      //   content:function(callback) { //callback
+      //      $.get('preview.php',{}, function(data) {
+      //      callback(data); //call the callback function to return the value
+      //      });
+      //   },
+      // });
+      // More info: https://forum.jquery.com/topic/using-jquery-ui-tooltip-with-dynamic-ajax-content-on-click-instead-of-hover
+	  
+	  // For tooltip styling, see: https://jqueryui.com/tooltip/#custom-style
+        var element = $( this );
+        if ( element.is( "[gene]" ) ) {
+          var gene_name = element.text();
+		  var url = "{% url 'gendep:gene_info' gene_name='mygene' %}".replace('mygene',gene_name);
+		
+		  $.ajax({
+            url: url,
+            // data: 'button=' + $(this).val(), // Optional
+            dataType: 'json', 
+        })
+        .done(function(data, textStatus, jqXHR) {  // or use .always(function ..... see: http://stackoverflow.com/questions/13175268/ajax-content-in-a-jquery-ui-tooltip-widget
+			// data = JSON.parse(json) ? // but maybe already parsed? which should Parses a string containing JSON and returns the de-serialized object.
+//console.log(data);
+			// data = $.parseJSON(json); //"The JSON standard does not permit "control characters" such as a tab or newline. An example like $.parseJSON( '{ "testing":"1\t2\n3" }' ) will throw an error in most implementations because the JavaScript parser converts the string's tab and newline escapes into literal tab and newline; doubling the backslashes like "1\\t2\\n3" yields expected results. This problem is often seen when injecting JSON into a JavaScript file from a server-side language such as PHP."
+
+            synonyms = data['synonyms'];
+			if (synonyms != '') {synonyms = ' | '+synonyms}
+            if (data['success']) {callback('<b>'+data['gene_name'] + '</b>' + synonyms +'</br>' + data['full_name']);}
+			else {callback("Error: "+data['message'])}
+			//return "Success";
+		})
+		.fail(function(jqXHR, textStatus, errorThrown) {
+			callback("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
+        }) // correctly a comma as is part of list of atttributes
+		  
+          //return "<img class='map' alt='" + text +
+          //  "' src='http://maps.google.com/maps/api/staticmap?" +
+          //  "zoom=11&size=350x350&maptype=terrain&sensor=false&center=" +
+          //  text + "'>";
+//		  return text;
+//        }
+        //if ( element.is( "[title]" ) ) {
+        //  return element.attr( "title" );
+        //}
+        //if ( element.is( "img" ) ) {
+        //  return element.attr( "alt" );
+        //}
+        }
+      }    // end of 'content:' can have a comma as is still part of list of atttributes
+   });  // end of tooltip
+  
     $(".fancybox").fancybox({
         preload: 0, // Number of gallary images to preload
         //minWidth: 600,
@@ -278,7 +528,7 @@ $(document).ready(function() {
 hide: {
 	event: 'mouseleave'
 }
-See: http://craigsworks.com/projects/forums/showthread.php?tid=3115
+Good - See: http://craigsworks.com/projects/forums/showthread.php?tid=3115
 
 Alternatives to qtip2 are:
 Tipped (has paid pro version):  http://www.tippedjs.com/documentation
@@ -340,8 +590,11 @@ $(".tip7").fancybox({
 // var result_start = "1"; // For now
     // From: http://www.tutorialspoint.com/jquery/jquery-ajax.htm
     $("#search_button").click(function(event){
+var t0 = performance.now();
+	
         if ( ! is_form_complete() ) {return false;}
         var driver = $("#driver").val();
+		global_selected_driver = driver; // Store the selected driver as a global variable accessible to all functions as needed for the box plot() function.
         var histotype = $("#histotype").val();
         var study = $("#study").val();
         // result_start = "1";
@@ -352,25 +605,40 @@ $(".tip7").fancybox({
 		var url = "{% url 'gendep:ajax_results_get' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
 		
 		//alert("Get from: "+url);
-	    
+console.log("Setup: ",performance.now()-t0); t0 = performance.now();
 		$.ajax({ // ajax call starts
             url: url,
             // data: 'button=' + $(this).val(), // Optional
             dataType: 'json', 
         })
         .done(function(data, textStatus, jqXHR) {
+console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
 		    // when you return the data from django, that is a success. "Error" in jQuery means a communication error, not a semantic error (eg. you need to return a 400/500 error code from django to have fail called).
 			// use: data['success'] = False
-			// Maybe need to use  json = JSON.parse(data) ?
+			// Maybe need to use  json = JSON.parse(data) ? // which should Parses a string containing JSON and returns the de-serialized object.
+			// data = $.parseJSON(data); // It works without this but just to be sure. This throws an error, maybe because: "The JSON standard does not permit "control characters" such as a tab or newline. An example like $.parseJSON( '{ "testing":"1\t2\n3" }' ) will throw an error in most implementations because the JavaScript parser converts the string's tab and newline escapes into literal tab and newline; doubling the backslashes like "1\\t2\\n3" yields expected results. This problem is often seen when injecting JSON into a JavaScript file from a server-side language such as PHP."
+//console.log(data);
+//id=data['driver_ids'];
+//console.log(id);
+
+//test='{"query_info":{"study_details":"<b>All studies</b>","study_pmid":"ALL_STUDIES", "driver_weblinks":"<a class=\'tip\' href=\'http://www.genecards.org/cgi-bin/carddisp.pl?gene=ERBB2\' target=\'_blank\'>GeneCards<span>Genecards</span></a>"}}';
+//console.log($.parseJSON(test));
+console.log("Json parsing: ",performance.now()-t0); t0 = performance.now();			
 			$("#result_progress_div").html("Data received from server. Building results table ....");
   	        $("#welcome_div").hide(); // hide the welcome text...
 			//console.log(Object.keys(data).length);
 			//console.log(sizeof(data)); // This sizeof() script slows loading.
 			show_driver_info(data);
-		    populate_table(data);
+		    t0 = populate_table(data,t0);
+console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 			$("#result_progress_div").html("Results table built.");
+
+
+			
 			$("#result_div").show();
+console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();			
 			//$("#result_progress_div").html("");
+			
 		})
 		.fail(function(jqXHR, textStatus, errorThrown) {  // See: https://github.com/jquery/api.jquery.com/issues/49
             // alert( "fail: '"+textStatus+"'  '"+errorThrown+"'");
@@ -564,12 +832,12 @@ function is_form_complete() {
 <thead><tr>
   <th>Dependency</th>
   <th class="filter-select">P-value</th>
-  <th>Effect size</th>
-  <th>Study</th>
+  <th>Effect size (%)</th>
   <th>Tissue</th>
-  <th>Inhibitors</th>
+  <th>Study</th>  
   <th>Experiment Type</th>
-  <th><a class="tipleft">Interaction<span>Known functional interaction between {{ driver.gene_name }} and dependency gene, from string-db.org</span></a></th>
+  <th><a class="tipleft">Interaction<span>Known functional interaction between driver and dependent gene, from string-db.org</span></a></th>
+  <th>Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>
@@ -614,7 +882,8 @@ function show_plot(driver,target)
 {% endcomment %}
   
  {# Table sorter, and optional widgets: #}
-  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script>
+  <!-- script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script -->
+    <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.js' %}"></script>
   <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.widgets.min.js' %}"></script>
   <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.min.js' %}"></script>
 

@@ -131,6 +131,20 @@ def ajax_results_slow_full_detail_version(request):
     return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
 
+def gene_ids_as_dictionary(gene):
+  return {
+    'gene_name': gene.gene_name,
+    'entrez_id': gene.entrez_id,
+    'ensembl_id': gene.ensembl_id,
+    # 'ensembl_protein_id': gene.ensembl_protein_id,
+    'vega_id': gene.vega_id,
+    'omim_id': gene.omim_id,
+    'hgnc_id': gene.hgnc_id,
+    'cosmic_id': gene.cosmic_id,
+    'uniprot_id': gene.uniprot_id
+    }
+    
+    
 # The following are cached so don't need to reload on each request:
 # These map the study_pmid and histotype short name to an integer:
 study_dict = dict()  # Maybe simpler to hard code the studies in 'models.py' in future.
@@ -147,7 +161,27 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     # returns json - should also return the error message as json format?
     # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
     # mimetype = 'text/html' # for error messages. was: 'application/json'
+
+    from datetime import datetime
+    from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."
+
     mimetype = 'application/json'
+    
+    start = datetime.now()
+    
+    cache_version = '1' # version 1 of db and json format.
+    
+    # Avoid storing a 'None' on the cache as then can't tell if if cache miss or is value of the key
+    cache_key = driver_name+'_'+histotype_name+'_'+study_pmid+'_v'+cache_version
+    cache_data = cache.get(cache_key, 'not_found')
+    if cache_data != 'not_found': 
+        print( "Json retrieved from cache:", (datetime.now() - start) ); start = datetime.now()
+    #    return HttpResponse(cache_data, mimetype)
+   
+    #d = end - start  # datetime.timedelta object
+    #print d.total_seconds()  
+
+    
     #request_method = request.method # 'POST' or 'GET'
     #if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), mimetype)
 
@@ -166,6 +200,8 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
        
     current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
 
+    print( "Setup: ", (datetime.now() - start) ); start = datetime.now()
+        
     results = []
     # From server-side, a csv file format is probably more efficient as is just commas as separater, rather than repeating the keys multiple times.
     # Maybe even use raw sql for maybe faster query: https://docs.djangoproject.com/en/1.9/topics/db/sql/#passing-parameters-into-raw
@@ -181,9 +217,15 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     
     # Maybe use: json = serializers.serialize('json', playlists)
     #            return HttpResponse(json, mimetype="application/json")
-    for d in dependency_list:
-        d_json = {}
+    
+    
+    # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again. This iteractor version seems slightly faster than non-iterated version.
+    # In practice, the database interface (e.g. the Python MySQLdb module) does cache data anyway. If really need to reduce memory usage, retrieve data in chunks.
+    count = 0
+    for d in dependency_list.iterator(): # was: for d in dependency_list:
+        count += 1
         """
+        d_json = {}
         # Using single characters for the field keys below would reduce the size of the json to be transfered to client.
         # eg: t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
         d_json['t'] =  d.target_id # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
@@ -212,11 +254,11 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
         results.append([
                     d.target_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
                     format(d.wilcox_p, ".0E").replace("E-0", "E-"),  # Scientific format, remove leading zero from the exponent
-                    d.effect_size,  # As a percentage
-                    d.study_id, # returns the underlying pmid number rather than the Study object
+                    format(d.effect_size*100, ".1f"),  # As a percentage
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
-                    '',  # d.inhibitors - but empty for now.
-                    ''  # d.interaction - but empty for now
+                    d.study_id, # returns the underlying pmid number rather than the Study object
+                    '', # d.interaction - but empty for now
+                    ''  # d.inhibitors - but empty for now.                    
                     ])  # optionally an id: d_json['1'] = 
         
         # If use simple CSV rather than json, then would need to check for commas in the input fields.
@@ -226,7 +268,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
                         
         # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
                     
-        
+    print( "Dependency: ", (datetime.now() - start)); start = datetime.now()    
     
     # results_column_names = ['Target','Wilcox_p','Effect_size','Study_pmid','Histotype','Inhibitors','Interactions'] # Could add this to the returned 'query_info'
     histotype_details = "<b>All tissues</b>" if histotype_name == "ALL_HISTOTYPES" else ("tissue type <b>"+histotype_full_name+"</b>")
@@ -235,24 +277,35 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     query_info = {'driver_name': driver_name,
                   'driver_full_name': driver.full_name,
                   'driver_synonyms': driver.prev_names_and_synonyms_spaced(),
-                  'driver_weblinks': driver.external_links('|'),
+                  # 'driver_weblinks': driver.external_links('|'), # now passing the 'ids' as a dictionary to format in webbrowser.
                   'histotype_name': histotype_name,
                   'histotype_full_name': histotype_full_name, # Not read
                   'histotype_details': histotype_details,
                   'study_pmid': study_pmid,
                   'study_details': study_details,
-                  'dependency_count': dependency_list.count(), # should be same as number of elements passed in the results array.
+                  'dependency_count': count, # should be same as: dependency_list.count(), but dependency_list.count() could be another SQL query. # should be same as number of elements passed in the results array.
                   'current_url': current_url
                   }
                 # study.weblink|safe
                 
-    data = json.dumps({'success': True, 'query_info': query_info, 'results': results}, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
+    data = json.dumps({'success': True, 'query_info': query_info, 'driver_ids': gene_ids_as_dictionary(driver), 'results': results}, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
         # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
         # eg: format is:
         # [ {"id": "3", "value":"3","label":"Matching employee A"},
         #   {"id": "5", "value":"5","label":"Matching employee B"},
         # ]
     # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
+    print( "Json dump:", (datetime.now() - start) ); start = datetime.now()
+    
+    
+    # BUT need to check for other process writing this file at same time - eg. include the process (os.getpid() - Returns the current process id) and maybe thread id (import _thread; _thread.get_ident() - the 'thread identifier' of the current thread. This is a nonzero integer. Its value has no direct meaning; it is intended as a magic cookie to be used e.g. to index a dictionary of thread-specific data. Thread identifiers may be recycled when a thread exits and another thread is created.)
+    # then when finished writing move if safe to move to .json
+    # or maybe better to store in database rather than file.
+    # An example of using file system for caching - half-way down thisa webpage: https://www.pythonanywhere.com/forums/topic/197/
+    #with open('Cache_'+cache_key+'.json','w') as fout:
+    #    fout.write(data)
+    
+    cache.set(cache_key, data) # could use the add() method instead, but better to update anyway.
     
     return HttpResponse(data, mimetype)
 
@@ -264,6 +317,15 @@ def qtip(tip):
     # Returns the ajax request to qtips
     return 
     
+def gene_info(request, gene_name):
+    try:
+        gene = Gene.objects.get(gene_name=gene_name)
+        data = {'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prev_names_and_synonyms_spaced()}  # 
+    except ObjectDoesNotExist: # Not found by the objects.get()
+        data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
+        return error_msg, None, None, None, None
+    return HttpResponse(json.dumps(data, separators=[',',':']), 'application/json')
+        
     
 def graph(request, target_id):
     requested_target = get_object_or_404(Dependency, pk=target_id)
