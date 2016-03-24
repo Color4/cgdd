@@ -160,7 +160,7 @@ span.title {
     /* font: bold 14px "Helvetica Neue", Sans-Serif; */
     /* text-transform: uppercase; */
     box-shadow: 0 0 7px black;
-	max-width: 400px; /* Setting it wider than default as gene names are often longer than the tooltip box, which puts arrow in wrong place */
+	max-width: 400px; /* SJB - Setting it wider than default as gene names are often longer than the tooltip box, which puts arrow in wrong place */
 }
 .arrow {
     width: 70px;

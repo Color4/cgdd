@@ -14,6 +14,7 @@ import os
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 DEVELOPMENT = ('Django_projects' in BASE_DIR) # To indicate that is running on my local Windows computer, then set settings below accordingly:
 
 # Quick-start development settings - unsuitable for production
@@ -65,6 +66,8 @@ if DEVELOPMENT:
     INSTALLED_APPS.append('django_extensions')  # Added for the runserver_plus: http://django-extensions.readthedocs.org/en/latest/runserver_plus.html
     INSTALLED_APPS.append('livereload') # For the livereload server
     MIDDLEWARE_CLASSES.append('livereload.middleware.LiveReloadScript')
+    # *** This automatic setup of the debug toolbar is NOT compatible with GZipMiddleware (use the explicit setup for debug toolbar)
+    # Slow and doesn't seem to monitor Ajax: INSTALLED_APPS.append('debug_toolbar') # For monitoring SQL etc. Needs: DEBUG = True, and staticfiles setup correctly.  See: http://django-debug-toolbar.readthedocs.org/en/1.4/installation.html#quick-setup
     # LIVERELOAD_PORT = 
     # RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
 
@@ -144,8 +147,51 @@ else:
   #            'NAME': 'mytestdatabase',
   #        },
 
+if DEVELOPMENT: # Use dummy cache, so can test speed of SQL query repeatidly
+    #CACHES = {
+    #    'default': {
+    #        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    #    }
+    #}
+    # Or could use the local memory cacahe - which is per process. In Local Memory caching "each process will have its own private cache instance, which means no cross-process caching is possible. This obviously also means the local memory cache isn't particularly memory-efficient, so it's probably not a good choice for production environments. It's nice for development."
+    # CACHES = {
+    #    'default': {
+    #    'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    #      # 'LOCATION': 'unique-snowflake', # Location not needed if just one cahche
+    #     }
+    # }
+    # or File system - on Windows include drive letter, eg: 'c:/foo/bar',
+    #CACHES = {
+    #   'default': {
+    #        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+    #        'LOCATION': 'c:/Users/HP/Django_projects/cgdd/cache_dir',
+    #    }
+    #}
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'gendep_cache_table',  # Need to create table using: python manage.py createcachetable
+            'TIMEOUT': 36000, # 36000 = 10 hours. Defaults to 300 seconds (5 minutes). Set TIMEOUT to None so that cache keys never expire. 0 causes keys to immediately expire. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-arguments
+        }
+    }
+
+else:
+    #CACHES = {
+    #'default': {
+    #       'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+    #       'LOCATION': '/var/tmp/django_cache',  # Needs absolute path
+    #    }
+    #}
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'gendep_cache_table',  # Need to create table using: python manage.py createcachetable
+            'TIMEOUT': 36000, # 36000 = 10 hours. Defaults to 300 seconds (5 minutes). Set TIMEOUT to None so that cache keys never expire. 0 causes keys to immediately expire. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-arguments
+        }
+    }
   
-  
+# Can also cache the templates: https://docs.djangoproject.com/en/1.9/ref/templates/api/#django.template.loaders.cached.Loader
+
 
 # Password validation
 # https://docs.djangoproject.com/en/1.9/ref/settings/#auth-password-validators

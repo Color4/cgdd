@@ -106,6 +106,7 @@ class Study(models.Model):
     class Meta:
         verbose_name_plural = "Studies" # Otherwise the Admin page just adds a 's', ie. 'Studies'
     pmid        = models.CharField('PubMed ID', max_length=30, primary_key=True, db_index=True)   # help_text="Please use the following format: <em>YYYY-MM-DD</em>."
+    code        = models.CharField('Code', max_length=1) # eg. 'A' for Achilles, for faster transfer to webbrowser.
     short_name  = models.CharField('Short Name', max_length=50) # eg. 'Campbell, J. 2014'
     title       = models.CharField('Title', max_length=250)
     authors     = models.TextField('Authors')
@@ -145,27 +146,27 @@ class Drug(models.Model):
 
 # Dependency = Driver-Target interactions:
 class Dependency(models.Model):
-    # Values for the histotype choices CharField: 
+    # Values for the histotype choices CharField. The two letter codes at right are used for faster transfer to webbrowser.
     HISTOTYPE_CHOICES = (
-      ("BREAST", "Breast"),
-      ("LUNG", "Lung"),
-      ("OESOPHAGUS", "Esophagus"),  # or "Oesophagus"
-      ("OSTEOSARCOMA", "Osteosarcoma"),
-      ("OVARY", "Ovary"),
+      ("BREAST",                             "Breast"),#        "Br"),
+      ("LUNG",                               "Lung"),#          "Lu"),
+      ("OESOPHAGUS",                         "Esophagus"),#     "Es"),  # or "Oesophagus"
+      ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),
+      ("OVARY",                              "Ovary"),#         "Ov"),
       # More added below for Achilles data - may need to add these to the index template
-	  # ("ENDOMETRIUM", "Endometrium"),  only 2 cell lines so not analysed by R
-	  ("PANCREAS", 	"Pancreas"),
-      ("CENTRAL_NERVOUS_SYSTEM", "CNS"),
-	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),
-	  ("INTESTINE", "Intestine"),
-	  ("KIDNEY", "Kidney"),  # doesn't seem to be kidney in results even though 10 cell lines
-      # ("LIVER", "Liver"), only 1 cell line so not analysed by R
-	  ("PROSTATE", "Prostate"),
-	  ("SKIN", "Skin"),
-	  # ("SOFT_TISSUE", "Soft tissue"), only 2 celllines so not analysed by R
-	  ("STOMACH", "Stomach"),
-	  ("URINARY_TRACT", "Urinary tract"),
-      ("PANCAN", "Pan cancer"),
+	  # ("ENDOMETRIUM",                      "Endometrium"),#   "En"),  only 2 cell lines so not analysed by R
+	  ("PANCREAS", 	                         "Pancreas"),#      "Pa"),
+      ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
+	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
+	  ("INTESTINE",                          "Intestine"),#     "In"),
+	  ("KIDNEY",                             "Kidney"),#        "Ki"), # kidney not in results even though 10 cell lines
+      # ("LIVER",                            "Liver"),#         "Li"), only 1 cell line so not analysed by R
+	  ("PROSTATE",                           "Prostate"),#      "Pr"),
+	  ("SKIN",                               "Skin"),#          "Sk"),
+	  # ("SOFT_TISSUE",                      "Soft tissue"),#    "So"), only 2 celllines so not analysed by R
+	  ("STOMACH",                            "Stomach"),#       "St"),
+	  ("URINARY_TRACT",                      "Urinary tract"),# "Ur"),
+      ("PANCAN",                             "Pan cancer"),#    "PC"),
     )
 
     class Meta:

@@ -8,3 +8,6 @@ python manage.py makemigrations gendep || exit /b 3
 python manage.py sqlmigrate gendep 0001 || exit /b 4
 python manage.py migrate || exit /b 5
 python .\load_data.py || exit /b 6
+
+python manage.py createcachetable
+REM To just see the SQL use:  python createcachetable --dry-run

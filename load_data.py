@@ -38,8 +38,8 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 
 
  
-FETCH_BOXPLOTS = False # Should also test that is running on development computer.
-ACHILLES_FETCH_BOXPLOTS = False # Should also test that is running on development computer.
+FETCH_BOXPLOTS = True # Should also test that is running on development computer.
+ACHILLES_FETCH_BOXPLOTS = True # Should also test that is running on development computer.
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
@@ -87,8 +87,8 @@ def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_nam
   file_util.copy_file(from_filename, to_filename, preserve_mode=1, preserve_times=1, update=1, dry_run=0) 
 
 
-def add_study(pmid, short_name, title, authors, abstract, summary, experiment_type, journal, pub_date):
-  s, created = Study.objects.get_or_create( pmid=pmid, defaults={'short_name': short_name, 'title': title, 'authors': authors, 'abstract': abstract, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
+def add_study(pmid, code, short_name, title, authors, abstract, summary, experiment_type, journal, pub_date):
+  s, created = Study.objects.get_or_create( pmid=pmid, defaults={'code': code, 'short_name': short_name, 'title': title, 'authors': authors, 'abstract': abstract, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
   return s
 
 
@@ -104,20 +104,48 @@ def find_or_add_histotype(histotype, full_name):
   return h
 
 
+driver_name_warning_already_reported = dict()
 def split_driver_gene_name(long_name):
-  names = long_name.split('_')    # Driver format is: CCND1_595_ENSG00000110092
-  if len(names)!=3: print('ERROR: Invalid number of parts in driver gene, (as expected 3 parts)',long_name)
+  names = long_name.split('_')    # Driver format is: CCND1_595_ENSG00000110092  
+  if len(names)!=3 and long_name not in driver_name_warning_already_reported:
+      print('ERROR: Invalid number of parts in driver gene, (as expected 3 parts)',long_name)
+      driver_name_warning_already_reported[long_name] = None
+  if not names[1].isdigit() and long_name not in driver_name_warning_already_reported:
+      print("** ERROR: Expected integer for Entrez id second part of name '%s'"  %(long_name))
+     driver_name_warning_already_reported[long_name] = None
+  if names[2][:4] != 'ENSG' and long_name not in driver_name_warning_already_reported:
+      print("ERROR: Expected 'ENSG' for start of driver ensembl name: '%s'" %(long_name))
+      driver_name_warning_already_reported[long_name] = None
+  # eg: In the data from R, there are several drivers with two or more ensembl gane names:
+  #
+  #  EIF1AX_101060318_ENSG00000173674_ENSG00000198692
+  #  HIST1H3B_3020_ENSG00000132475_ENSG00000163041
+  #  TRIM48_101930235_ENSG00000150244_ENSG00000223417
+  #  RGPD3_653489_ENSG00000015568_ENSG00000153165_ENSG00000183054
+  #  MEF2BNB.MEF2B_729991_ENSG00000064489_ENSG00000254901
+  #  HIST1H2BF_8347_ENSG00000168242_ENSG00000180596_ENSG00000187990_ENSG00000197697_ENSG00000197846
+  #  NUTM2F_441457_ENSG00000130950_ENSG00000188152
+  #  H3F3B_3021_ENSG00000132475_ENSG00000163041
+  #  WDR33_84826_ENSG00000136709_ENSG00000173349
+  #  KRTAP4.11_728224_ENSG00000204880_ENSG00000212721
   return names
 
 
+target_name_warning_already_reported = dict()
 def split_target_gene_name(long_name):
   names = long_name.split('_')    # Target format is: DCK_ENSG00000156136
   if len(names)!=2:
     if names[0] == 'CDK12' and len(names)==3 and names[2]=='CRK7': # as "CDK12_ENSG00000167258_CRK7" is an exception to target format (CRK7 is an alternative name)
       names.pop()   # Remove the last 'CRK7' name from the names list
-    else:
+    elif long_name not in target_name_warning_already_reported:
       print('Invalid number of parts in target gene, (as expected 2 parts)',long_name)
-  names.insert(1,'') # or None, but Django stores None as empty string, rather than as null
+      target_name_warning_already_reported[long_name] = None
+      
+  if names[1][:4] != 'ENSG' and long_name not in target_name_warning_already_reported:
+      print("ERROR: Expected 'ENSG' for start of target ensembl name: '%s'" %(long_name))
+      target_name_warning_already_reported[long_name] = None
+      
+  names.insert(1,'') # (or None, but Django stores None as empty string, rather than as null) to make same number of elements in names array for target names as in driver names.
   return names
 
 
@@ -323,8 +351,8 @@ def find_or_add_gene(names, is_driver, isAchilles):  # names is a tuple of: gene
   
 def get_boxplot_histotype(histotype):
     # As the R scripts used some different tissue names
-    if   histotype == "PANCAN": return "allhistotypes"
-    elif histotype == "OSTEOSARCOMA": return "BONE"
+    # if   histotype == "PANCAN": return "allhistotypes"  # BUT the "run_Intercell_analysis.R" is changed now to use "PANCAN"
+    if histotype == "OSTEOSARCOMA": return "BONE"
     # elif histotype == "BREAST": return "BREAST",
     # elif histotype == "LUNG": return "LUNG",
     # elif histotype == "": return "HEADNECK",
@@ -363,6 +391,13 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
   effect_size = -1
   print("**** import_data_from_tsv_table: Setting effect size to %f" %(effect_size))
   
+  # marker  target  nA      nB      wilcox.p        CLES  [tissue - only in bytissue files]
+  # MYC_4609_ENSG00000136997        AAK1_ENSG00000115977    20      60      0.866757954072364       0.417083333333333   BREAST
+
+  # whereas original format in "Table_S1I_min_cols.txt" was:
+  # Driver  Target  wilcox.p        Histotype       PMID
+  # CDKN2A_1029_ENSG00000147889     NEK9_ENSG00000119638    0.021600446     PANCAN
+
   dataReader = csv.reader(open(csv_filepathname), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   
   count_added = 0
@@ -432,11 +467,13 @@ def add_counts_of_study_tissue_and_target_to_drivers():
   print("Finished adding study and target counts to drivers")
 
 
-def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tissue_type):
-  global FETCH_BOXPLOTS
+def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tissue_type, isAchilles=True):
+  global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS
   print("\nImporting table: ",result_file)
-  print("ACHILLES FETCH_BOXPLOTS is: ",ACHILLES_FETCH_BOXPLOTS)
 
+  if isAchilles: print("ACHILLES FETCH_BOXPLOTS is: ",ACHILLES_FETCH_BOXPLOTS)
+  else: print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
+  
   target_dict = dict()  # To find and replace any dependecies thart have different wilcox_p, just keeping the dependency with the lowest wilcox_p value.
   
   dataReader = csv.reader(open(result_file), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
@@ -479,16 +516,21 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     # driver_variant = names[0][-1:] # Seems we can ignore the driver variant as is trimming MYC to MY
     # if driver_variant not in ['1','2','3','4','5']: print("Unexpected driver_variant %s for %s" %(driver_variant,names[0])) 
     # names[0] = names[0][:-1]
-    driver_gene = find_or_add_gene(names, is_driver=True, isAchilles=True)
+    driver_gene = find_or_add_gene(names, is_driver=True, isAchilles=isAchilles)
 
     names = split_target_gene_name(row[itarget])
-    target_variant = names[0][-1:]
-    names[0] = names[0][:-1]
-    target_gene = find_or_add_gene(names, is_driver=False, isAchilles=True)
+    target_variant = ''
+    if isAchilles:
+        target_variant = names[0][-1:]  # As target variant is single integer after target gene name in my formatted Achilles target names.
+        names[0] = names[0][:-1]
+    
+    target_gene = find_or_add_gene(names, is_driver=False, isAchilles=isAchilles)
         
     # If using Histotype table: histotype = find_or_add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
     if tissue_type=='PANCAN': histotype = 'PANCAN' 
-    elif tissue_type=='BYTISSUE' and itissue!=-1: histotype = row[itissue]   # As using CharField(choices=...) and now is validated in the model.
+    elif tissue_type=='BYTISSUE' and itissue!=-1:
+        histotype = row[itissue]   # As using CharField(choices=...) and now is validated in the model.
+        if histotype == "BONE": histotype = "OSTEOSARCOMA" # As in the Cambell(2016) R results this is called BONE, but converted to "OSTEOSARCOMA" in Tables S1K
     else: print("Invalid tissue_type='%s' or itissue=%d" %(tissue_type,itissue))
     
     mutation_type='Both'  # Default to 'Both' for current data now.
@@ -498,15 +540,17 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     # Bulk create is actually slightly slower than adding record by record in SQLite, but in MySQL it will be faster
 
     key = driver_gene.gene_name + '_' + target_gene.gene_name + ' ' + histotype + '_' + study.pmid # Could maybe use the gene object id as key ?
-    if key in target_dict:
-        d = target_dict[key]
+    d = target_dict.get(key,None)
+    if d is not None:
+        if not isAchilles: print("*** ERROR: The driver + target + histotype + study key '%s' should be unique for non-Achilles data" %(key))
         if row[iwilcox] < d.wilcox_p:
             if d.study_table != table_name: 
-                print("d.study_table(%s)            != table_name(%s)" %(d.study_table, table_name))
+                print("d.study_table(%s) != table_name(%s)" %(d.study_table, table_name))
             if d.mutation_type != mutation_type:
                 print("d.mutation_type(%s) != mutation_type(%s)" %(d.mutation_type, mutation_type))
             d.wilcox_p = row[iwilcox]
             d.effect_size = row[ieffect_size]
+            if d.target_variant == target_variant: print("** ERRROR: target_variant already in database for target_variant '%s' and key: '%s'" %(target_variant,key))
             d.target_variant = target_variant # Need to update the target_variant, as it is needed to retrieve the correct boxplot from the R boxplots, where image file is: driver_gene_target_gene+target_variant_histotype_Pmid.png
             count_replaced += 1
         else:
@@ -523,15 +567,15 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     
   # Now fetch the boxplots for those added:
   count_boxplots = 0
-  if ACHILLES_FETCH_BOXPLOTS:
+  if (isAchilles and ACHILLES_FETCH_BOXPLOTS) or ((not isAchilles) and FETCH_BOXPLOTS):
      for d in dependencies:
-        fetch_boxplot_file(d.driver_gene, d.target_gene, d.histotype, isAchilles=True, target_variant=d.target_variant)
+        fetch_boxplot_file(d.driver, d.target, d.histotype, isAchilles=isAchilles, target_variant=d.target_variant)
         count_boxplots += 1
         
   print( "%d dependency rows were added to the database, %d replaced and %d not replaced, so %d target_variants" %(count_added,count_replaced, count_not_replaced, count_replaced+count_not_replaced))
   print( "%d dependency rows were skipped as wilcox_p > 0.05 or effect_size < 0.65" %(count_skipped))
   print( "%d boxplot images were fetched" %(count_boxplots))
-  print("Bulk_create Achilles ....")  
+  print("Bulk_create dependencies ....")
   Dependency.objects.bulk_create(dependencies) # Comparisons for Postgres:  http://stefano.dissegna.me/django-pg-bulk-insert.html
   print("Finished importing table.")
 
@@ -586,12 +630,13 @@ if __name__ == "__main__":
   load_mygene_hgnc_dictionary()
   
   study_pmid = "26947069"
+  study_code = "B" # 'B' for campBell
   study_short_name = "Campbell(2016)"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
   study_authors = "James Campbell, Colm J. Ryan, Rachel Brough, Ilirjana Bajrami, Helen Pemberton, Irene Chong, Sara Costa-Cabral,Jessica Frankum, Aditi Gulati, Harriet Holme, Rowan Miller, Sophie Postel-Vinay, Rumana Rafiq, Wenbin Wei,Chris T Williamson, David A Quigley, Joe Tym, Bissan Al-Lazikani, Timothy Fenton, Rachael Natrajan, Sandra Strauss, Alan Ashworth and Christopher J Lord"
   study_abstract = "One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."
   study_summary = "siRNA screen of 714 kinase and kinase-related genes in 117 different tumor cell lines"
-  experiment_type = "kinome siRNA"
+  study_experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
   study_pub_date = "2016, 2 Mar"
   study_old_pmid = "nnnnnnnn" # This is  the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
@@ -602,36 +647,55 @@ if __name__ == "__main__":
     print("\nEmptying database tables")
     for table in (Dependency, Study, Gene, Drug): table.objects.all().delete()  # removed: Histotype,
 
-    study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date)
+    study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
   
-    for table_name in ('S1I', 'S1K'):
-      csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
-      import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid)
+    #for table_name in ('S1I', 'S1K'):
+    #  csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
+    #  import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid)
   # transaction.commit() # just needed if used "transaction.set_autocommit(False)"
 
-  
+    # BUT NEED to FIX THE
+    table_name ='S1I'
+    Cambell_results_pancan = "univariate_results_v26_pancan_kinome_combmuts_160323_witheffectsize.txt"
+    csv_filepathname=os.path.join(analysis_dir, Cambell_results_pancan)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=False)
+
+    table_name = 'S1K'
+    Cambell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_160323_witheffectsize.txt"
+    csv_filepathname=os.path.join(analysis_dir, Cambell_results_bytissue)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False)
+
+    # *** NOTE, warnings from R:
+    # There were 50 or more warnings (use warnings() to see the first 50)
+
+    # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
+    # cannot compute exact p-value with ties
+
+    
   # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
     study_pmid = "25984343"
+    study_code = "A" # 'A' for Achilles
     study_short_name = "Cowley(2014)"
     study_title = "Parallel genome-scale loss of function screens in 216 cancer cell lines for the identification of context-specific genetic dependencies."
     study_authors = "Cowley GS, Weir BA, Vazquez F, Tamayo P, Scott JA, Rusin S, East-Seletsky A, Ali LD, Gerath WF, Pantel SE, Lizotte PH, Jiang G, Hsiao J, Tsherniak A, Dwinell E, Aoyama S, Okamoto M, Harrington W, Gelfand E, Green TM, Tomko MJ, Gopal S, Wong TC, Li H, Howell S, Stransky N, Liefeld T, Jang D, Bistline J, Hill Meyers B, Armstrong SA, Anderson KC, Stegmaier K, Reich M, Pellman D, Boehm JS, Mesirov JP, Golub TR, Root DE, Hahn WC"
     study_abstract = "Using a genome-scale, lentivirally delivered shRNA library, we performed massively parallel pooled shRNA screens in 216 cancer cell lines to identify genes that are required for cell proliferation and/or viability. Cell line dependencies on 11,000 genes were interrogated by 5 shRNAs per gene. The proliferation effect of each shRNA in each cell line was assessed by transducing a population of 11M cells with one shRNA-virus per cell and determining the relative enrichment or depletion of each of the 54,000 shRNAs after 16 population doublings using Next Generation Sequencing. All the cell lines were screened using standardized conditions to best assess differential genetic dependencies across cell lines. When combined with genomic characterization of these cell lines, this dataset facilitates the linkage of genetic dependencies with specific cellular contexts (e.g., gene mutations or cell lineage). To enable such comparisons, we developed and provided a bioinformatics tool to identify linear and nonlinear correlations between these features."
     study_summary = "shRNA screen of 11,000 genes in 216 different cancer cell lines, with 5 shRNAs per gene"
-    experiment_type = "genome shRNA"
+    study_experiment_type = "genome shRNA"
     study_journal = "Scientific Data"
     study_pub_date = "2014, 30 Sep"
     study_old_pmid = "25984343"
-    study=add_study( study_pmid, study_short_name, study_title, study_authors, study_abstract, study_summary, experiment_type, study_journal, study_pub_date )
+    study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
 
-    #Achilles_results_pancan =
-    "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt"
+    #Achilles_results_pancan = "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt"
+    table_name = ''
     Achilles_results_pancan ="univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_180312_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN')    
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=True)
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
+    table_name = ''
     Achilles_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE')
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=True)
 
     add_counts_of_study_tissue_and_target_to_drivers()

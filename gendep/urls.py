@@ -14,6 +14,7 @@ urlpatterns = [
     url(r'^drivers/$', views.drivers, name='drivers'),
     url(r'^studies/$', views.studies, name='studies'),
     url(r'^contact/$', views.contact, name='contact'),
+    url(r'^faq/$', views.faq, name='faq'),
 
     # url(r'^driver/(?P<driver>[0-9A-Za-z]+)/$', views.index, name='driver'), # ie: /driver/driver_name/
     url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/driver_name/

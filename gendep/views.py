@@ -1,9 +1,10 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
-
+    
 from .models import Study, Gene, Dependency  # Removed: Histotype,
 import json # For ajax for the jquery autocomplete search box
 import math # For ceil()
+from datetime import datetime # For get_timming()
 
 # This django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
 #import logging
@@ -14,10 +15,21 @@ import math # For ceil()
 
 def json_error(message, status_code='0'):
     return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), 'application/json' ) # eg: str(exception)
+    
+    
+def get_timing(start_time, name, time_array=None):
+    # To print timings, and optionally build an array of timings that can then be sent to webbrowser console via json.
+    # The start_time should be obtained from: datetime.now()
+    duration = datetime.now() - start_time
+    print( "%s: %s msec" %(name,str(duration)))  # or use: duration.total_seconds()
+    if time_array is not None:
+        #if name in time_dict: print("WARNING: Key '%s' is already in the time_dict" %(name))
+        time_array.append({name: str(duration)}) # Uses an array so will preserve the order, rather than a dictionary.
+    return datetime.now()
 
 
 def index(request, driver=''): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
-    driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+    driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     # histotype_list = Histotype.objects.order_by('full_name')
     histotype_list = Dependency.HISTOTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
@@ -162,21 +174,21 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
     # mimetype = 'text/html' # for error messages. was: 'application/json'
 
-    from datetime import datetime
     from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."
 
     mimetype = 'application/json'
     
+    timing_array = []  # Using an array to preserve order on output.
     start = datetime.now()
     
-    cache_version = '1' # version 1 of db and json format.
+    ajax_results_cache_version = '1' # version of the data in the database and of this json format. Increment this on updates that change the db or this json format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
     
     # Avoid storing a 'None' on the cache as then can't tell if if cache miss or is value of the key
-    cache_key = driver_name+'_'+histotype_name+'_'+study_pmid+'_v'+cache_version
+    cache_key = driver_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
     cache_data = cache.get(cache_key, 'not_found')
     if cache_data != 'not_found': 
-        print( "Json retrieved from cache:", (datetime.now() - start) ); start = datetime.now()
-    #    return HttpResponse(cache_data, mimetype)
+        start = get_timing(start, 'Retrieved from cache', timing_array)
+    #    return HttpResponse(cache_data, mimetype, version=ajax_results_cache_version)
    
     #d = end - start  # datetime.timedelta object
     #print d.total_seconds()  
@@ -200,11 +212,18 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
        
     current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
 
-    print( "Setup: ", (datetime.now() - start) ); start = datetime.now()
+    start = get_timing(start, 'Query setup', timing_array)
+
         
     results = []
+    csv = ''
+    div = ';' # Using semicolon as the div, as comma may be used to separate the inhibitors
+
+    
     # From server-side, a csv file format is probably more efficient as is just commas as separater, rather than repeating the keys multiple times.
     # Maybe even use raw sql for maybe faster query: https://docs.djangoproject.com/en/1.9/topics/db/sql/#passing-parameters-into-raw
+    # *** To see the raw SQL, try using:  django.db.connection.queries 
+
     # In MySQL can directly use:   SELECT CONCAT_WS(',', field1, field2, field3) FROM table; 
     #   http://stackoverflow.com/questions/707473/how-do-you-output-mysql-query-results-in-csv-format-to-the-screen-not-to-a-fil
     #   CONCAT_WS() does not skip empty strings. However, it does skip any NULL values after the separator argument. 
@@ -221,6 +240,11 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     
     # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again. This iteractor version seems slightly faster than non-iterated version.
     # In practice, the database interface (e.g. the Python MySQLdb module) does cache data anyway. If really need to reduce memory usage, retrieve data in chunks.
+    
+    # Could try rawSQL: https://docs.djangoproject.com/en/dev/topics/db/sql/
+    
+    # Adding  only(field1, field2, ...), to this query might make a bit faster as retrieves fewer fields, so less converted to python strings/objects: https://docs.djangoproject.com/en/dev/ref/models/querysets/#only
+    # dependency_list =  dependency_list.only("target_id", "wilcox_p", "effect_size", "histotype", "study_id", "interaction", "inhibitors")
     count = 0
     for d in dependency_list.iterator(): # was: for d in dependency_list:
         count += 1
@@ -258,19 +282,30 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
                     d.study_id, # returns the underlying pmid number rather than the Study object
                     '', # d.interaction - but empty for now
-                    ''  # d.inhibitors - but empty for now.                    
+                    '',  # d.inhibitors - but empty for now.
+                    d.target_variant  # Just temporary to ensure display correct achilles boxplot image.
                     ])  # optionally an id: d_json['1'] = 
-        
-        # If use simple CSV rather than json, then would need to check for commas in the input fields.
-        
+        """
+        # If use simple CSV rather than json, then would need to check for semicolons in the input fields,
+        # so is safer to use csv_writer, as it will quote any sttrings containing semicolons:
+        # histotype_code and study_code return single characters to encode these fields smaller, for faster data transfer to browser.
+        csv += d.target_id +div+ # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
+               format(d.wilcox_p, ".0E").replace("E-0", "E-") +div+  # Scientific format, remove leading zero from the exponent
+               format(d.effect_size*100, ".1f") +div+  # As a percentage
+               histotype_code[d.histotype] +div+ # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
+               study_code[d.study_id] +div+ # returns the underlying pmid number rather than the Study object
+               '' +div+ # d.interaction - but empty for now
+               '' +"\n" # d.inhibitors - but empty for now
+        """
+
         # To add join to the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
         # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
                         
         # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
                     
-    print( "Dependency: ", (datetime.now() - start)); start = datetime.now()    
+    start = get_timing(start, 'Dependency results', timing_array)
     
-    # results_column_names = ['Target','Wilcox_p','Effect_size','Study_pmid','Histotype','Inhibitors','Interactions'] # Could add this to the returned 'query_info'
+    # results_column_names = ['Target','Wilcox_p','Effect_size','Histotype','Study_pmid','Inhibitors','Interactions'] # Could add this to the returned 'query_info'
     histotype_details = "<b>All tissues</b>" if histotype_name == "ALL_HISTOTYPES" else ("tissue type <b>"+histotype_full_name+"</b>")
     study_details = "<b>All studies</b>" if study_pmid == "ALL_STUDIES" else ("study "+study.weblink()+" "+study.title+", "+ study.authors[:30]+" et al, "+study.journal+", "+ study.pub_date)
 
@@ -288,15 +323,22 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
                   }
                 # study.weblink|safe
                 
-    data = json.dumps({'success': True, 'query_info': query_info, 'driver_ids': gene_ids_as_dictionary(driver), 'results': results}, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
+    print(timing_array)
+    data = json.dumps({
+        'success': True,
+        'timings': timing_array,
+        'query_info': query_info,
+        'driver_ids': gene_ids_as_dictionary(driver),
+        'results': results
+        }, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
         # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
         # eg: format is:
         # [ {"id": "3", "value":"3","label":"Matching employee A"},
         #   {"id": "5", "value":"5","label":"Matching employee B"},
         # ]
     # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
-    print( "Json dump:", (datetime.now() - start) ); start = datetime.now()
     
+    start = get_timing(start, 'Json dump', timing_array) # Although too late to add this time to the json already encoded above.
     
     # BUT need to check for other process writing this file at same time - eg. include the process (os.getpid() - Returns the current process id) and maybe thread id (import _thread; _thread.get_ident() - the 'thread identifier' of the current thread. This is a nonzero integer. Its value has no direct meaning; it is intended as a magic cookie to be used e.g. to index a dictionary of thread-specific data. Thread identifiers may be recycled when a thread exits and another thread is created.)
     # then when finished writing move if safe to move to .json
@@ -305,7 +347,17 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     #with open('Cache_'+cache_key+'.json','w') as fout:
     #    fout.write(data)
     
-    cache.set(cache_key, data) # could use the add() method instead, but better to update anyway.
+    cache.set(cache_key, data, version=ajax_results_cache_version) # could use the add() method instead, but better to update anyway.
+    # Could gzip the cached data (using GZip middleware's gzip_page() decorator for the view, or in code https://docs.djangoproject.com/en/1.9/ref/middleware/#module-django.middleware.gzip )
+    # GZipMiddleware will NOT compress content if any of the following are true:
+    #   The content body is less than 200 bytes long.
+    #   The response has already set the Content-Encoding header.
+    #   The request (the browser) hasn’t sent an Accept-Encoding header containing gzip.
+    # Another option is using cache_control() permit browser caching by setting the Vary header: https://docs.djangoproject.com/en/1.9/topics/cache/#using-vary-headers
+    # "(Note that the caching middleware already sets the cache header’s max-age with the value of the CACHE_MIDDLEWARE_SECONDS setting. If you use a custom max_age in a cache_control decorator, the decorator will take precedence, and the header values will be merged correctly.)"
+    # https://www.pythonanywhere.com/forums/topic/376/
+    # and example of gzip using flask: https://github.com/closeio/Flask-gzip
+    #  https://github.com/closeio/Flask-gzip/blob/master/flask_gzip.py
     
     return HttpResponse(data, mimetype)
 
@@ -349,6 +401,9 @@ def studies(request):
     context = {'study_list': study_list}
     return render(request, 'gendep/studies.html', context)
 
+def faq(request):
+    return render(request, 'gendep/faq.html')
+    
 def contact(request):
     return render(request, 'gendep/contact.html')
 

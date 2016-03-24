@@ -1,0 +1,25 @@
+{% extends 'gendep/base.html' %}
+{% load staticfiles %}
+{% block content %}   
+<b>Frequently Asked Questions</b>
+<p>
+
+******** Add the formatting and boxplot image as in the original Word file. ****
+
+<h2>How should I interpret the effect size?</h2>
+
+<p>The effect size presented in the database is the Common Language Effect Size, equivalent to the Probability of Superiority and the Area Under the ROC Curve. It indicates the probability that a cell line with an alteration in a particular driver gene will be more sensitive to a given RNAi reagent than a cell line without that alteration. For instance, the effect size in Campbell et al for the dependency of ERBB2 amplified cell lines upon MAP2K3 siRNA is 81%. This indicates that if two cell lines are chosen at random, one with ERBB2 amplification and one without, 83% of the time the cell line with the ERBB2 amplification will be more sensitive to the MAP2K3 siRNA.</p>
+
+<p>Note that the Common Language Effect Size does not indicate the magnitude of the difference in sensitivity between the altered and wild-type group of cell lines. It merely indicates that one group is more sensitive than the other, not how much more sensitive.</p>
+
+<h2>What dependencies are included?</h2>
+
+<p>We include all dependencies that have a nominally significant p-value less than 0.05 and a Common Language Effect Size of greater than 65%. By nominally significant we mean that the p-value has not been corrected for multiple hypothesis testing. We, and others, have found that analysing all of the nominally significant dependencies associated with a driver gene can provide more insight than analysing only those that survive correction for multiple hypothesis testing. </p>
+
+<h2>How should I interpret the box plots?</h2>
+
+ <image...... >
+
+<p>Each box plot (link to https://en.wikipedia.org/wiki/Box_plot) shows the sensitivity of cell lines partitioned according to the status of a particular driver gene to RNAi reagents targeting a particular gene. For instance above we show the box plot indicating a dependency between ERBB2 amplification and sensitivity to MAP2K3 siRNA. The cell lines featuring the alteration in question are displayed on the right and the cell lines without the alteration are on the left.  Each coloured circle represents a cell line and the position along the y-axis indicates how sensitive that cell line is to the RNAi reagents targeting the gene indicated. The colours indicate the tissue of origin for each cell line, as indicated in the legend. The boxes themselves are Tukey box plots (link to https://en.wikipedia.org/wiki/Box_plot)  – the bold line indicates the median of each group, the edges of the box indicates the interquartile range, and the whiskers indicate 1.5 times the interquartile range.</p>
+
+{% endblock%}
