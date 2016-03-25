@@ -212,7 +212,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
     if error_msg != '': return json_error("Error: "+error_msg)
 
-    gene_weblinks = driver.external_links('|')
+    # gene_weblinks = driver.external_links('|') # Now in javascript
        
     current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
 
@@ -387,8 +387,8 @@ def graph(request, target_id):
     requested_target = get_object_or_404(Dependency, pk=target_id)
     return render(request, 'gendep/graph.html', {'target': requested_target})
 
-def show_study(request, pmid):
-    requested_study = get_object_or_404(Study, pk=pmid)
+def show_study(request, study_pmid):
+    requested_study = get_object_or_404(Study, pk=study_pmid)
     # requested_study = get_object_or_404(Study, pk='Pending001') # Temportary for now.
     return render(request, 'gendep/study.html', {'study': requested_study})
 

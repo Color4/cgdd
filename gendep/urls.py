@@ -21,7 +21,7 @@ urlpatterns = [
     
     url(r'^(?P<driver>[0-9A-Z]+)/graph/$', views.graph, name='graph'),
 	# url(r'^results/$', views.results, name='results'), No longer used
-    url(r'^study/(?P<pmid>[0-9A-Za-z]+)/$', views.show_study, name='show_study'), # pmid could be 'Pending0001'
+    url(r'^study/(?P<study_pmid>[0-9A-Za-z]+)/$', views.show_study, name='show_study'), # pmid could be 'Pending0001'
 
     url(r'^get_drivers/', views.get_drivers, name='get_drivers'),
     

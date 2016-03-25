@@ -43,60 +43,11 @@ class Gene(models.Model):
         # To dispay in the template for the driver search box, as cant use functions that have arguments in the template (unless use extra custom template tgs)
         prev_names_and_synonyms = self.prev_names + ('' if self.prev_names == '' or self.synonyms == '' else ' | ') + self.synonyms
         return prev_names_and_synonyms.replace('|',' | ')
-    # Using a span with <a class="tip":
-    def external_links(self, div='|'):
-        # gene is a row in the Gene table
-        # Building these links here, rather than in template as are used twice in the template:
-        links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene=%s" target="_blank">GeneCards<span>Genecards</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/%s" target="_blank">Entrez<span>Entrez Gene at NCBI</span></a> ' %(self.entrez_id)
-        links += div+' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene</span></a> ' %(self.ensembl_id)
-        links += div+' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation</span></a> ' %(self.vega_id)
-        links += div+' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man</span></a> ' %(self.omim_id)
-        links += div+' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ' %(self.hgnc_id)
-        links += div+' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ' %(self.gene_name)
-        if self.cosmic_id != '': links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.cosmic_id)
-        links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
-        return links
-    """   
-    # Now is in the javascript for "index.html"
-    def external_links_on_boxplot(self, div='|'):
-        # gene is a row in the Gene table
-        # This is a shortened form of the above as not all needed:
-        # Building these links here, rather than in template as are used twice in the template:
-        links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene=%s" target="_blank">GeneCards<span>Genecards</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/%s" target="_blank">Entrez<span>Entrez Gene at NCBI</span></a> ' %(self.entrez_id)
-        links += div+' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene</span></a> ' %(self.ensembl_id)
-        # links += div+' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation</span></a> ' %(self.vega_id)
-        #links += div+' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man</span></a> ' %(self.omim_id)
-        links += div+' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ' %(self.hgnc_id)
-        #links += div+' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ' %(self.gene_name)
-        links += div+' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>' %(self.uniprot_id)
-        return links
-    """
-    
-    """
-    Previously used the <a title="" attribute (but can't change style, unless two boxes will appear):
-    def external_links(self, div='|'):
-        # gene is a row in the Gene table
-        # Building these links here, rather than in template as are used twice in the template:
-        links  = '<a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene=%s" title="Genecards" target="_blank">GeneCards</a> ' %(self.gene_name)
-        links += div+' <a href="http://www.ncbi.nlm.nih.gov/gene/%s" title="Entrez Gene at NCBI" target="_blank">Entrez</a> ' %(self.entrez_id)
-        links += div+' <a href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" title="Ensembl Gene" target="_blank">Ensembl</a> ' %(self.ensembl_id)
-        links += div+' <a href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" title="Vertebrate Genome Annotation" target="_blank">Vega</a> ' %(self.vega_id)
-        links += div+' <a href="http://www.omim.org/entry/%s" title="Online Mendelian Inheritance in Man" target="_blank">OMIM</a> ' %(self.omim_id)
-        links += div+' <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" title="HUGO Gene Nomenclature Committee" target="_blank">HGNC</a> ' %(self.hgnc_id)
-        links += div+' <a href="http://www.cancerrxgene.org/translation/Search?query=%s" title="CancerRxGene search" target="_blank">CancerRxGene</a> ' %(self.gene_name)
-        links += div+' <a href="http://www.cbioportal.org/ln?q=%s" title="cBioPortal for Cancer Genomics" target="_blank">cBioPortal</a> ' %(self.gene_name)
-        links += div+' <a href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" title="Catalogue of Somatic Mutations in Cancer" target="_blank">COSMIC</a> ' %(self.gene_name)
-        links += div+' <a href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" title="CanSAR" target="_blank">CanSAR</a>' %(self.uniprot_id)
-        return links
-    """
-
+        
+    # The "external_links" functions taht were in the Gene class, as now moved to the javascript "cgdd_functions.js" 
     
 
+    
 # Links to the research study papers:
 class Study(models.Model):
     EXPERIMENTTYPE_CHOICES = (
@@ -119,7 +70,9 @@ class Study(models.Model):
     def __str__(self):
         # return self.pmid+' '+self.authors+' '+self.title+' '+self.abstract+' '+self.journal+' '+self.pub_date
         return self.pmid
-
+        
+    # The url() and weblink() functions that were part of Study class, are now in the "cgdd_functions.js" javascript.
+    # But this function is still used in the studies.html template    
     def url(self):
         #        if self.pmid[0:7] == 'Pending': href = reverse('gendep:study', kwargs={'pmid': self.pmid})
         #if self.pmid[0:7] == 'Pending': href = reverse('gendep:study')
@@ -131,10 +84,8 @@ class Study(models.Model):
     def weblink(self):
         return '<a class="tipright" href="%s" target="_blank">%s<span>%s, %s et al, %s, %s</span></a>' %(self.url(), self.short_name, self.title, self.authors[0:30], self.journal, self.pub_date)
         # <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.short_name }} {{ dependency.study.pmid }}</a>
-"""
-    def weblink(self):
-        return '<a href="http://www.ncbi.nlm.nih.gov/pubmed/%s" title="%s, %s et al, %s, %s" target="_blank">%s</a>' %(self.pmid, self.title, self.authors[0:30], self.journal, self.pub_date, self.short_name)
-"""
+
+
 
 class Drug(models.Model):
     drug        = models.CharField('Drug', max_length=50, primary_key=True, db_index=True)

@@ -3,15 +3,19 @@
 {# For defining template blocks see: https://docs.djangoproject.com/en/1.9/ref/templates/language/ #}
 {% block links_top %}
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
+
+  <!-- link rel="stylesheet" href="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.theme.min.css' %}" class="ui-theme" / -->
+  
   <link rel="stylesheet" href="{% static 'gendep/tablesorter/css/theme.blue.min.css' %}" class="theme blue" />
-  <link rel="stylesheet" href="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.theme.min.css' %}" class="ui-theme" />
+    
   <link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" />
   <!-- link rel="stylesheet" href="{ % static 'gendep/qtip/jquery.qtip.min.css' % }" type="text/css" /-->
   
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.js"></script>
-  <!-- script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script -->
+  <!-- script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.js"></script -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
+
   
   <!-- Size of script from: http://code.stephenmorley.org/javascript/finding-the-memory-usage-of-objects/ -->
   <script type="text/javascript" src="{% static 'gendep/sizeof.js' %}"></script>
@@ -30,6 +34,8 @@
 <script type="text/javascript">
 
 
+// Optimising the javascript, good artticle: https://www.smashingmagazine.com/2012/11/writing-fast-memory-efficient-javascript/
+// eg start chrome with: -user-data-dir <empty_directory>
 
  
 
@@ -40,7 +46,9 @@ var dependency_array = [];
 
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
+
 var global_url_gene_info_for_mygene = "{% url 'gendep:gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
+var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
   
 var driver_array = [
    {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
@@ -546,7 +554,7 @@ $.ajax({
 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
-<p style="color: red">This web interface is currently being redesigned so the links and boxplot display are not yet working.</p>
+<p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p>
 <table id="result_table" class="tablesorter" style="font-size:80%;">
 <thead><tr>
   <th>Dependency</th>
@@ -577,7 +585,7 @@ Old code:
 
 {% block links_bottom %}
 <!-- or bbetter to use defer or async keywords, but for IE<10 need window.onload.... : http://stackoverflow.com/questions/436411/where-is-the-best-place-to-put-script-tags-in-html-markup -->
-  {# when running my laptop offline, temporarily using these local files instead of the above google server ones #}
+{# when running my laptop offline, temporarily using these local files instead of the above google server ones #}
 {% comment %}
   <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/external/jquery/jquery.js' %}"></script>
   <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.min.js' %}"></script>
@@ -585,7 +593,7 @@ Old code:
   
  {# Table sorter, and optional widgets: #}
   <!-- script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script -->
-    <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.js' %}"></script>
   <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.widgets.min.js' %}"></script>
   <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.min.js' %}"></script>
 

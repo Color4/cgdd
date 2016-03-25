@@ -34,8 +34,21 @@ function sprintf( format )
 */
 
 
+// The study_info() function is part of the main "index.html" template as it needs each study from the database Study table.
+function study_url(study_pmid) {
+    if (study_pmid.substring(0,7) === 'Pending') {href = global_url_for_mystudy.replace('mystudy', study_pmid);} // was: '/gendep/study/'+study_pmid+'/';
+    else {href = 'http://www.ncbi.nlm.nih.gov/pubmed/' + study_pmid;}
+    return href
+}
+       
+function study_weblink(study_pmid, study) {
+	if (typeof study === 'undefined') {
+		study = study_info(study_pmid); 	// returns: short_name, experiment_type, summary, "title, authors, journal, s.pub_date"		
+        }
+    return sprintf('<a class="tipright" href="%s" target="_blank">%s<span>%s</span></a>', study_url(study_pmid), study[0], study[3] );
+}	
 
-function external_links(id, div, all=true) {
+function gene_external_links(id, div, all) {
   // id is a dictionary returned by ajax from: view.py : gene_ids_as_dictionary()
   // if 'all' is false, then shows just those links to be displayed below the boxplot images.
   // gene is a row in the Gene table
@@ -66,7 +79,7 @@ function show_driver_info(data) {
   $("#driver_synonyms").html(qi['driver_synonyms']);
   $("#driver_full_name").html(qi['driver_full_name']);
   // was: $("#driver_weblinks").html(qi['driver_weblinks']);
-  $("#driver_weblinks").html(external_links(data['driver_ids'], '|', true));
+  $("#driver_weblinks").html(gene_external_links(data['driver_ids'], '|', true));
   
   $("#result_info").html( "For driver gene <b>" + driver + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
 }
@@ -166,7 +179,8 @@ function populate_table(data,t0) {
         '<td>' + d[iwilcox_p].replace('E', ' x 10<sup>') + '</sup></td>' + 
 		'<td>' + d[ieffect_size] + '</td>' +
         '<td>' + histotype_display(d[ihistotype]) + '</td>' +
-		'<td>' + study[0] + '</td>' + // study_weblink
+		'<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
+		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
 		'<td>' + d[iinteraction] + '</td>' +  // 'interaction'
@@ -205,7 +219,7 @@ function populate_table(data,t0) {
     //	var t1 = performance.now();
     // console.log("String Loop took " + (t1 - t0) + " milliseconds.")
 	
-	console.log(html);
+	// console.log(html);
     //$("#result_table_tbody").replaceWith(html);
 	console.log("Data formatted as html: ",performance.now()-t0); t0 = performance.now();
 	
@@ -310,16 +324,16 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
   var mycontent = '<table align="center" cellspacing="0" cellpadding="0"><tr><td><img src="' + url_boxplot + '" width="'+boxplot_width+'" height"'+boxplot_height+'" alt="Loading boxplot image...."/></td>' + '<td><img src="' + url_legend + '" width="'+legend_width+'" height"'+legend_height+'"/></td></tr></table>';
  // console.log(mycontent);
   var study = study_info(study_pmid);
-console.log(mycontent);
-console.log(gene_info_cache[target]);
-console.log(target_ids);
+//console.log(mycontent);
+//console.log(gene_info_cache[target]);
+//console.log(target_ids);
   
   var plot_title = '<p align="center"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('E', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
   if (typeof target_ids === 'undefined') {plot_title += '<br/>Unable to retrieve external links for this gene';}
-  else {plot_title += '<br/>'+target+' links: '+ external_links(target_ids, '|', false);}
+  else {plot_title += '<br/>'+target+' links: '+ gene_external_links(target_ids, '|', false);}
   plot_title += '</p>';
   
-console.log(plot_title);
+//console.log(plot_title);
 
   $.fancybox.open({
   //$(".fancybox").open({
@@ -360,7 +374,7 @@ console.log(plot_title);
 
 //function plot(index) { // The index number of the dependency in the array
 function plot(target, histotype, study_pmid, wilcox_p, effect_size, target_variant) { // The index number of the dependency in the array
-console.log(target);
+//console.log(target);
   var target_ids;
   if (target in gene_info_cache) {
 	target_ids = gene_info_cache[target]['ids'];
