@@ -176,7 +176,7 @@ span.title {
     bottom: auto;
 }
 .arrow.left {
-    left: 20%;
+    left: 30%; /* SJB was 20% */
 }
 .arrow:after {
     content: "";

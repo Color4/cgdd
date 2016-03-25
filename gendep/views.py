@@ -1,6 +1,10 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
-    
+
+#Is this image comple as was locked by R:
+#    SEMG2_CAMK1_PANCAN__PMID26947069.png
+ 
+ 
 from .models import Study, Gene, Dependency  # Removed: Histotype,
 import json # For ajax for the jquery autocomplete search box
 import math # For ceil()
@@ -372,7 +376,7 @@ def qtip(tip):
 def gene_info(request, gene_name):
     try:
         gene = Gene.objects.get(gene_name=gene_name)
-        data = {'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prev_names_and_synonyms_spaced()}  # 
+        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prev_names_and_synonyms_spaced(), 'ids': gene_ids_as_dictionary(gene) }  # 
     except ObjectDoesNotExist: # Not found by the objects.get()
         data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
         return error_msg, None, None, None, None
