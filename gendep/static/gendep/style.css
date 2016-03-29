@@ -8,6 +8,11 @@ li a {
 }
 */
 
+/* removing the 10px padding between the image and the title. To work this assumes that this css is loaded after the fancybox one. Alternatively could do this in javascript jquery using: $('.fancybox-title-inside-wrap').css('padding-top','0');  */
+.fancybox-title-inside-wrap {
+	padding-top: 0; /* Default is: 10px */
+}
+
 a {
     text-decoration: none;
 }
@@ -32,7 +37,7 @@ span.title {
 	border: 0;
 	padding: 0;
     min-width:100%;
-	background: #0000ee;  /* same standard blue as hyperlinks, or #0000ff or just 'blue'. was purple: #aa66ff; */
+	background: #004279;  /* was #0000ee same standard blue as hyperlinks, or #0000ff or just 'blue'. was purple: #aa66ff; */
 	text-align: center;
 	color: white;
 }
@@ -87,6 +92,9 @@ span.title {
 #maintable a:hover { color: green; }
 #maintable a:active { color: blue; } /* #70DB93;  */
 
+.script {
+  margin-left: 40px;
+}
 	
 /*
  .ui-autocomplete.ui-menu{fontSize: 10px, width:300px}
@@ -144,6 +152,12 @@ span.title {
   background-color: #ddddff
 }
 
+/* Dependency table alternate row colurs - as not using zebra widget, as this CSS might be faster for large tables */
+.dep_table tbody tr:nth-child(even) {
+  background-color: #bfbfbf; /* was: #f2f2f2 */
+}
+
+
 
 /* Custom styles for jquery-ui tooltip, from: https://jqueryui.com/tooltip/#custom-style */
 .ui-tooltip, .arrow:after {
@@ -160,31 +174,31 @@ span.title {
     /* font: bold 14px "Helvetica Neue", Sans-Serif; */
     /* text-transform: uppercase; */
     box-shadow: 0 0 7px black;
-	max-width: 400px; /* SJB - Setting it wider than default as gene names are often longer than the tooltip box, which puts arrow in wrong place */
+	max-width: 350px; /* SJB - Setting it wider than default as gene names are often longer than the tooltip box, which puts arrow in wrong place */
 }
 .arrow {
     width: 70px;
-    height: 16px;
+    height: 20px; /* was 16px */
     overflow: hidden;
     position: absolute;
-    left: 50%;
+    left: 50%; /* 40% works is track is false, was: 50% */
     margin-left: -35px;
-    bottom: -16px;
+    bottom: -20px;  /* was: -16px */
 }
 .arrow.top {
-    top: -16px;
+    top: -20px; /* was -16px */
     bottom: auto;
 }
 .arrow.left {
-    left: 30%; /* SJB was 20% */
+    left: 50%; /* SJB was 20% */
 }
 .arrow:after {
     content: "";
     position: absolute;
     left: 20px;
-    top: -20px;
-    width: 25px;
-    height: 25px;
+    top: -15px; /* was -20px */
+    width: 28px; /* was 25px */
+    height: 28px; /*was: 25px */
     box-shadow: 6px 5px 9px -9px black;
     -webkit-transform: rotate(45deg);
     -ms-transform: rotate(45deg);

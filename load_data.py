@@ -14,11 +14,11 @@
 #                     http://django-adaptors.readthedocs.org/en/latest/
 
 
-import os, csv, re
+import sys, os, csv, re
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from distutils import file_util  # Single file operations, eg: copy_file()
-from django.db.models import Count # For the distincy study and target counts for drivers.
+from django.db.models import Count # For the distinct study and target counts for drivers.
 
 # In mysqlite database, the max_length parameter for fields is ignored as "Note that numeric arguments in parentheses that following the type name (ex: "VARCHAR(255)") are ignored by SQLite - SQLite does not impose any length restrictions (other than the large global SQLITE_MAX_LENGTH limit) on the length of strings, ...." (unless use sqlites CHECK contraint option)
 
@@ -112,7 +112,7 @@ def split_driver_gene_name(long_name):
       driver_name_warning_already_reported[long_name] = None
   if not names[1].isdigit() and long_name not in driver_name_warning_already_reported:
       print("** ERROR: Expected integer for Entrez id second part of name '%s'"  %(long_name))
-     driver_name_warning_already_reported[long_name] = None
+      driver_name_warning_already_reported[long_name] = None
   if names[2][:4] != 'ENSG' and long_name not in driver_name_warning_already_reported:
       print("ERROR: Expected 'ENSG' for start of driver ensembl name: '%s'" %(long_name))
       driver_name_warning_already_reported[long_name] = None
@@ -158,23 +158,27 @@ def load_hgnc_dictionary():
   # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
   infile = os.path.join('input_data','hgnc_complete_set.txt')
   dataReader = csv.reader(open(infile), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
-  for row in dataReader:
-    if dataReader.line_num == 1: # The header line.
-      ihgnc = dict() # The column name to number for the above HGNC dict. 
-      for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
-      isymbol     = ihgnc.get('symbol')
-      ifull_name  = ihgnc.get('name')            # eg: erb-b2 receptor tyrosine kinase 2
-      istatus     = ihgnc.get('status')
-      isynonyms   = ihgnc.get('alias_symbol')    # eg: NEU|HER-2|CD340|HER2
-      iprev_names = ihgnc.get('prev_symbol')     # eg: NGL
-      ientrez_id  = ihgnc.get('entrez_id')       # eg: 2064
-      iensembl_id = ihgnc.get('ensembl_gene_id') # eg: ENSG00000141736
-      icosmic_id  = ihgnc.get('cosmic')          # eg: ERBB2
-      iomim_id    = ihgnc.get('omim_id')         # eg: 164870
-      iuniprot_id = ihgnc.get('uniprot_ids')     # eg: P04626  NOTE: This could be more than one Id
-      ivega_id    = ihgnc.get('vega_id')         # eg: 
-      ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
-    elif row[istatus] == 'Entry Withdrawn':
+  row = next(dataReader) # To read the first heading line. See: http://stackoverflow.com/questions/17262256/reading-one-line-of-csv-data-in-python
+  # or Pandas might be faster? eg: import pandas as pd;   data = pd.read_csv("names.csv", nrows=1)
+  # was if dataReader.line_num == 1: # The header line.
+  ihgnc = dict() # The column name to number for the above HGNC dict. 
+  for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
+  isymbol     = ihgnc.get('symbol')
+  ifull_name  = ihgnc.get('name')            # eg: erb-b2 receptor tyrosine kinase 2
+  istatus     = ihgnc.get('status')
+  isynonyms   = ihgnc.get('alias_symbol')    # eg: NEU|HER-2|CD340|HER2
+  iprev_names = ihgnc.get('prev_symbol')     # eg: NGL
+  ientrez_id  = ihgnc.get('entrez_id')       # eg: 2064
+  iensembl_id = ihgnc.get('ensembl_gene_id') # eg: ENSG00000141736
+  icosmic_id  = ihgnc.get('cosmic')          # eg: ERBB2
+  iomim_id    = ihgnc.get('omim_id')         # eg: 164870
+  iuniprot_id = ihgnc.get('uniprot_ids')     # eg: P04626  NOTE: This could be more than one Id
+  ivega_id    = ihgnc.get('vega_id')         # eg: 
+  ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
+  
+  # Then read the rest of the lines:
+  for row in dataReader:      
+    if row[istatus] == 'Entry Withdrawn':
        continue  # So skip this entry.
     else:
       gene_name = row[isymbol] # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
@@ -207,19 +211,20 @@ def load_mygene_hgnc_dictionary():
   # Format for file:
   # sol.name        mg_symbol       entrez  mg_entrez  mg_hgnc  hgnc_ensembl     mg_ensembl       name_used_for_R
   # A2ML1_1_01110   A2ML1           144568  144568     23336    ENSG00000166535  ENSG00000166535  A2ML11_ENSG00000166535
+  row = next(dataReader) # To read the first heading line.
 
-  for row in dataReader:
-    if dataReader.line_num == 1: # The header line.
-      cols = dict() # The column name to number for the above HGNC dict. 
-      for i in range(len(row)): cols[row[i]] = i       # Store column numbers for each header item
-      jsol_name  = cols['sol.name']  # eg: A2ML1_1_01110      
-      jsol_entrez = cols['entrez']
-      img_entrezgene = cols['mg_entrez']
-      img_symbol = cols['mg_symbol']
-      img_hgnc = cols['mg_hgnc']
-      ihgnc_ensembl_id = cols['hgnc_ensembl']
-      img_ensembl_id = cols['mg_ensembl']
-      iname_used_for_R = cols['name_used_for_R']
+  # if dataReader.line_num == 1: # The header line.
+  cols = dict() # The column name to number for the above HGNC dict. 
+  for i in range(len(row)): cols[row[i]] = i       # Store column numbers for each header item
+  jsol_name  = cols['sol.name']  # eg: A2ML1_1_01110      
+  jsol_entrez = cols['entrez']
+  img_entrezgene = cols['mg_entrez']
+  img_symbol = cols['mg_symbol']
+  img_hgnc = cols['mg_hgnc']
+  ihgnc_ensembl_id = cols['hgnc_ensembl']
+  img_ensembl_id = cols['mg_ensembl']
+  iname_used_for_R = cols['name_used_for_R']
+  for row in dataReader:      
     #else:
       # Need to fix this for row:
       # Loading ATARmap mygne dictionary from file: Achilles_data\Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt
@@ -404,11 +409,11 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
   count_added = 0
   count_skipped = 0
   dependencies = []
+  
+  row = next(dataReader) # To read the first heading line.
+  if row[0] != 'Driver': print("***ERROR: Expected header to start with 'Driver', but found:",row)
+      
   for row in dataReader:
-    if dataReader.line_num == 1:
-      if row[0] != 'Driver': print("***ERROR: Expected header to start with 'Driver', but found:",row)
-      continue  # Ignore the header row, import everything else
-
     if float(row[2]) > 0.05:
       count_skipped += 1
       continue  # Skip as the wilcox_p value isn't significant
@@ -445,7 +450,7 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
 
 def add_counts_of_study_tissue_and_target_to_drivers():
   print("Adding study, tissue and target counts to drivers")
-  # select driver, count(distinct target), count(distinct pmid) from gendep_dependency group by driver;
+  # select driver, count(distinct study), count(distinct histotype), count(distinct target) from gendep_dependency group by driver;
   counts = Dependency.objects.values('driver').annotate( num_studies=Count('study', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
   # There is probably a faster SQL type quesry, or bulk_update
   for row in counts:
@@ -465,9 +470,31 @@ def add_counts_of_study_tissue_and_target_to_drivers():
         g.save()
     except ObjectDoesNotExist: # Not found by the objects.get()
       print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(row['driver']))
-  print("Finished adding study and target counts to drivers")
+  print("Finished adding study, tissue and target counts to the drivers in the dependency table")
 
+def add_counts_of_driver_tissue_and_target_to_studies():
+  print("Adding driver, tissue and target counts to studies")
+  # select study, count(distinct driver), count(distinct histotype), count(distinct target) from gendep_dependency group by study;
+  counts = Dependency.objects.values('study').annotate( num_drivers=Count('driver', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
+  # There is probably a faster SQL type quesry, or bulk_update
+  for row in counts:
+    try:
+      print("study: %s %d %d %d" %(row['study'], row['num_drivers'], row['num_histotypes'], row['num_targets']))
+      s = Study.objects.get(pmid=row['study'])  # .study_pmid
+      
+      # Double-check that name is same:
+      if s.pmid != row['study']:
+        print("*** ERROR: count study mismatch for '%s' and '%s'" %(s.pmid,row['study']))
+      else:
+        s.num_drivers = row['num_drivers']
+        s.num_histotypes = row['num_histotypes']
+        s.num_targets = row['num_targets']
+        s.save()
+    except ObjectDoesNotExist: # Not found by the objects.get()
+      print("*** ERROR: study pmid % NOT found in the Study table: '%s'" %(row['study']))
+  print("Finished adding driver, tissue and target counts to the study table")
 
+  
 def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tissue_type, isAchilles=True):
   global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS
   print("\nImporting table: ",result_file)
@@ -489,18 +516,18 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
   count_replaced = 0
   count_not_replaced = 0
   dependencies = []
-  for row in dataReader:
-    if dataReader.line_num == 1:
-      header_dict = dict() # The column name to number for the above HGNC dict. 
-      for i in range(len(row)): header_dict[row[i]] = i       # Store column numbers for each header item
-      if row[0] != 'marker': print("***ERROR: Expected header to start with 'marker', but found:",row)
-      idriver = header_dict['marker']
-      itarget = header_dict['target']
-      iwilcox = header_dict['wilcox.p'] # should be 16 if zero based
-      ieffect_size = header_dict['CLES'] # CLES = 'common language effect size'
-      itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.      
-      continue  # Ignore the header row, import everything else
-            
+
+  row = next(dataReader) # To read the first heading line.
+  header_dict = dict() # The column name to number for the above HGNC dict. 
+  for i in range(len(row)): header_dict[row[i]] = i       # Store column numbers for each header item
+  if row[0] != 'marker': print("***ERROR: Expected header to start with 'marker', but found:",row)
+  idriver = header_dict['marker']
+  itarget = header_dict['target']
+  iwilcox = header_dict['wilcox.p'] # should be 16 if zero based
+  ieffect_size = header_dict['CLES'] # CLES = 'common language effect size'
+  itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.      
+
+  for row in dataReader:      
     # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
     
     # Convert to numbers:
@@ -627,6 +654,9 @@ MYC_4609_ENSG00000136997        A2ML11_ENSG00000166535  5       7       -1.82415
     
 if __name__ == "__main__":
 
+  add_counts_of_driver_tissue_and_target_to_studies()
+  sys.exit()
+    
   load_hgnc_dictionary()
   load_mygene_hgnc_dictionary()
   
@@ -699,4 +729,18 @@ if __name__ == "__main__":
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=True)
 
+    #** Maybe my browser memory?
+    #https://www.ncbi.nlm.nih.gov/pubmed/
+    #Bad Request
+
+#Your browser sent a request that this server could not understand.
+#Size of a request header field exceeds server limit.
+#Cookie
+#/n
+    Functional Genomic Landscape of Human Breast Cancer Drivers, Vulnerabilities, and Resistance
+    
+    # I downlaoded: https://neellab.github.io/bfg/
+    "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
+    
     add_counts_of_study_tissue_and_target_to_drivers()
+    add_counts_of_driver_tissue_and_target_to_studies()

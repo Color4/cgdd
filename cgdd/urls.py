@@ -18,7 +18,8 @@ from django.conf.urls import include, url
 from django.contrib import admin
 
 urlpatterns = [
+#    url(r'^(?:gendep|api)/', include('gendep.urls')), # This didn't work, (as genedp.utls contains app_name = 'gendep') but split the gendep urls in two files, but keep as one for simplicity for now.
     url(r'^gendep/', include('gendep.urls')),
-    url(r'^api/', include('gendep.urls')),
+#    url(r'^api/', include('gendep.urls_api')),
     url(r'^admin/', admin.site.urls),
 ]

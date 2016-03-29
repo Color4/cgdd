@@ -5,7 +5,7 @@
 {% endblock %}
 {% block table %}
 <table cellpadding="3" class="tabler">
-<thead><tr><th>Link</th><th>PubMed ID</th><th>Title:</th><th>Authors</th><th>Experiment type</th><th>Journal:</th><th>Publication date</th></tr></thead>
+<thead><tr><th>Link</th><th>PubMed ID</th><th>Title:</th><th>Authors</th><th>Experiment type</th><th>Journal</th><th>Publication date</th><th>Num drivers</th><th>Num tissues</th><th>Num targets</th></tr></thead>
 <tbody>
 {% for study in study_list %}
 <tr>
@@ -16,6 +16,9 @@
 <td><a class="tip" href="#">{{ study.experiment_type }}<span>{{ study.summary }}</span></a></td>
 <td>{{ study.journal }}</td>
 <td>{{ study.pub_date }}</td>
+<td style="text-align:center">{{ study.num_drivers }}</td>
+<td style="text-align:center">{{ study.num_histotypes }}</td>
+<td style="text-align:center">{{ study.num_targets }}</td>
 </tr>
 {% endfor %}
 </tbody>

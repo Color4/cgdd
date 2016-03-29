@@ -16,9 +16,12 @@ from datetime import datetime # For get_timming()
 #def log(): logger.debug("this is a debug message!")
 #def log_error(): logger.error("this is an error message!!")
 
-
+json_mimetype = 'application/json; charset=utf-8'
+html_mimetype = 'text/html; charset=utf-8'
+    
 def json_error(message, status_code='0'):
-    return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), 'application/json' ) # eg: str(exception)
+    
+    return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), json_mimetype ) # eg: str(exception)
     
     
 def get_timing(start_time, name, time_array=None):
@@ -36,6 +39,7 @@ def index(request, driver=''): # Default is search boxes, with driver dropdown p
     driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     # histotype_list = Histotype.objects.order_by('full_name')
     histotype_list = Dependency.HISTOTYPE_CHOICES
+    experimenttype_list = Study.EXPERIMENTTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
     dependency_list = None # For now.
     
@@ -51,38 +55,42 @@ def index(request, driver=''): # Default is search boxes, with driver dropdown p
     current_url =  request.META['HTTP_HOST']
 
     # Optionally could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'driver': driver, 'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list, 'dependency_list': dependency_list, 'current_url': current_url}
+    context = {'driver': driver, 'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
     return render(request, 'gendep/index.html', context)
 
 
 def get_drivers(request):
     # View for the driver_jquery search box.
-    if request.is_ajax():
-        q = request.GET.get('term', '')  #  jQuery autocomplete sends the query as "term" and it expects back three fields: id, label, and value. It will use those to display the label and then the value to autocomplete each driver gene.
-        # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
-        drivers = Gene.objects.filter(is_driver=True, gene_name__icontains = q)   # [:20]
-        # ADD: full_name__icontains = q or prev_names__icontains = q or synonyms__icontains = q
-        results = []
-        for d in drivers:
-            d_json = {}
-            d_json['id'] = d.gene_name  # But maybe this needs to be an integer? 
-            d_json['label'] = d.gene_name
-            d_json['value'] = d.gene_name + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
-            results.append(d_json)
-        data = json.dumps(results)
+    #if request.is_ajax(): # Users can also access this from scripts so not always AJAX
+    name_contains = request.GET.get('name', '')  #  jQuery autocomplete sends the query as "term" and it expects back three fields: id, label, and value. It will use those to display the label and then the value to autocomplete each driver gene.
+    # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+    if name_contains != '':
+        drivers = Gene.objects.filter(is_driver=True, gene_name__icontains = name_contains)   # [:20]
+    else:
+        drivers = Gene.objects.filter(is_driver=True)   # [:20]
+    
+    # ADD: full_name__icontains = q or prev_names__icontains = q or synonyms__icontains = q
+    results = []
+    for d in drivers:
+        d_json = {}
+        d_json['id'] = d.gene_name  # But maybe this needs to be an integer? 
+        d_json['label'] = d.gene_name
+        d_json['value'] = d.gene_name + ' : ' + d.full_name + ' : ' + d.prev_names_and_synonyms_spaced()
+        results.append(d_json)
+    data = json.dumps(results)
         # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
         # eg: format is:
         # [ {"id": "3", "value":"3","label":"Matching employee A"},
         #   {"id": "5", "value":"5","label":"Matching employee B"},
         # ]
     # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
-    else:
-        data = 'fail'
-    mimetype = 'application/json'
-    return HttpResponse(data, mimetype)
+    
+    #    data = 'fail'
+
+    return HttpResponse(data, json_mimetype)
 
 
-def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p'):
+def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p', select_related=None):
     error_msg = ""
     
     if driver_name == "":
@@ -116,6 +124,10 @@ def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.0
     else:
         study = "ALL_STUDIES"
 
+    if select_related != None and select_related != '':
+        for column in select_related:
+            q = q.select_related(column)
+     
     if order_by != None and order_by != '':
         q = q.order_by('wilcox_p')  # was: order_by('target__gene_name')
         
@@ -125,11 +137,11 @@ def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.0
 def ajax_results_slow_full_detail_version(request):
     # View for the dependency search result table.
     # Ajax sends four fields: driver, histotype, pmid, [start(row for pagination):
-    mimetype = 'text/html' # was: 'application/json'
-    request_method = request.method # 'POST' or 'GET'
-    if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), mimetype)
 
-    if not request.is_ajax(): return HttpResponse('fail', mimetype)
+    request_method = request.method # 'POST' or 'GET'
+    if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), html_mimetype)
+
+    if not request.is_ajax(): return HttpResponse('fail', html_mimetype)
 
     driver_name = request.POST.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
     histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
@@ -137,14 +149,14 @@ def ajax_results_slow_full_detail_version(request):
 
     error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
     
-    if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
+    if error_msg != '': return HttpResponse("Error: "+error_msg, html_mimetype)
 
     gene_weblinks = driver.external_links('|')
        
     current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
 
     context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
-    return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
+    return render(request, 'gendep/ajax_results.html', context, content_type=html_mimetype) #  ??? .. charset=utf-8"
 
 
 def gene_ids_as_dictionary(gene):
@@ -178,9 +190,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
     # mimetype = 'text/html' # for error messages. was: 'application/json'
 
-    from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."
-
-    mimetype = 'application/json'
+    from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
     
     timing_array = []  # Using an array to preserve order on output.
     start = datetime.now()
@@ -192,22 +202,22 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     cache_data = cache.get(cache_key, 'not_found')
     if cache_data != 'not_found': 
         start = get_timing(start, 'Retrieved from cache', timing_array)
-    #    return HttpResponse(cache_data, mimetype, version=ajax_results_cache_version)
+    #    return HttpResponse(cache_data, json_mimetype, version=ajax_results_cache_version)
    
     #d = end - start  # datetime.timedelta object
     #print d.total_seconds()  
 
     
     #request_method = request.method # 'POST' or 'GET'
-    #if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), mimetype)
+    #if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), json_mimetype)
 
-    # if not request.is_ajax(): return HttpResponse('fail', 'text/html')
+    # if not request.is_ajax(): return HttpResponse('fail', json_mimetype)
 
     #driver_name = request.POST.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
     #histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
     #study_pmid = request.POST.get('study', "ALL_STUDIES")
     # effect_size = request.POST.get('effect_size', "ALL_EFFECT_SIZES")
-    # return json_error('Hello') # HttpResponse("Hello", mimetype)
+    # return json_error('Hello') # HttpResponse("Hello", json_mimetype)
     
     error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
     if error_msg != '': return json_error("Error: "+error_msg)
@@ -239,7 +249,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     # Other ideas: https://blog.mozilla.org/webdev/2011/12/15/django-optimization-story-thousand-times-faster/
     
     # Maybe use: json = serializers.serialize('json', playlists)
-    #            return HttpResponse(json, mimetype="application/json")
+    #            return HttpResponse(json, mimetype=json_mimetype)
     
     
     # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again. This iteractor version seems slightly faster than non-iterated version.
@@ -285,7 +295,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
                     format(d.effect_size*100, ".1f"),  # As a percentage
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
                     d.study_id, # returns the underlying pmid number rather than the Study object
-                    '', # d.interaction - but empty for now
+                    'Y' if d.interaction else '', # will change to Medium/High/Highest. Is Null also read as False?
                     '',  # d.inhibitors - but empty for now.
                     d.target_variant  # Just temporary to ensure display correct achilles boxplot image.
                     ])  # optionally an id: d_json['1'] = 
@@ -316,7 +326,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     query_info = {'driver_name': driver_name,
                   'driver_full_name': driver.full_name,
                   'driver_synonyms': driver.prev_names_and_synonyms_spaced(),
-                  # 'driver_weblinks': driver.external_links('|'), # now passing the 'ids' as a dictionary to format in webbrowser.
+                  # 'driver_weblinks': driver.external_links('|'), # now passing the 'driver_ids' as a dictionary to format in webbrowser.
                   'histotype_name': histotype_name,
                   'histotype_full_name': histotype_full_name, # Not read
                   'histotype_details': histotype_details,
@@ -363,7 +373,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     # and example of gzip using flask: https://github.com/closeio/Flask-gzip
     #  https://github.com/closeio/Flask-gzip/blob/master/flask_gzip.py
     
-    return HttpResponse(data, mimetype)
+    return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
 
     #    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
@@ -379,8 +389,7 @@ def gene_info(request, gene_name):
         data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prev_names_and_synonyms_spaced(), 'ids': gene_ids_as_dictionary(gene) }  # 
     except ObjectDoesNotExist: # Not found by the objects.get()
         data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
-        return error_msg, None, None, None, None
-    return HttpResponse(json.dumps(data, separators=[',',':']), 'application/json')
+    return HttpResponse(json.dumps(data, separators=[',',':']), json_mimetype)
         
     
 def graph(request, target_id):
@@ -400,13 +409,20 @@ def drivers(request):
     context = {'driver_list': driver_list}
     return render(request, 'gendep/drivers.html', context)
 
+def tissues(request):
+    histotype_list = Dependency.HISTOTYPE_CHOICES
+    context = {'histotype_list': histotype_list}
+    return render(request, 'gendep/tissues.html', context)
+    
 def studies(request):
     study_list = Study.objects.order_by('pmid')
     context = {'study_list': study_list}
     return render(request, 'gendep/studies.html', context)
 
 def faq(request):
-    return render(request, 'gendep/faq.html')
+    current_url =  request.META['HTTP_HOST'] # See download_dependencies_as_csv_file() for other, maybe better, ways to obtain currrent_url
+    context = {'current_url': current_url}
+    return render(request, 'gendep/faq.html', context)
     
 def contact(request):
     return render(request, 'gendep/contact.html')
@@ -423,6 +439,8 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
     import csv, time
     
     mimetype = 'text/html' # was: 'application/json'
+    
+    # see: http://stackoverflow.com/questions/6587393/resource-interpreted-as-document-but-transferred-with-mime-type-application-zip
     
     # For downloading large csv files, can use streaming: https://docs.djangoproject.com/en/1.9/howto/outputting-csv/#streaming-large-csv-files
     
@@ -482,12 +500,12 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
         return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
 
     # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
-    response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?
+    response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?    
     response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
     
     writer = csv.writer(response, dialect=dialect)  # An alternative would be: csv.unix_dialect
-    # csv.excel_tab doesn't display well
-    # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
+      # csv.excel_tab doesn't display well
+      # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
     
     writer.writerow(column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. headings are: ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'Known interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Box plot']
 
@@ -504,7 +522,7 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
   		    d.effect_size,
             d.get_histotype_display(),
             '', # d.inhibitors,
-            '', # d.interaction,
+            'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
             d.study.short_name,
             d.study.pmid,
             d.study.experiment_type,
@@ -515,11 +533,11 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
 
     study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
     writer.writerows([
-        '',
-        'A total of %d dependicies found for: Driver="%s", Tissue="%s", Study="%s"' % (count, driver_name,histotype_full_name, study_name),
-        'Downloaded from CGDD on %s' %(timestamp)
-        ])
-            
+        ["",],
+        ["A total of %d dependicies found for: Driver='%s', Tissue='%s', Study='%s'" % (count, driver_name,histotype_full_name, study_name),],
+        ["Downloaded from CGDD on %s" %(timestamp),]
+        ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
+        
     return response
     
 

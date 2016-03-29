@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   {% load staticfiles %}
-  {% block title %}<title>*** {{ current_url }} TESTING*** - Database of Genetic Dependencies in Cancer</title>{% endblock %}
+  {% block title %}<title>*** {{ current_url }}Cancer Genetic Dependencies Database</title>{% endblock %}
   {% block links_top %}{% endblock %} {# Putting non-essential scripts at bottom can speedup display of webpage #}
   {# Need to call my style sheet after jQuery one, so that mine overwrites the jquery defaults #}
   <link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
@@ -15,11 +15,12 @@
 <a href="{% url 'gendep:home' %}">Home/Search</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:about' %}">About</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:drivers' %}">Driver genes</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:tissues' %}">Tissues</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:studies' %}">Studies</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:faq' %}">FAQ</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:contact' %}">Contact</a>
  
-<h1>Database of Genetic Dependencies in Cancer</h1>
+<h1>Cancer Genetic Dependencies Database</h1>
 </div>
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
 <div id="maintext">

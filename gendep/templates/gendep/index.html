@@ -47,8 +47,15 @@ var dependency_array = [];
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
-var global_url_gene_info_for_mygene = "{% url 'gendep:gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
+var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
 var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
+var global_url_for_download_csv = "{% url 'gendep:download_csv' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}";
+
+
+var experimenttype_array = [
+   {% for experimenttype in experimenttype_list %} {value: "{{ experimenttype.0 }}" },
+   {% endfor %}
+];
   
 var driver_array = [
    {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
@@ -68,7 +75,7 @@ var gene_info_cache = {}; // To cache gene_info retrieved by AJAX call for the t
 function study_info(pmid) {
   switch (pmid) {
    {% for s in study_list %}
-   case "{{s.pmid}}": return([ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", "{{s.title}}, {{s.authors}}, {{s.journal}}, {{s.pub_date}}" ]); // break;
+   case "{{s.pmid}}": return([ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ]); // break;
    {% endfor %}
    default: return([ "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found" ]);
   }
@@ -115,6 +122,16 @@ function histotype_display(histotype) {
 
 $(document).ready(function() {
 
+    // Alternative tables: jqgrid: http://www.jqwidgets.com/jquery-widgets-demo/demos/jqxgrid/index.htm#demos/jqxgrid/deferredscrolling.htm
+	
+	// Datatables: http://www.datatables.net/index
+	
+	// backgrid.js: http://backgridjs.com/
+    // and React.js:  https://react.rocks/tag/DataTable
+	// http://zippyui.com/react-datagrid/#/
+    // jEasyUI: http://www.jeasyui.com/tutorial/datagrid/datagrid27_demo.html
+
+	
 	$("#result_table").tablesorter({
 	    // For diocs see: https://mottie.github.io/tablesorter/docs/
 		// https://mottie.github.io/tablesorter/docs/#methods
@@ -128,9 +145,9 @@ $(document).ready(function() {
         // removeRows: true, // "remove rows from the table to speed up the sort of large tables. Setting this to false, only hides the non-visible rows; needed if you plan to add/remove rows with the pager enabled."
 
 		theme: 'blue',
-		widgets: ["zebra", "filter", "scroller"],
+		widgets: ["filter", "scroller"], // "zebra",    // removed the zebra row colouring as might be making table slow - see: https://github.com/Mottie/tablesorter/issues/273  So the zebra effect can be in the CSS instead.
 		widgetOptions: {
-            zebra: ["even", "odd"], 
+            // zebra: ["even", "odd"],
 			scroller_height: 400,  // default is 300
 			filter_functions: {
                 // Note that only the normalized (n) value will contain numerical data
@@ -143,7 +160,8 @@ $(document).ready(function() {
 	                "&le; 1 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.001; },
 	                "&le; 5 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0005; },
 	                "&le; 1 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0001; }	
-                }
+                }				
+				// 5 : {.....experimenttype_array},
             }				
         },  // widgetOptions maybe need to be after the widgets: [...] line.
 		sortInitialOrder: "asc", // default sort order
@@ -164,15 +182,17 @@ $(document).ready(function() {
     //$( document ).tooltip({
 	$('#result_table_tbody').tooltip({
       //items: "img, [title]",
-	  items: "[gene]",
+	  items: "[gene], [exptype], [study]",
 	  // track:true,
-      delay: 0,
+	  show: false, //{ effect: "", duration: 0, delay: 0},
+	  hide: false, // { effect: "", duration: 0, delay: 0}, // see: http://webduos.com/tooltip-using-jquery-ui-library/#.Vvb48uKLSih
+      track: true, // follows mouse
 	  position: {
-        my: "center bottom-20",
+        my: "center bottom-20", // was bottom-20, but used arrow's css to make arrow slightly taller
         at: "center top",
 	    using: function( position, feedback ) {
           $( this ).css( position );
-          // The arrow is in wrong ploace when the text is wider than the tooltip box.
+          // The arrow is in wrong place when the text is wider than the tooltip box.
 		  
 		  $( "<div>" )
             .addClass( "arrow" )
@@ -200,7 +220,7 @@ $(document).ready(function() {
 	  // For tooltip styling, see: https://jqueryui.com/tooltip/#custom-style
         var element = $( this );
         if ( element.is( "[gene]" ) ) {
-          var gene_name = element.text();
+          var gene_name = element.attr("gene");  // was: = element.text();
 		  if (gene_name in gene_info_cache) {
 			var result = format_gene_info_for_tooltip(gene_info_cache[gene_name]);
 			callback(result);
@@ -233,13 +253,18 @@ $(document).ready(function() {
           //  text + "'>";
 //		  return text;
 //        }
-        //if ( element.is( "[title]" ) ) {
-        //  return element.attr( "title" );
-        //}
-        //if ( element.is( "img" ) ) {
-        //  return element.attr( "alt" );
-        //}
         }
+      else if ( element.is( "[exptype]" ) ) {
+          var study = study_info(element.attr("exptype"));
+   	      return '<b>'+study[1]+':</b> '+study[2]; //exptype contains the pmid of this study. [1]is expt type, [2] returns exp summary
+        }
+      else if ( element.is( "[study]" ) ) {
+	      var study = study_info(element.attr("study"));
+          return '<b>'+study[0]+':</b> '+study[3]; //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
+        }
+     //if ( element.is( "img" ) ) {
+      //  return element.attr( "alt" );
+      //}	
       }    // end of 'content:' can have a comma as is still part of list of atttributes
    });  // end of tooltip
 
@@ -347,7 +372,7 @@ var t0 = performance.now();
 		$("#result_div").hide();
 		$("#result_progress_div").html("<b>Fetching data from server....</b>");
 		
-		var url = "{% url 'gendep:ajax_results_get' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
+		var url = "{% url 'gendep:get_dependencies' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
 		
 		//alert("Get from: "+url);
 console.log("Setup: ",performance.now()-t0); t0 = performance.now();
@@ -502,7 +527,7 @@ $.ajax({
 {% endblock %}
 {% block content %}
 <div id="welcome_div" {% if driver %}style="display:none"{% endif %} >
-<p>Welcome to the database of genetic dependencies in cancer, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
+<p>Welcome to the cancer genetic dependencies database, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
 
 <p>Enter your driver search criteria below. (In the "Driver gene" search box, typing two letters of a driver gene name will display a menu of matching gene names)</p>
 </div>
@@ -524,6 +549,7 @@ $.ajax({
 	{% endfor %}
    </select>
 </td>
+
 
 <td><label for="study">Study:</label>
    <select name="study" id="study">
@@ -554,16 +580,29 @@ $.ajax({
 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
-<p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p>
-<table id="result_table" class="tablesorter" style="font-size:80%;">
+
+<p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
+<form id="download_csv_form" method="get" action="file.doc">
+<button id="download_csv_button" type="submit">Download as CSV file</button>
+</form>
+{# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}
+</p>
+{# <a id="download_csv" href="">[Download tabbed file]</a> #}
+
+
+
+
+{# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
+
+<table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead><tr>
   <th>Dependency</th>
-  <th class="filter-select">P-value</th>
-  <th>Effect size (%)</th>
-  <th>Tissue</th>
-  <th>Study</th>  
-  <th>Experiment Type</th>
-  <th><a class="tipleft">Interaction<span>Known functional interaction between driver and dependent gene, from string-db.org</span></a></th>
+  <th class="filter-select" data-placeholder="&le; 0.05">P-value</th>
+  <th data-placeholder=">= 65.0">Effect size (%)</th> <!-- class="filter-select" -->
+  <th class="filter-select filter-onlyAvail">Tissue"</th>
+  <th class="filter-select filter-onlyAvail">Study</th>  
+  <th class="filter-select filter-onlyAvail">Experiment Type</th>
+  <th class="filter-select filter-onlyAvail"><a class="tipleft">Interaction<span>Known functional interaction between driver and dependent gene, from string-db.org</span></a></th>
   <th>Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">

@@ -1,5 +1,18 @@
 // Javascript functions for CGDD web interface.
 
+// Good for testing javascript: http://fiddlesalad.com/javascript/
+
+// Tips on making javascript faster:
+//   https://www.smashingmagazine.com/2012/11/writing-fast-memory-efficient-javascript/
+//   https://www.smashingmagazine.com/2012/06/javascript-profiling-chrome-developer-tools/
+
+// Can get table cell contents using: http://stackoverflow.com/questions/3072233/getting-value-from-table-cell-in-javascript-not-jquery
+// traversing table with js (but using fragment is faster): https://developer.mozilla.org/en-US/docs/Web/API/Document_Object_Model/Traversing_an_HTML_table_with_JavaScript_and_DOM_Interfaces
+// Using closest() to get immediate parent: http://stackoverflow.com/questions/9085406/passing-this-as-parameter-in-javascript
+// Javascript 'this' parameter:  http://stackoverflow.com/questions/14480401/javascript-this-as-parameter
+ 
+// js 'this': http://www.2ality.com/2014/05/this.html
+
 
 // a simple sprintf() function.
  // For a more comprehensive one, use: https://raw.githubusercontent.com/azatoth/jquery-sprintf/master/jquery.sprintf.js
@@ -40,12 +53,14 @@ function study_url(study_pmid) {
     else {href = 'http://www.ncbi.nlm.nih.gov/pubmed/' + study_pmid;}
     return href
 }
-       
+
+
 function study_weblink(study_pmid, study) {
-	if (typeof study === 'undefined') {
-		study = study_info(study_pmid); 	// returns: short_name, experiment_type, summary, "title, authors, journal, s.pub_date"		
-        }
-    return sprintf('<a class="tipright" href="%s" target="_blank">%s<span>%s</span></a>', study_url(study_pmid), study[0], study[3] );
+//	if (typeof study === 'undefined') {
+		return sprintf('<a href="%s" target="_blank">%s</a>', study_url(study_pmid),study[0]);
+		// not displaying this now: study = study_info(study_pmid); 	// returns: short_name, experiment_type, summary, "title, authors, journal, s.pub_date"
+//        }
+//    return sprintf('<a class="tipright" href="%s" target="_blank">%s<span>%s</span></a>', study_url(study_pmid), study[0], study[3] );
 }	
 
 function gene_external_links(id, div, all) {
@@ -82,6 +97,35 @@ function show_driver_info(data) {
   $("#driver_weblinks").html(gene_external_links(data['driver_ids'], '|', true));
   
   $("#result_info").html( "For driver gene <b>" + driver + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
+
+  var download_csv_url = global_url_for_download_csv.replace('mydriver',driver).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
+  console.log("download_url: ",download_csv_url);
+  //var button_event = "window.open('" + download_url + "');"
+  //console.log(button_event)
+  // $("#download_csv")  .click( button_event );
+  
+    // ******
+   // Better to use the form:
+   // $("#download_csv_form").action(function() { ......	? return false;
+   // http://stackoverflow.com/questions/11620698/how-to-trigger-a-file-download-when-clicking-an-html-button-or-javascript
+   
+   // eg: or put a button inside a link: <a href="file.doc"><button>Download!</button></a>
+   //Link. Then it'll work fine  without JavaScript available. It also offers more of the traditional affordances users might expect from a download link, such as right-click-save-as, or drag-and-drop.
+   
+  $("#download_csv_button").click(function() {
+	  $("#download_csv").html('Downloading CSV file.');
+	  // window.location = download_csv_url; // provided the server sets Content-Disposition: attachment!
+	  // or: window.open(download_csv_url); // which briefly open a new browser tab for the download.
+	  //$("#download_csv").html('File downloaded'); // but updates text before file is downloaded.
+	  // Using the above "window.location = ..." causes Chrome to give warning in console about: 
+	  //   "cgdd_functions.js:109 Resource interpreted as Document but transferred with MIME type text/csv: ...."
+	  // So use a link instead, or can use a hidden link on the page, eg: <a href="fileLink" download="filename">Download</a>, or a form ....
+	  var downloadLink = document.createElement('a');
+	  downloadLink.href = download_csv_url;
+	  downloadLink.download = download_csv_url; // but this 'download' attribute is html5 so limited browser support possibly
+	  document.body.appendChild(downloadLink);  // as link has to be on the document.
+	  downloadLink.click();	  
+	  }); 
 }
 
 
@@ -172,18 +216,33 @@ function populate_table(data,t0) {
 	  // Pass the unformatted effect size, as the html tags could mess up as embedded inside tags.
 	  // alternatively could pass 'this', then use next() to find subsequent columns in the row, or keep the data array globally then just specify the row number as the parameter here, eg: plot(1) for row one in the array.
 	  var plot_function = "plot('" + d[itarget] +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[itarget_variant] +"');";
+
+      // Another way to pouplatte table is using DocumentFragment in Javascript:
+      //      https://www.w3.org/TR/DOM-Level-2-Core/core.html#ID-B63ED1A3
+	  
+	  // *** GOOD: http://desalasworks.com/article/javascript-performance-techniques/
+
+	  var interaction_cell =	(d[iinteraction] === 'Y') ? '<td style="background-color:red">Yes</td>' : '<td></td>';
+// But maybe is a Chrome problem:
+// The headers are correct, express sets them properly automatically, it works in other browsers as indicated, putting html 5 'download' attribute does not resolve, what did resolve it is going into the chrome advanced settings and checking the box "Ask where to save each file before downloading".
+// After that there was no "Resource interpreted as document...." error reported as in the title of this issue so it appears that our server code is correct, it's Chrome that is incorrectly reporting that error in the console when it's set to save files to a location automatically.
+	  
 	  html += '<tr>'+
-        '<td><a gene="" class="tipright" href="javascript:void(0);" onclick="'+plot_function+'">' + d[itarget] + '</a></td>' +
+        '<td gene="'+d[itarget]+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[itarget] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
         '<td>' + d[iwilcox_p].replace('E', ' x 10<sup>') + '</sup></td>' + 
 		'<td>' + d[ieffect_size] + '</td>' +
         '<td>' + histotype_display(d[ihistotype]) + '</td>' +
-		'<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
+		'<td study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
+		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
-		'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		'<td>' + d[iinteraction] + '</td>' +  // 'interaction'
+		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
+		'<td exptype="'+d[istudy_pmid]+'">' + study[1] + '</td>' + // experiment type. The 'exptype=""' is use by tooltips
+        interaction_cell +
+		// '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
+		
 	    '<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
 		'</tr>';  // The newline cahracter was removed from end of each row, as the direct trigger update method complains about undefined value.
 /*
@@ -275,7 +334,7 @@ function sup10_format(num) {
 function format_gene_info_for_tooltip(data) {
   var synonyms = data['synonyms'];
   if (synonyms != '') {synonyms = ' | '+synonyms}
-  return '<b>'+data['gene_name'] + '</b>' + synonyms +'<br/>' + data['full_name'];
+  return '<b>'+data['gene_name'] + '</b>' + synonyms +'<br/><i>' + data['full_name']+'</i>';
   }
 
 function is_form_complete() {
@@ -300,7 +359,7 @@ function is_form_complete() {
 
 
 // Could possibly use $(this).parent() to set background colour for row, then store this in global variable, then in fancybox close event set row color back to normal...eg: http://stackoverflow.com/questions/4253558/how-to-get-the-html-table-particullar-cell-value-using-javascript
-function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_ids, target_variant) {
+function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
   // This is a separate function from plot(...) as this can be a called when Ajax succeeds.
 
 // eg: http://jsfiddle.net/STgGM/
@@ -321,16 +380,25 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
   var legend_image = 'Legend_PMID'+study_pmid+'_'+legend_size+'.png';
   var url_legend = global_url_static_image_dir +legend_image;
   // Putting a table around the box plots as otherwise if click on gene near bottom of page the fancybox makes tall box as probably tries to put legend below the boxplot
-  var mycontent = '<table align="center" cellspacing="0" cellpadding="0"><tr><td><img src="' + url_boxplot + '" width="'+boxplot_width+'" height"'+boxplot_height+'" alt="Loading boxplot image...."/></td>' + '<td><img src="' + url_legend + '" width="'+legend_width+'" height"'+legend_height+'"/></td></tr></table>';
+  // For table add: style="padding:0;border-collapse: collapse;" table {border-spacing: 2px;} td    {padding: 0px;} cellspacing="0" (see: http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css )
+  var mycontent = '<table align="center" style="padding:0; border-collapse: collapse; border-spacing: 0;"><tr><td style="padding:0;"><img src="' + url_boxplot + '" width="'+boxplot_width+'" height"'+boxplot_height+'" alt="Loading boxplot image...."/></td>' + '<td style="padding:0;"><img src="' + url_legend + '" width="'+legend_width+'" height"'+legend_height+'"/></td></tr></table>';
  // console.log(mycontent);
   var study = study_info(study_pmid);
 //console.log(mycontent);
 //console.log(gene_info_cache[target]);
 //console.log(target_ids);
-  
-  var plot_title = '<p align="center"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('E', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
-  if (typeof target_ids === 'undefined') {plot_title += '<br/>Unable to retrieve external links for this gene';}
-  else {plot_title += '<br/>'+target+' links: '+ gene_external_links(target_ids, '|', false);}
+    
+  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('E', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
+
+  if (typeof target_info === 'undefined') {plot_title += '<br/>Unable to retrieve synonyms and external links for this gene';}
+  else {
+      if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] );}
+	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
+	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
+	  var target_synonyms   = target_info['synonyms'];
+	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
+	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>Links: '+target_external_links;
+	  }
   plot_title += '</p>';
   
 //console.log(plot_title);
@@ -342,10 +410,10 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
     //minWidth: 550, // To enable boxplot and image to be side-by-side, rather than legend below boxplot
     //maxHeight: 550,
 	autoSize: false, // otherwise it resizes too tall.
-    padding: 5,  	// is space between image and fancybox, default 15
-    margin:  5, 	// is space between fancybox and viewport, default 20
-	width:  boxplot_width+legend_width+12, // default is 800
-	height: boxplot_height + 12, // default is 600 /// the title is below this again, ie. outside this, so the 25 is just to allow for the margins top and bottom 
+    padding: 2,  	// is space between image and fancybox, default 15
+    margin:  2, 	// is space between fancybox and viewport, default 20
+	width:  boxplot_width+legend_width+8, // default is 800
+	height: boxplot_height + 8, // default is 600 /// the title is below this again, ie. outside this, so the 25 is just to allow for the margins top and bottom 
     aspectRatio: true,
     fitToView: false,
     arrows: false,
@@ -375,29 +443,30 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
 //function plot(index) { // The index number of the dependency in the array
 function plot(target, histotype, study_pmid, wilcox_p, effect_size, target_variant) { // The index number of the dependency in the array
 //console.log(target);
-  var target_ids;
+  var target_info;
   if (target in gene_info_cache) {
-	target_ids = gene_info_cache[target]['ids'];
-	show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_ids, target_variant);
+	target_info = gene_info_cache[target];
+	show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
 	}
   else {
-	// Might be better to get the ids after the fancybox has displayed - ie. on fancybox's loaded .... method
+	// The target_info will usually have already been retreived by hoovering over the target in table, but if user clicked fast, then might not have been retreived yet.
+	// Might be better to get the ids after the fancybox has displayed - ie. on fancybox's loaded .... method.
     $.ajax({
       url: global_url_gene_info_for_mygene.replace('mygene',target),
       dataType: 'json',
       })
-      .done(function(data, textStatus, jqXHR) {  // or use .always(function ...
-         if (data['success']) {
-			gene_info_cache[target] = data; // cache result so can retrieve it faster in future.				
-			target_ids = data['ids'];
+      .done(function(target_info, textStatus, jqXHR) {  // or use .always(function ...
+         if (target_info['success']) {
+			gene_info_cache[target] = target_info; // cache data so can retrieve faster in future.
 		 }
-		 else {console.log("Error: "+data['message'])}
+		 else {console.log("Error: "+target_info['message'])}
 		 })
 	  .fail(function(jqXHR, textStatus, errorThrown) {
 		 console.log("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
+		 // target_info = undefined;
          })
 	  .always(function() {
-	  	 show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_ids, target_variant);
+	  	 show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
 	     });
     }
 	
