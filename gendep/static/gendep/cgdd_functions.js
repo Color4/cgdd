@@ -3,6 +3,7 @@
 // Good for testing javascript: http://fiddlesalad.com/javascript/
 
 // Tips on making javascript faster:
+// Tips on making javascript faster:
 //   https://www.smashingmagazine.com/2012/11/writing-fast-memory-efficient-javascript/
 //   https://www.smashingmagazine.com/2012/06/javascript-profiling-chrome-developer-tools/
 
@@ -111,7 +112,18 @@ function show_driver_info(data) {
    
    // eg: or put a button inside a link: <a href="file.doc"><button>Download!</button></a>
    //Link. Then it'll work fine  without JavaScript available. It also offers more of the traditional affordances users might expect from a download link, such as right-click-save-as, or drag-and-drop.
-   
+
+   // $("#download_csv_form").attr("action", download_csv_url);
+   $("#download_csv_form")
+     .attr("action", download_csv_url)
+     .submit(function( event ) {
+      $("#download_csv_button").html('Downloading CSV file')
+	//return true;
+   });
+
+
+
+/*  
   $("#download_csv_button").click(function() {
 	  $("#download_csv").html('Downloading CSV file.');
 	  // window.location = download_csv_url; // provided the server sets Content-Disposition: attachment!
@@ -126,6 +138,7 @@ function show_driver_info(data) {
 	  document.body.appendChild(downloadLink);  // as link has to be on the document.
 	  downloadLink.click();	  
 	  }); 
+*/	  
 }
 
 

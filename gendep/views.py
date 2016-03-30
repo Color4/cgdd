@@ -364,14 +364,25 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     cache.set(cache_key, data, version=ajax_results_cache_version) # could use the add() method instead, but better to update anyway.
     # Could gzip the cached data (using GZip middleware's gzip_page() decorator for the view, or in code https://docs.djangoproject.com/en/1.9/ref/middleware/#module-django.middleware.gzip )
     # GZipMiddleware will NOT compress content if any of the following are true:
-    #   The content body is less than 200 bytes long.
-    #   The response has already set the Content-Encoding header.
-    #   The request (the browser) hasn’t sent an Accept-Encoding header containing gzip.
+    #  - The content body is less than 200 bytes long.
+    #  - The response has already set the Content-Encoding header.
+    #  - The request (the browser) hasn’t sent an Accept-Encoding header containing gzip.
     # Another option is using cache_control() permit browser caching by setting the Vary header: https://docs.djangoproject.com/en/1.9/topics/cache/#using-vary-headers
     # "(Note that the caching middleware already sets the cache header’s max-age with the value of the CACHE_MIDDLEWARE_SECONDS setting. If you use a custom max_age in a cache_control decorator, the decorator will take precedence, and the header values will be merged correctly.)"
     # https://www.pythonanywhere.com/forums/topic/376/
     # and example of gzip using flask: https://github.com/closeio/Flask-gzip
     #  https://github.com/closeio/Flask-gzip/blob/master/flask_gzip.py
+
+    
+    # Maybe better to use a JsonResponse, and use only dictionary objects (I used an array above as more comapct):
+    # from django.http import JsonResponse
+    # response = JsonResponse({'foo': 'bar'})
+    # response.content
+    # b'{"foo": "bar"}'
+    # In order to serialize objects other than dict you must set the safe parameter to False:
+    # response = JsonResponse([1, 2, 3], safe=False)
+    # ** Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution.
+    # See: https://docs.djangoproject.com/en/1.9/ref/request-response/
     
     return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
 
@@ -492,7 +503,7 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
 
     if delim_type=='csv':
         dialect = csv.excel
-        content_type='text/csv'
+        content_type='text/csv' # can be called: 'application/x-csv' or 'application/csv'
     elif delim_type=='tsv':
         dialect = csv.excel_tab
         content_type='text/tab-separated-values'

@@ -16,6 +16,12 @@
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 
+{# OR when running my laptop offline, temporarily using these local files instead of the above google server ones: #}
+{% comment %}
+  <script type="text/javascript" src="{% static 'gendep/jquery/jquery.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.min.js' %}"></script>
+{% endcomment %}
+  
   
   <!-- Size of script from: http://code.stephenmorley.org/javascript/finding-the-memory-usage-of-objects/ -->
   <script type="text/javascript" src="{% static 'gendep/sizeof.js' %}"></script>
@@ -581,15 +587,14 @@ $.ajax({
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
 
+<form id="download_csv_form" method="get" action="">
 <p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
-<form id="download_csv_form" method="get" action="file.doc">
 <button id="download_csv_button" type="submit">Download as CSV file</button>
+</p>
 </form>
 {# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}
-</p>
+
 {# <a id="download_csv" href="">[Download tabbed file]</a> #}
-
-
 
 
 {# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
@@ -599,7 +604,7 @@ $.ajax({
   <th>Dependency</th>
   <th class="filter-select" data-placeholder="&le; 0.05">P-value</th>
   <th data-placeholder=">= 65.0">Effect size (%)</th> <!-- class="filter-select" -->
-  <th class="filter-select filter-onlyAvail">Tissue"</th>
+  <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>
   <th class="filter-select filter-onlyAvail"><a class="tipleft">Interaction<span>Known functional interaction between driver and dependent gene, from string-db.org</span></a></th>
@@ -623,12 +628,7 @@ Old code:
 
 
 {% block links_bottom %}
-<!-- or bbetter to use defer or async keywords, but for IE<10 need window.onload.... : http://stackoverflow.com/questions/436411/where-is-the-best-place-to-put-script-tags-in-html-markup -->
-{# when running my laptop offline, temporarily using these local files instead of the above google server ones #}
-{% comment %}
-  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/external/jquery/jquery.js' %}"></script>
-  <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.min.js' %}"></script>
-{% endcomment %}
+<!-- or better to use defer or async keywords, but for IE<10 need window.onload.... : http://stackoverflow.com/questions/436411/where-is-the-best-place-to-put-script-tags-in-html-markup -->
   
  {# Table sorter, and optional widgets: #}
   <!-- script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script -->
