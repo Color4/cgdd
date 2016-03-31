@@ -239,7 +239,7 @@ def load_mygene_hgnc_dictionary():
   
 RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
 
-def find_or_add_gene(names, is_driver, isAchilles):  # names is a tuple of: gene_name, entrez_id, ensembl_id
+def find_or_add_gene(names, is_driver, is_target, isAchilles):  # names is a tuple of: gene_name, entrez_id, ensembl_id
   # if names[0] == 'PIK3CA' and is_driver: print("**** PIK3CA  is_driver: ",names)
   #global RE_GENE_NAME
 #  if isAchilles: names[0] = names[0][:-1]  # Remove the final character from end of the string - but this will mean extra records for some dependecies
@@ -271,12 +271,17 @@ def find_or_add_gene(names, is_driver, isAchilles):  # names is a tuple of: gene
       print("Updating '%s' to is_driver" %(gene_name))
       g.is_driver = is_driver
       g.save()
+    if is_target and not g.is_target:
+      print("Updating '%s' to is_target" %(gene_name))
+      g.is_target = is_target
+      g.save()
+      
     # Test if ensemble_id is same:
     if entrez_id != '' and g.entrez_id != entrez_id:
       if g.entrez_id != '':
         print("WARNING: For gene '%s': Entrez_id '%s' already saved in the Gene table doesn't match '%s' from the Excel file" %(g.gene_name,g.entrez_id,entrez_id))
       else:
-        print("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver))
+        print("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
         g.save()
     if g.ensembl_id != ensembl_id: print("WARNING: For gene '%s': Ensembl_id '%s' already saved in the Gene table doesn't match '%s' from Excel file" %(g.gene_name, g.ensembl_id, ensembl_id) )
@@ -285,7 +290,7 @@ def find_or_add_gene(names, is_driver, isAchilles):  # names is a tuple of: gene
     # if gene_name == 'PIK3CA': print("PIK3CA Here B")
     if gene_name not in hgnc:
       print("WARNING: Gene '%s' NOT found in HGNC dictionary" %(gene_name) )
-      g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, entrez_id=entrez_id, ensembl_id=ensembl_id)
+      g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, entrez_id=entrez_id, ensembl_id=ensembl_id)
     else:
       this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
       if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
@@ -297,12 +302,16 @@ def find_or_add_gene(names, is_driver, isAchilles):  # names is a tuple of: gene
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   http://docs.mygene.info/en/latest/doc/query_service.html  Fields available:  http://mygene.info/v2/gene/1017     http://docs.mygene.info/en/latest/
       # or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
 #      if info_source == 'HGNC':
+      prevnames_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
+
       g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
                original_name = original_gene_name,
                is_driver  = is_driver,
+               is_target  = is_target,
                full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
                synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
                prev_names = this_hgnc[iprev_names],      # eg: NGL  # was: hgnc[name][iprevsymbol],
+               prevname_synonyms = prevname_synonyms,
                entrez_id  = this_hgnc[ientrez_id],       # eg: 2064
                ensembl_id = this_hgnc[iensembl_id],      # eg: ENSG00000141736
                cosmic_id  = this_hgnc[icosmic_id],       # eg: ERBB2
@@ -329,6 +338,7 @@ def find_or_add_gene(names, is_driver, isAchilles):  # names is a tuple of: gene
         g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
                original_name = original_gene_name,
                is_driver  = is_driver,
+               is_target  = is_target,
                full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
                synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
                prev_names = this_hgnc[iprev_names],      # eg: NGL  # was: hgnc[name][iprevsymbol],
@@ -418,8 +428,8 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
       count_skipped += 1
       continue  # Skip as the wilcox_p value isn't significant
 
-    driver_gene = find_or_add_gene(split_driver_gene_name(row[0]), is_driver=True, isAchilles=False)
-    target_gene = find_or_add_gene(split_target_gene_name(row[1]), is_driver=False, isAchilles=False)
+    driver_gene = find_or_add_gene(split_driver_gene_name(row[0]), is_driver=True, is_target=False, isAchilles=False)
+    target_gene = find_or_add_gene(split_target_gene_name(row[1]), is_driver=False, is_target=True, isAchilles=False)
     # If using Histotype table: histotype = find_or_add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
     histotype = row[3] # As using CharField(choices=...) and now is validated in the model.
     mutation_type='Both'  # Default to 'Both' for current data now.
@@ -544,7 +554,7 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     # driver_variant = names[0][-1:] # Seems we can ignore the driver variant as is trimming MYC to MY
     # if driver_variant not in ['1','2','3','4','5']: print("Unexpected driver_variant %s for %s" %(driver_variant,names[0])) 
     # names[0] = names[0][:-1]
-    driver_gene = find_or_add_gene(names, is_driver=True, isAchilles=isAchilles)
+    driver_gene = find_or_add_gene(names, is_driver=True, is_target=False, isAchilles=isAchilles)
 
     names = split_target_gene_name(row[itarget])
     target_variant = ''
@@ -552,7 +562,7 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
         target_variant = names[0][-1:]  # As target variant is single integer after target gene name in my formatted Achilles target names.
         names[0] = names[0][:-1]
     
-    target_gene = find_or_add_gene(names, is_driver=False, isAchilles=isAchilles)
+    target_gene = find_or_add_gene(names, is_driver=False, is_target=True, isAchilles=isAchilles)
         
     # If using Histotype table: histotype = find_or_add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
     if tissue_type=='PANCAN': histotype = 'PANCAN' 
@@ -742,5 +752,5 @@ if __name__ == "__main__":
     # I downlaoded: https://neellab.github.io/bfg/
     "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
     
-    add_counts_of_study_tissue_and_target_to_drivers()
+    add_counts_of_study_tissue_and_target_to_drivers() and add counts of num_drivers 
     add_counts_of_driver_tissue_and_target_to_studies()

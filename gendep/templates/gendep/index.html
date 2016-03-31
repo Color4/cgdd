@@ -47,15 +47,17 @@
 
 // Using this preloaded array gives faster response than AJAX call - but in future the driver list may grow too big to preload quickly.
 // The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
-var global_selected_driver = ''; // The currently selected driver gene name, eg. ERBB2 
+// var global_search_by = ''; 
+var global_selected_gene = ''; // The currently selected driver/target gene name, eg. ERBB2 
 var dependency_array = [];
+
+var global_url_for_dependency_search = "{% url 'gendep:get_dependencies' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
+var global_url_for_download_csv = "{% url 'gendep:download_csv' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
+var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
+var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
 
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
-
-var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
-var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
-var global_url_for_download_csv = "{% url 'gendep:download_csv' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}";
 
 
 var experimenttype_array = [
@@ -67,6 +69,12 @@ var driver_array = [
    {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
    {% endfor %}
 ];
+
+var target_array = [
+   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ target.prev_names_and_synonyms_spaced }}", full_name: "{{target.full_name}}"},
+   {% endfor %}
+]; // Only populated by AJAX if user selects sets the 'search_by' to 'target'
+
 
 var gene_info_cache = {}; // To cache gene_info retrieved by AJAX call for the tooltips, to save having to call it again
 // Ajax with default cache: true option should cache these json GET requests anyway.
@@ -369,8 +377,9 @@ $(".tip7").fancybox({
 var t0 = performance.now();
 	
         if ( ! is_form_complete() ) {return false;}
-        var driver = $("#driver").val();
-		global_selected_driver = driver; // Store the selected driver as a global variable accessible to all functions as needed for the box plot() function.
+		var search_by = $("#search_by").val();
+        var gene = $("#gene").val();
+		global_selected_gene = gene; // Store the selected driver/target as a global variable accessible to all functions as needed for the box plot() function.
         var histotype = $("#histotype").val();
         var study = $("#study").val();
         // result_start = "1";
@@ -378,7 +387,7 @@ var t0 = performance.now();
 		$("#result_div").hide();
 		$("#result_progress_div").html("<b>Fetching data from server....</b>");
 		
-		var url = "{% url 'gendep:get_dependencies' driver_name='mydriver' histotype_name='myhistotype' study_pmid='mystudy' %}".replace('mydriver',driver).replace('myhistotype',histotype).replace('mystudy',study);
+		var url = global_url_for_dependency_search.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',histotype).replace('mystudy',study);
 		
 		//alert("Get from: "+url);
 console.log("Setup: ",performance.now()-t0); t0 = performance.now();
@@ -396,17 +405,18 @@ console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
 			// Maybe need to use  json = JSON.parse(data) ? // which should Parses a string containing JSON and returns the de-serialized object.
 			// data = $.parseJSON(data); // It works without this but just to be sure. This throws an error, maybe because: "The JSON standard does not permit "control characters" such as a tab or newline. An example like $.parseJSON( '{ "testing":"1\t2\n3" }' ) will throw an error in most implementations because the JavaScript parser converts the string's tab and newline escapes into literal tab and newline; doubling the backslashes like "1\\t2\\n3" yields expected results. This problem is often seen when injecting JSON into a JavaScript file from a server-side language such as PHP."
 //console.log(data);
-//id=data['driver_ids'];
+//id=data['gene_ids'];
 //console.log(id);
 
-//test='{"query_info":{"study_details":"<b>All studies</b>","study_pmid":"ALL_STUDIES", "driver_weblinks":"<a class=\'tip\' href=\'http://www.genecards.org/cgi-bin/carddisp.pl?gene=ERBB2\' target=\'_blank\'>GeneCards<span>Genecards</span></a>"}}';
+//test='{"query_info":{"study_details":"<b>All studies</b>","study_pmid":"ALL_STUDIES", "gene_weblinks":"<a class=\'tip\' href=\'http://www.genecards.org/cgi-bin/carddisp.pl?gene=ERBB2\' target=\'_blank\'>GeneCards<span>Genecards</span></a>"}}';
 //console.log($.parseJSON(test));
 console.log("Json parsing: ",performance.now()-t0); t0 = performance.now();			
 			$("#result_progress_div").html("Data received from server. Building results table ....");
   	        $("#welcome_div").hide(); // hide the welcome text...
+console.log(data);
 			//console.log(Object.keys(data).length);
 			//console.log(sizeof(data)); // This sizeof() script slows loading.
-			show_driver_info(data);
+			show_search_info(data);
 		    t0 = populate_table(data,t0);
 console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 			$("#result_progress_div").html("Results table built.");
@@ -434,8 +444,8 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 		 // If a "complete" callback is provided, it is executed after post-processing and HTML insertion has been performed.
 		 // so load suits if data returned is HTML, but for other data 
         $("#result_div").load("{% url 'gendep:ajax_results_post' %}", 
-	        //{"driver":driver, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
-			{"driver":driver, "histotype":histotype, "study":study, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
+	        //{"search_by":search_by, "gene":gene, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
+			{"search_by":search_by, "gene":gene, "histotype":histotype, "study":study, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
             function(response, status, xhr){
                 if(status == "success") {				
 				    // alert("External content loaded successfully!");
@@ -452,9 +462,9 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
     // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
 
 
-    $("#driver").autocomplete({
+    $("#gene").autocomplete({
         // source: "/api/get_drivers/",   // to use Ajax call.
-        source: driver_array,  // using the above array.
+        source: driver_array,  // using the above array (but is reset to target_array if user selects search_by='target'.
         // It is possible to format the list items using the focus and select functions and html, etc:	
         minLength: 2,  // number of letters need to type for drop-down menu to appear.
         delay: 1,  // 1 millisecond delay.
@@ -467,7 +477,7 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 	
 	// From: http://stackoverflow.com/questions/13508166/jquery-autocomplete-enter-keypress-action-in-firefox-not-working-properly
 	// Test this:
-	$("#driver").keypress(function(e){
+	$("#gene").keypress(function(e){
         if (e.which == 13) {
             //if(!isSelected) // could set to true if using the autrocomplete 'select' event
             //{
@@ -485,7 +495,7 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 /*
 // Another method: from: http://jsfiddle.net/neerajkumarsingh/tqyn3/
 $(document).ready(function() {
-            $("#driver").click(function(event){
+            $("#gene").click(function(event){
 				
                $.getJSON('/jquery/result.json', function(jd) {
                   $('#stage').html('<p> Name: ' + jd.name + '</p>');
@@ -532,17 +542,21 @@ $.ajax({
 </style>
 {% endblock %}
 {% block content %}
-<div id="welcome_div" {% if driver %}style="display:none"{% endif %} >
+<div id="welcome_div" {% if gene %}style="display:none"{% endif %} >
 <p>Welcome to the cancer genetic dependencies database, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
 
-<p>Enter your driver search criteria below. (In the "Driver gene" search box, typing two letters of a driver gene name will display a menu of matching gene names)</p>
+<p>Enter your search criteria below. (Select search type ("Driver gene" or "Target gene") then in the driver/target search box, typing two letters of a gene name will display a menu of matching gene names)</p>
 </div>
-<table align="center" cellpadding="5" style="background-color: #ddddff; margin-top: 10px; margin-bottom: 10px; border: 1px solid blue;">
+<table align="center" id="searchbox_table">
 <tr>
 <td>Search filter:</td>
 <td>
-  <label for="driver">Driver gene:</label>
-  <input name="driver" id="driver" placeholder="Gene name (eg. ERBB2)" value="{{ driver }}"/>
+  <!-- label for="driver">Driver gene:</label-->
+  <select name="search_by" id="search_by" style = "background-color: #ddddff;">
+    <option value="driver" {% if search_by != "target" %}selected="selected"{% endif %}>Driver gene:</option>
+    <option value="target" {% if search_by == "target" %}selected="selected"{% endif %}>Target/Dependency gene:</option> <!-- If select target need to retreive target gene list, and set result table header to 'Driver' instead of 'Dependency'-->
+  </select>	
+  <input name="gene" id="gene" placeholder="Gene name (eg. ERBB2)"  value="{{ gene }}"/>   {# value= ... is when directed to this page by link from the Drivers or Targets page #}
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td>
 
@@ -577,12 +591,12 @@ $.ajax({
 <div id ="result_progress_div"></div>
 
 <div id="result_div" style="display:none;"> 
-<table align="center" cellpadding="6" style="margin: 0; padding: 0px; border: 1px solid blue;">
+<table align="center" id="info_result_table">
 <tr><td>
 
-<p><b>Driver Gene: <span id="driver_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="driver_synonyms"></span></p>
-<p><u>Gene Descripion:</u> <span id="driver_full_name"></span></p>
-<p><u>External links:</u> <span id="driver_weblinks"></span></p>
+<p><b><span id="gene_search_by"></span> gene: <span id="gene_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="gene_synonyms"></span></p>
+<p><u>Gene Descripion:</u> <span id="gene_full_name"></span></p>
+<p><u>External links:</u> <span id="gene_weblinks"></span></p>
 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
@@ -601,13 +615,13 @@ $.ajax({
 
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead><tr>
-  <th>Dependency</th>
+  <th id="dependency_col_name">Dependency</th>
   <th class="filter-select" data-placeholder="&le; 0.05">P-value</th>
   <th data-placeholder=">= 65.0">Effect size (%)</th> <!-- class="filter-select" -->
   <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>
-  <th class="filter-select filter-onlyAvail"><a class="tipleft">Interaction<span>Known functional interaction between driver and dependent gene, from string-db.org</span></a></th>
+  <th class="filter-select filter-onlyAvail"><a class="tipleft">String Interaction<span>Known functional interaction between driver and target/dependent gene, from string-db.org</span></a></th>
   <th>Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">

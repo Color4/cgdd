@@ -62,7 +62,7 @@ span.title {
 /* * {margin:0; padding:0;} */
 
 /* The main text should be not at wide as the page */
-#maintext {
+#maintext_div {
     /* margin: 5px;
 	border: 5px;
 	padding: 5px 80px 5px 80px; */
@@ -71,13 +71,13 @@ span.title {
 	background: white;
 	text-align: left;
 }
-#maintext a:link { color: blue; }  /* #70DB93; */
+#maintext a:link { color: #004279; }  /* is same colour as page header, which is same blue colour as UCD logo #70DB93; */
 #maintext a:visited { color: blue; } /* #70DB93; */
 #maintext a:hover { color: green; }
 #maintext a:active { color: blue; } /* #70DB93;  */
 
 /* For the dependency, drivers and studies tables: */
-#maintable {
+#maintable_div {	
 /*    margin: 5px;
 	border: 5px;
 	padding: 5px; */
@@ -87,10 +87,24 @@ span.title {
 	background: white;
 	text-align: left;
 }
-#maintable a:link { color: blue; }  /* #70DB93; */
-#maintable a:visited { color: blue; } /* #70DB93; */
-#maintable a:hover { color: green; }
-#maintable a:active { color: blue; } /* #70DB93;  */
+#maintable_div a:link { color: #004279; }  /* is same colour as page header, which is same blue colour as UCD logo #70DB93; */
+#maintable_div a:visited { color: #004279; } /* same at page header. was: #70DB93; */  
+#maintable_div a:hover { color: green; }
+#maintable_div a:active { color: blue; } /* #70DB93;  */
+
+#searchbox_table {
+	padding: 5px;
+	background-color: #ddddff;
+	margin-top: 10px;
+	margin-bottom: 10px;
+	border: 1px solid #004279;  /* same blue colour as page header */
+}
+  
+#info_result_table {
+	margin: 0;
+	padding: 0px; /*  cellpadding="6" */
+	border: 1px solid #004279;  /* same blue colour as page header */
+}
 
 .script {
   margin-left: 40px;

@@ -19,9 +19,14 @@ from datetime import datetime # For get_timming()
 json_mimetype = 'application/json; charset=utf-8'
 html_mimetype = 'text/html; charset=utf-8'
     
-def json_error(message, status_code='0'):
-    
+def json_error(message, status_code='0'):    
     return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), json_mimetype ) # eg: str(exception)
+
+def is_search_by_driver(search_by):
+    if   search_by == 'driver': return True
+    elif search_by == 'target': return False
+    else: print("ERROR: **** Invalid search_by: '%s' ****" %(search_by))
+
     
     
 def get_timing(start_time, name, time_array=None):
@@ -35,19 +40,25 @@ def get_timing(start_time, name, time_array=None):
     return datetime.now()
 
 
-def index(request, driver=''): # Default is search boxes, with driver dropdown populated with driver gene_names (plus an empty name).
+def index(request, search_by = 'driver', gene=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
+    
     driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+
+    target_list = []
+    if not is_search_by_driver(search_by):
+        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "is_target", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_target=True), not just: (is_target)
+
     # histotype_list = Histotype.objects.order_by('full_name')
     histotype_list = Dependency.HISTOTYPE_CHOICES
     experimenttype_list = Study.EXPERIMENTTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
     dependency_list = None # For now.
-    
-    # This page can be called from the 'drivers' page, with a driver as a POST parameter, so then should display the POST results?
-    if driver == '': # if driver not passed using the '/driver_name' parameter in urls.py
-        if   request.method == 'GET':  driver = request.GET.get('driver', '')
-        elif request.method == 'POST': driver = request.POST.get('driver', '')
-        else: driver = ''
+        
+    # This page can be called from the 'drivers' or 'targets' page, with a driver as a POST parameter, so then should display the POST results?
+    if gene == '': # if gene not passed using the '/gene_name' parameter in urls.py
+        if   request.method == 'GET':  gene = request.GET.get('gene', '')
+        elif request.method == 'POST': gene = request.POST.get('gene', '')
+        else: gene = ''
     
     # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
     # current_url = request.build_absolute_uri()
@@ -55,7 +66,7 @@ def index(request, driver=''): # Default is search boxes, with driver dropdown p
     current_url =  request.META['HTTP_HOST']
 
     # Optionally could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'driver': driver, 'driver_list': driver_list, 'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
+    context = {'search_by': search_by, 'gene': gene, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
     return render(request, 'gendep/index.html', context)
 
 
@@ -90,22 +101,26 @@ def get_drivers(request):
     return HttpResponse(data, json_mimetype)
 
 
-def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p', select_related=None):
+def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p', select_related=None):
     error_msg = ""
     
-    if driver_name == "":
-        error_msg = 'Driver name is empty, but must be specified'
+    if gene_name == "":
+        error_msg += 'Gene name is empty, but must be specified'
         return error_msg, None, None, None, None
 
     # As Query Sets are lazy, so can build query and evaluated once at end:
     q = Dependency.objects.filter(wilcox_p__lte = wilcox_p) # Only list significant hits (ie: p<=0.05)
         
-    try:
-        driver = Gene.objects.get(gene_name=driver_name)
-        # driver = None if driver_name == '' else Gene.objects.get(gene_name=driver_name)
-        q = q.filter( driver = driver )  # q = q.filter( driver__gene_name = driver )
+    try: # To not need the table join, 
+        gene = Gene.objects.get(gene_name=gene_name)
+        # gene = None if gene_name == '' else Gene.objects.get(gene_name=gene_name) 
+        if is_search_by_driver(search_by):
+            q = q.filter( driver = gene )  # q = q.filter( driver__gene_name = gene )  maybe use driver_id = gene_name
+        else:
+            q = q.filter( target = gene )  # q = q.filter( target__gene_name = gene )  maybe use target_id = gene_name
+        
     except ObjectDoesNotExist: # Not found by the objects.get()
-        error_msg = "Driver '%s' NOT found in Gene table" %(driver_name)  # if driver is None
+        error_msg = "Gene '%s' NOT found in Gene table" %(gene_name)  # if gene is None
         return error_msg, None, None, None, None
 
     if histotype_name != "ALL_HISTOTYPES":
@@ -119,19 +134,26 @@ def build_dependency_query(driver_name, histotype_name, study_pmid, wilcox_p=0.0
             study = Study.objects.get(pmid=study_pmid)
             q = q.filter( study = study )
         except ObjectDoesNotExist: # Not found by the objects.get()
-            error_msg = "Study pmid='%s' NOT found in Study table" %(study_pmid)
+            error_msg += " Study pmid='%s' NOT found in Study table" %(study_pmid)
             return error_msg, None, None, None, None
     else:
         study = "ALL_STUDIES"
 
-    if select_related != None and select_related != '':
-        for column in select_related:
-            q = q.select_related(column)
+    if select_related != None:
+        if isinstance(select_related, str) and select_related != '': 
+            q = q.select_related(select_related)
+        elif isinstance(select_related, list):
+            for column in select_related:
+                q = q.select_related(column)
+        else:
+            error_msg += " ERROR: *** Invalid type for 'select_related' ***"        
+            print(error_msg)
+
      
     if order_by != None and order_by != '':
-        q = q.order_by('wilcox_p')  # was: order_by('target__gene_name')
+        q = q.order_by(order_by)  # usually 'wilcox_p', but was: order_by('target__gene_name')
         
-    return error_msg, q, driver, histotype_full_name, study
+    return error_msg, q, gene, histotype_full_name, study
     
     
 def ajax_results_slow_full_detail_version(request):
@@ -182,10 +204,12 @@ study_last_reloaded = None
 histotype_dict = dict() # As histotypes are hardcoded in 'models.py' then won't change while server running.
 histotype_json = None
 
+
+
     
-def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name, study_pmid):
+def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histotype_name, study_pmid):
     # View for the dependency search result table.
-    # Ajax sends four fields: driver, histotype, pmid, [start(row for pagination):
+    # Ajax sends four fields: search_by, gene_name, histotype, pmid, [start(row for pagination):
     # returns json - should also return the error message as json format?
     # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
     # mimetype = 'text/html' # for error messages. was: 'application/json'
@@ -196,9 +220,13 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     start = datetime.now()
     
     ajax_results_cache_version = '1' # version of the data in the database and of this json format. Increment this on updates that change the db or this json format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
+
+    search_by_driver = is_search_by_driver(search_by) # otherwise is by target
+    if search_by_driver: print("***** search_by_driver is TRUE")
+    else: print("***** search_by_driver is FALSE")
     
     # Avoid storing a 'None' on the cache as then can't tell if if cache miss or is value of the key
-    cache_key = driver_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
+    cache_key = search_by+'_'+gene_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
     cache_data = cache.get(cache_key, 'not_found')
     if cache_data != 'not_found': 
         start = get_timing(start, 'Retrieved from cache', timing_array)
@@ -212,27 +240,26 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     #if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), json_mimetype)
 
     # if not request.is_ajax(): return HttpResponse('fail', json_mimetype)
-
-    #driver_name = request.POST.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
-    #histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
-    #study_pmid = request.POST.get('study', "ALL_STUDIES")
+    
+    # search_by = request.POST.get('search_by', "")  # It's an ajax POST request, rather than the usual ajax GET request
+    # gene_name = request.POST.get('gene', "") 
+    # histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
+    # study_pmid = request.POST.get('study', "ALL_STUDIES")
     # effect_size = request.POST.get('effect_size', "ALL_EFFECT_SIZES")
     # return json_error('Hello') # HttpResponse("Hello", json_mimetype)
     
-    error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
+    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p') # can add select related if needed, eg: for target gene synonyms.
     if error_msg != '': return json_error("Error: "+error_msg)
 
-    # gene_weblinks = driver.external_links('|') # Now in javascript
+    # gene_weblinks = gene.external_links('|') # Now in javascript
        
     current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
 
     start = get_timing(start, 'Query setup', timing_array)
-
         
     results = []
     csv = ''
     div = ';' # Using semicolon as the div, as comma may be used to separate the inhibitors
-
     
     # From server-side, a csv file format is probably more efficient as is just commas as separater, rather than repeating the keys multiple times.
     # Maybe even use raw sql for maybe faster query: https://docs.djangoproject.com/en/1.9/topics/db/sql/#passing-parameters-into-raw
@@ -260,13 +287,17 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     # Adding  only(field1, field2, ...), to this query might make a bit faster as retrieves fewer fields, so less converted to python strings/objects: https://docs.djangoproject.com/en/dev/ref/models/querysets/#only
     # dependency_list =  dependency_list.only("target_id", "wilcox_p", "effect_size", "histotype", "study_id", "interaction", "inhibitors")
     count = 0
+        
     for d in dependency_list.iterator(): # was: for d in dependency_list:
         count += 1
         """
         d_json = {}
         # Using single characters for the field keys below would reduce the size of the json to be transfered to client.
-        # eg: t=target, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
-        d_json['t'] =  d.target_id # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
+        # eg: g=gene, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
+        
+        d_json['g'] = d.target_id if search_by_driver else d.driver_id
+        
+        # was: d_json['t'] =  d.target_id # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
         # or on the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
         # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
             
@@ -287,10 +318,10 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
         """
         
         # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
-        # But cannot use target and key, as assumes that target is unique within this driver's data: (currently it isn't due to target_variant & study_pmid & table)
+        # But cannot use gene (driver/target) as key, as dict assumes that gene is unique within this driver's data: (currently it isn't unique within histotype & study_pmid)
 
         results.append([
-                    d.target_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
+                    d.target_id if search_by_driver else d.driver_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
                     format(d.wilcox_p, ".0E").replace("E-0", "E-"),  # Scientific format, remove leading zero from the exponent
                     format(d.effect_size*100, ".1f"),  # As a percentage
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
@@ -323,10 +354,11 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     histotype_details = "<b>All tissues</b>" if histotype_name == "ALL_HISTOTYPES" else ("tissue type <b>"+histotype_full_name+"</b>")
     study_details = "<b>All studies</b>" if study_pmid == "ALL_STUDIES" else ("study "+study.weblink()+" "+study.title+", "+ study.authors[:30]+" et al, "+study.journal+", "+ study.pub_date)
 
-    query_info = {'driver_name': driver_name,
-                  'driver_full_name': driver.full_name,
-                  'driver_synonyms': driver.prev_names_and_synonyms_spaced(),
-                  # 'driver_weblinks': driver.external_links('|'), # now passing the 'driver_ids' as a dictionary to format in webbrowser.
+    query_info = {'search_by': search_by,
+                  'gene_name': gene_name,
+                  'gene_full_name': gene.full_name,
+                  'gene_synonyms': gene.prev_names_and_synonyms_spaced(),
+                  # 'gene_weblinks': gene.external_links('|'), # now passing the 'gene_ids' as a dictionary to format in webbrowser.
                   'histotype_name': histotype_name,
                   'histotype_full_name': histotype_full_name, # Not read
                   'histotype_details': histotype_details,
@@ -342,7 +374,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
         'success': True,
         'timings': timing_array,
         'query_info': query_info,
-        'driver_ids': gene_ids_as_dictionary(driver),
+        'gene_ids': gene_ids_as_dictionary(gene),
         'results': results
         }, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
         # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
@@ -386,7 +418,7 @@ def ajax_results_fast_minimal_data_version(request, driver_name, histotype_name,
     
     return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
 
-    #    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
+    #    context = {'dependency_list': dependency_list, 'gene': gene, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
     
@@ -420,6 +452,11 @@ def drivers(request):
     context = {'driver_list': driver_list}
     return render(request, 'gendep/drivers.html', context)
 
+def targets(request):
+    target_list = Gene.objects.filter(is_target=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_target)
+    context = {'target_list': target_list}
+    return render(request, 'gendep/targets.html', context)
+    
 def tissues(request):
     histotype_list = Dependency.HISTOTYPE_CHOICES
     context = {'histotype_list': histotype_list}
@@ -439,12 +476,16 @@ def contact(request):
     return render(request, 'gendep/contact.html')
 
 
-column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'Known interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
-    
+
+search_by_driver_column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']                                 
+
+search_by_target_column_headings_for_download = ['Driver', 'Driver description', 'Entez_id',  'Ensembl_id', 'Driver synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
+
+
 # ===========================================    
-def download_dependencies_as_csv_file(request, driver_name, histotype_name, study_pmid, delim_type='csv'):
+def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_name, study_pmid, delim_type='csv'):
     # Creates then downloads the current dependency result table as a tab-delimited file.
-    # The download get link needs to contain driver, tissue, study parameters.
+    # The download get link needs to contain serach_by, gene, tissue, study parameters.
 
     # In Windows at least, 'csv' files are associated with Excel. To also associate tsv file with excel: In your browser, create a helper preference associating file type 'text/tab-separated values' and file extensions 'tsv' with application 'Excel'. Pressing Download will then launch Excel with the data.
     import csv, time
@@ -457,24 +498,25 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
     
     # request_method = request.method # 'POST' or 'GET'
     # if request_method != 'GET': return HttpResponse('Expected a GET request, but got a %s request' %(request_method), mimetype)
-    # driver_name = request.GET.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
+    # search_by = request.GET.get('search_by', "")  # It's an ajax POST request, rather than the usual ajax GET request
+    # gene_name = request.GET.get('gene', "")
     # histotype_name = request.GET.get('histotype', "ALL_HISTOTYPES")
     # study_pmid = request.GET.get('study', "ALL_STUDIES")
 
-    error_msg, query, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
+    search_by_driver = is_search_by_driver(search_by) # Checks is valid and returns true if search_by='driver'
+    
+    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, select_related=[search_by,'study'], order_by='wilcox_p' ) # select_related (set to 'driver' or 'target') will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
+    
     if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
 
-    dependency_list = query.order_by('wilcox_p')  # was: order_by('target__gene_name')
-
-    #gene_weblinks = driver.external_links('|')
-    
+    #gene_weblinks = gene.external_links('|')
     # was: study__pmid=request.POST.get('study')
     # [:20] use: 'target__gene_name' instead of 'target.gene_name'
     # dependency_list_count = dependency_list.count()+1
 
     timestamp = time.strftime("%d-%b-%Y") # To add time use: "%H:%M:%S")
 
-    dest_filename = ('dependency_%s_%s_%s_%s.csv' %(driver_name,histotype_name,study_pmid,timestamp)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
+    dest_filename = ('dependency_%s_%s_%s_%s_%s.csv' %(search_by,gene_name,histotype_name,study_pmid,timestamp)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
 
     # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
     # current_url = request.build_absolute_uri()
@@ -518,37 +560,49 @@ def download_dependencies_as_csv_file(request, driver_name, histotype_name, stud
       # csv.excel_tab doesn't display well
       # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
     
-    writer.writerow(column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. headings are: ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'Known interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Box plot']
+    count = dependency_list.count()
+    study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
+    writer.writerows([
+        ["","A total of %d dependencies were found for: %s='%s', Tissue='%s', Study='%s'" % (count, search_by.title(), gene_name,histotype_full_name, study_name),], # Added some dummy columns so Excel knows from first row that is CSV
+        ["","Downloaded from CGDD on %s" %(timestamp),],
+        ["",],
+        ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
 
-    count = 0  # or use: query.count()
-    for d in dependency_list:
-        count+=1
-        writer.writerow([
-            d.target.gene_name,
-            d.target.full_name,
-            d.target.entrez_id,
-            d.target.ensembl_id,
-            d.target.prev_names_and_synonyms_spaced(),
-            d.wilcox_p,    # |stringformat:".0E",  # was, d.wilcox_p_power10_format  but <sup>-4</sup> not that meaningful in excel
-  		    d.effect_size,
+    writer.writerow(search_by_driver_column_headings_for_download if search_by_driver
+               else search_by_target_column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. 
+           
+    # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:
+
+    if search_by_driver: # search_by='driver'
+      for d in dependency_list:  # Not using iteractor() as count() above will already have run query.
+         writer.writerow([
+            d.target.gene_name, # or d.target_id
+            d.target.full_name, d.target.entrez_id, d.target.ensembl_id,
+            d.target.prev_names_and_synonyms_spaced(), # <-- Merge this into one field in future
+            d.wilcox_p, d.effect_size,   # wilcox_p was stringformat:".0E",  		    
             d.get_histotype_display(),
             '', # d.inhibitors,
             'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
-            d.study.short_name,
-            d.study.pmid,
-            d.study.experiment_type,
-            # d.study.summary,
+            d.study.short_name,  d.study.pmid,  d.study.experiment_type,
             # ADD THE FULL STATIC PATH TO THE url = .... BELOW, this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
-            current_url+'/static/gendep/boxplots/'+d.boxplot_filename()   # Using the full url path so can paste into browser.
+            'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()  # The full url path so can paste into browser.
             ])
 
-    study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
-    writer.writerows([
-        ["",],
-        ["A total of %d dependicies found for: Driver='%s', Tissue='%s', Study='%s'" % (count, driver_name,histotype_full_name, study_name),],
-        ["Downloaded from CGDD on %s" %(timestamp),]
-        ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
-        
+    else: # search_by='target'
+      for d in dependency_list:  # Not using iteractor() as count() above will already have run query.
+         writer.writerow([
+            d.driver.gene_name,  # or d.driver_id
+            d.driver.full_name, d.driver.entrez_id, d.driver.ensembl_id,
+            d.driver.prev_names_and_synonyms_spaced(), # <-- Merge this into one 'prevname_synonyms' field in future
+            d.wilcox_p, d.effect_size,  		    
+            d.get_histotype_display(),
+            '', # d.inhibitors,
+            'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
+            d.study.short_name,  d.study.pmid,  d.study.experiment_type,
+            # ADD THE FULL STATIC PATH TO THE url = .... BELOW, this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
+            'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()   # Using the full url path so can paste into browser.
+            ])
+
     return response
     
 

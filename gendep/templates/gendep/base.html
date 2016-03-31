@@ -15,6 +15,7 @@
 <a href="{% url 'gendep:home' %}">Home/Search</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:about' %}">About</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:drivers' %}">Driver genes</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:targets' %}">Target genes</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:tissues' %}">Tissues</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:studies' %}">Studies</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:faq' %}">FAQ</a>
@@ -23,10 +24,10 @@
 <h1>Cancer Genetic Dependencies Database</h1>
 </div>
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-<div id="maintext">
+<div id="maintext_div">
 {% block content %}{% endblock %}
-</div id="maintable">
-<div id="maintable" style="padding: 30 0">
+</div>
+<div id="maintable_div" style="padding: 30 0">
 {% block table %}{% endblock %}
 </div>
 <div id="footer">

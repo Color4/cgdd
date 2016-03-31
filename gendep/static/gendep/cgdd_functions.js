@@ -86,21 +86,28 @@ function gene_external_links(id, div, all) {
   return links;
 }
 
-function show_driver_info(data) {
+function show_search_info(data) {
   var qi = data['query_info']; // best to test if this exists in the query
   //console.log(qi);
-  var driver = qi['driver_name'];
-  if (driver != global_selected_driver) {alert("ERROR: query returned driver("+driver+") != global_selected_driver("+global_selected_driver+")")}
-  $("#driver_name").html(driver);
-  $("#driver_synonyms").html(qi['driver_synonyms']);
-  $("#driver_full_name").html(qi['driver_full_name']);
-  // was: $("#driver_weblinks").html(qi['driver_weblinks']);
-  $("#driver_weblinks").html(gene_external_links(data['driver_ids'], '|', true));
+  var search_by = qi['search_by'];
+  $("#gene_search_by").html(search_by=='target' ? 'Target' : 'Driver');
+  var gene = qi['gene_name'];
+  alert("gene: '"+gene+"'")
+  if (gene != global_selected_gene) {alert("ERROR: query returned search by gene("+gene+") != global_selected_gene("+global_selected_gene+")")}
+  $("#gene_name").html(gene);
+  alert("gene: '"+gene+"'")
+  alert("gene html: '"+$("#gene_name").html()+"'")
+  $("#gene_synonyms").html(qi['gene_synonyms']);
+  $("#gene_full_name").html(qi['gene_full_name']);
+  // was: $("#gene_weblinks").html(qi['gene_weblinks']);
+  $("#gene_weblinks").html(gene_external_links(data['gene_ids'], '|', true));
   
-  $("#result_info").html( "For driver gene <b>" + driver + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
+  $("#result_info").html( "For "+ search_by +"gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
 
-  var download_csv_url = global_url_for_download_csv.replace('mydriver',driver).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
-  console.log("download_url: ",download_csv_url);
+  var download_csv_url = global_url_for_download_csv.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
+  
+  $("download_csv_button").html("Download as CSV file"); // reset as could have been set to "Downloading CSV file".
+  // console.log("download_url: ",download_csv_url);
   //var button_event = "window.open('" + download_url + "');"
   //console.log(button_event)
   // $("#download_csv")  .click( button_event );
@@ -112,6 +119,11 @@ function show_driver_info(data) {
    
    // eg: or put a button inside a link: <a href="file.doc"><button>Download!</button></a>
    //Link. Then it'll work fine  without JavaScript available. It also offers more of the traditional affordances users might expect from a download link, such as right-click-save-as, or drag-and-drop.
+
+   // But maybe is a Chrome problem:
+   // "The headers are correct, express sets them properly automatically, it works in other browsers as indicated, putting html 5 'download' attribute does not resolve, what did resolve it is going into the chrome advanced settings and checking the box "Ask where to save each file before downloading".
+   // After that there was no "Resource interpreted as document...." error reported as in the title of this issue so it appears that our server code is correct, it's Chrome that is incorrectly reporting that error in the console when it's set to save files to a location automatically."
+
 
    // $("#download_csv_form").attr("action", download_csv_url);
    $("#download_csv_form")
@@ -194,6 +206,7 @@ function setup_qtips() {
 });
 }
 
+	
 function populate_table(data,t0) {
   var html = '';
 	// The position of the P-value column needs to correspond with the index.htm javascript for "filter-select:"
@@ -214,13 +227,32 @@ function populate_table(data,t0) {
   */
 	//str.split(',') // or use '\t' as using comma assumes that no fields contain a comma - checked before data was added to the database.
 	// if need to parse CSV that has quoted strings containing commas, then use: https://github.com/evanplaice/jquery-csv/
+	var qi = data['query_info'];
+	var search_by = qi['search_by'];
+	
+    var driver,target, search_by_driver;
+	switch(search_by) {
+		case 'driver':
+	       $("#dependency_col_name").html('Dependency');
+		   search_by_driver = true;
+		   driver = qi['gene_name'];
+		   break;
+		case 'target':
+	       $("#dependency_col_name").html('Driver');
+		   search_by_driver = false;
+		   target = qi['gene_name'];
+		   break;
+		default: alert("Invalid search_by: "+search_by);
+	}
+
 	results = data['results']
 	//console.log(results);
 	
 	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list	  
 	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
 	  // result array indexes:
-	  var itarget=0, iwilcox_p=1, ieffect_size=2, ihistotype=3, istudy_pmid=4, iinteraction=5, iinhibitors=6, itarget_variant=7; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
+	  // igene can be either driver or target depending on 'search_by'.
+	  var igene=0, iwilcox_p=1, ieffect_size=2, ihistotype=3, istudy_pmid=4, iinteraction=5, iinhibitors=6, itarget_variant=7; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
 	  // In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
 	  var study = study_info(d[istudy_pmid]); // name,type,summary,details for 'study_pmid'
 	  // perhaps 'map ......join' might be more efficient?
@@ -228,24 +260,50 @@ function populate_table(data,t0) {
 	  // An alternative to building the html as a string, is to directly modify the table using javascript.
 	  // Pass the unformatted effect size, as the html tags could mess up as embedded inside tags.
 	  // alternatively could pass 'this', then use next() to find subsequent columns in the row, or keep the data array globally then just specify the row number as the parameter here, eg: plot(1) for row one in the array.
-	  var plot_function = "plot('" + d[itarget] +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[itarget_variant] +"');";
+      if (search_by_driver) {target = d[igene];}
+      else {driver = d[igene];}
+		
+	  var plot_function = "plot('" + driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[itarget_variant] +"');";
 
       // Another way to pouplatte table is using DocumentFragment in Javascript:
       //      https://www.w3.org/TR/DOM-Level-2-Core/core.html#ID-B63ED1A3
 	  
 	  // *** GOOD: http://desalasworks.com/article/javascript-performance-techniques/
 
-	  var interaction_cell =	(d[iinteraction] === 'Y') ? '<td style="background-color:red">Yes</td>' : '<td></td>';
-// But maybe is a Chrome problem:
-// The headers are correct, express sets them properly automatically, it works in other browsers as indicated, putting html 5 'download' attribute does not resolve, what did resolve it is going into the chrome advanced settings and checking the box "Ask where to save each file before downloading".
-// After that there was no "Resource interpreted as document...." error reported as in the title of this issue so it appears that our server code is correct, it's Chrome that is incorrectly reporting that error in the console when it's set to save files to a location automatically.
+	  var darkgreen_UCD_logo  = '#00A548';
+	  var midgreen_SBI_logo   = '#92C747';
+	  var lightgreen_SBI_logo = '#ADD17C';
 	  
+	  var val = parseFloat(d[ieffect_size]); // convert to float value
+      if      (val >= 90) {bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"'}
+	  else if (val >= 80) {bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'}
+	  else if (val >= 70) {bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'}
+	  else {bgcolor = '';}
+	  var effectsize_cell = '<td'+bgcolor+'>' + d[ieffect_size] + '</td>';
+
+	  val = parseFloat(d[iwilcox_p]); // This will be in scientific format, eg: 5E-4
+      if      (val <= 0.0001) {bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"'}
+	  else if (val <= 0.001)  {bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'}
+	  else if (val <= 0.01)   {bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'}
+	  else {bgcolor = '';}	  
+	  var wilcox_p_cell = '<td'+bgcolor+'>' + d[iwilcox_p].replace('E', ' x 10<sup>') + '</sup></td>';
+/*
+	  switch (d[iinteraction]) { // This will be in scientific format, eg: 5E-4
+        case 'Highest': bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"';  break;
+	    case 'High':    bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'    break;
+	    case 'Medium':  bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'; break;
+	    default: bgcolor = '';
+	  }
+	  var interaction_cell = '<td'+bgcolor+'>'+d[iinteraction]+'</td>';
+*/
+	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
+
 	  html += '<tr>'+
-        '<td gene="'+d[itarget]+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[itarget] + '</a></td>' + // was class="tipright" 
+        '<td gene="'+d[igene]+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
-        '<td>' + d[iwilcox_p].replace('E', ' x 10<sup>') + '</sup></td>' + 
-		'<td>' + d[ieffect_size] + '</td>' +
+         wilcox_p_cell + 
+		 effectsize_cell +
         '<td>' + histotype_display(d[ihistotype]) + '</td>' +
 		'<td study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
@@ -352,27 +410,40 @@ function format_gene_info_for_tooltip(data) {
 
 function is_form_complete() {
   // As the autocomplete form permits text that doesn't match any driver:
-  var d = document.getElementById("driver").value;
-  if (d == null || d == "") {
-    alert("Driver gene field needs a value entered");
+  var search_by = document.getElementById("search_by").value;
+  var g = document.getElementById("gene").value;
+  if (g == null || g == "") {
+    alert("Search '"+search_by+" gene name' field needs a value entered");
     return false;
     }
   
   var found = false;
-  for (var i=0; i<driver_array.length; i++) {
-    if (d == driver_array[i]['value']) {
-       found = true;
-       break;
-       }
+  if (search_by = 'driver') {
+    for (var i=0; i<driver_array.length; i++) {
+      if (g == driver_array[i]['value']) {
+        found = true;
+        break;
+      }
     }
-  if (found == false) {alert("Driver gene value: '"+d+"' doesn't match any drivers in the list. Please select a driver gene.");}
+  }
+  else if (search_by = 'target') {
+      for (var i=0; i<target_array.length; i++) {
+      if (g == target_array[i]['value']) {
+        found = true;
+        break;
+      }
+    }
+  }
+  else {alert('Invalid search_by '+search_by)}
+  
+  if (found == false) {alert("The "+search_by+" gene value: '"+g+"' doesn't match any "+search_by+" in the list. Please select a "+search_by+" gene.");}
   return found;
   }
 
 
 
 // Could possibly use $(this).parent() to set background colour for row, then store this in global variable, then in fancybox close event set row color back to normal...eg: http://stackoverflow.com/questions/4253558/how-to-get-the-html-table-particullar-cell-value-using-javascript
-function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
+function show_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
   // This is a separate function from plot(...) as this can be a called when Ajax succeeds.
 
 // eg: http://jsfiddle.net/STgGM/
@@ -380,7 +451,8 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
 // http://www.flotcharts.org/
 // and use a library for IE<9
 
-  var driver = global_selected_driver;
+  // var driver = global_selected_gene;
+  
   var boxplot_image = driver+'_'+target+target_variant+'_'+histotype+'__PMID'+study_pmid+'.png';
 
   var url_boxplot = global_url_static_boxplot_dir + driver.substring(0,1) + '/' + boxplot_image; // Images are stored in subdirectiories A, B, C,...X,Y,Z (using the first letter of the image name) which might speed up access to the files on the server.
@@ -410,7 +482,7 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
 	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
 	  var target_synonyms   = target_info['synonyms'];
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
-	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>Links: '+target_external_links;
+	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
 	  }
   plot_title += '</p>';
   
@@ -454,12 +526,12 @@ function show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, tar
 
 
 //function plot(index) { // The index number of the dependency in the array
-function plot(target, histotype, study_pmid, wilcox_p, effect_size, target_variant) { // The index number of the dependency in the array
+function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_variant) { // The index number of the dependency in the array
 //console.log(target);
   var target_info;
   if (target in gene_info_cache) {
 	target_info = gene_info_cache[target];
-	show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
+	show_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
 	}
   else {
 	// The target_info will usually have already been retreived by hoovering over the target in table, but if user clicked fast, then might not have been retreived yet.
@@ -479,7 +551,7 @@ function plot(target, histotype, study_pmid, wilcox_p, effect_size, target_varia
 		 // target_info = undefined;
          })
 	  .always(function() {
-	  	 show_fancybox(target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
+	  	 show_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
 	     });
     }
 	
