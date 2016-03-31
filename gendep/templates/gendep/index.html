@@ -49,6 +49,9 @@
 // The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
 // var global_search_by = ''; 
 var global_selected_gene = ''; // The currently selected driver/target gene name, eg. ERBB2 
+var global_selected_gene_info = ''; // The gene external ids
+
+// var global gene_info
 var dependency_array = [];
 
 var global_url_for_dependency_search = "{% url 'gendep:get_dependencies' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
@@ -542,7 +545,7 @@ $.ajax({
 </style>
 {% endblock %}
 {% block content %}
-<div id="welcome_div" {% if gene %}style="display:none"{% endif %} >
+<div id="welcome_div" {% if gene_name %}style="display:none"{% endif %} >
 <p>Welcome to the cancer genetic dependencies database, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
 
 <p>Enter your search criteria below. (Select search type ("Driver gene" or "Target gene") then in the driver/target search box, typing two letters of a gene name will display a menu of matching gene names)</p>
@@ -556,7 +559,7 @@ $.ajax({
     <option value="driver" {% if search_by != "target" %}selected="selected"{% endif %}>Driver gene:</option>
     <option value="target" {% if search_by == "target" %}selected="selected"{% endif %}>Target/Dependency gene:</option> <!-- If select target need to retreive target gene list, and set result table header to 'Driver' instead of 'Dependency'-->
   </select>	
-  <input name="gene" id="gene" placeholder="Gene name (eg. ERBB2)"  value="{{ gene }}"/>   {# value= ... is when directed to this page by link from the Drivers or Targets page #}
+  <input name="gene" id="gene" placeholder="Gene name (eg. ERBB2)"  value="{{ gene_name }}"/>   {# value= ... is when directed to this page by link from the Drivers or Targets page #}
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td>
 
@@ -604,6 +607,7 @@ $.ajax({
 <form id="download_csv_form" method="get" action="">
 <p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
 <button id="download_csv_button" type="submit">Download as CSV file</button>
+<a href="" id="string_link" target="_blank"></a>
 </p>
 </form>
 {# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}

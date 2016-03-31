@@ -36,6 +36,6 @@ urlpatterns = [
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
 
     # url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/gene_name/    
-    url(r'^(?P<search_by>driver|target)/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
+    url(r'^(?P<search_by>(?:driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
 
 ]

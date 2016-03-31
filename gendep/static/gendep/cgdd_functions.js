@@ -86,20 +86,66 @@ function gene_external_links(id, div, all) {
   return links;
 }
 
+//function string(driver,target) {
+			
+	//var driver_protein = ['ensembl_protein_id'];
+	//var target_protein = ['ensembl_protein_id'];
+	
+	//var url = "http://string-db.org/api/image/network?identifiers=" driver_protein + "%0D" + target_protein + "&required_score=400&limit=20";
+	
+// From: http://string-db.org/help/index.jsp?topic=/org.string-db.docs/api.html
+// Example: http://string-db.org/api/image/network?identifiers= 4932.YML115C  %0D  4932.YJR075W  %0D  4932.YEL036C  %20 &required_score=400 &limit=20
+
+// Format is:
+// http://[database]/[access]/[format]/[request]?[parameter]=[value]
+// database:  'string-db.org'
+// access:    'api
+// format:    'image'
+// request:   'network'
+
+// parameter: 'identifiers':  "required parameter for multiple items, e.g.DRD1_HUMAN%0DDRD2_HUMAN"  (where %0D is carraiage return, and %20 is space)
+// value:     '  
+// &required_score=400   "Threshold of significance to include a interaction, a number between 0 and 1000"
+// &limit=20             "Maximum number of nodes to return, e.g 10." (10 is default)
+
+// &species=  "Taxon identifiers (e.g. Human 9606, see: http://www.uniprot.org/taxonomy)"
+
+// From website:
+// find out which proteins match the description "ADD" in human:
+//	http://string-db.org/api/tsv/resolve?identifier=ADD&species=9606 
+//			
+//Returns bare IDs that you could pipe into other STRING API-functions: 
+//	http://string-db.org/api/tsv-no-header/resolve?identifier=YOL086C&format=only-ids			
+//			
+// To get the 20 highest scoring interactors above score 400 for a list of queries. 
+//	http://string-db.org/api/tsv-no-header/interactorsList 
+//		?identifiers=4932.YML115C%0D4932.YJR075W%0D4932.YEL036C 
+//		&required_score=400&limit=20 
+// etc...
+
+// My test:
+// http://string-db.org/api/image/network?identifiers=DRD1_HUMAN%0DDRD2_HUMAN&required_score=400&limit=20
+// http://string-db.org/api/image/network?identifiers=ENSP00000354859%0DENSP00000288309&required_score=400&limit=20
+
+
+//}
+
 function show_search_info(data) {
   var qi = data['query_info']; // best to test if this exists in the query
   //console.log(qi);
   var search_by = qi['search_by'];
   $("#gene_search_by").html(search_by=='target' ? 'Target' : 'Driver');
   var gene = qi['gene_name'];
-  alert("gene: '"+gene+"'")
+
   if (gene != global_selected_gene) {alert("ERROR: query returned search by gene("+gene+") != global_selected_gene("+global_selected_gene+")")}
   $("#gene_name").html(gene);
-  alert("gene: '"+gene+"'")
-  alert("gene html: '"+$("#gene_name").html()+"'")
   $("#gene_synonyms").html(qi['gene_synonyms']);
   $("#gene_full_name").html(qi['gene_full_name']);
   // was: $("#gene_weblinks").html(qi['gene_weblinks']);
+
+  global_selected_gene_info = data['gene_ids'];
+  if (!(gene_name in gene_info_cache)) {gene_info_cache[gene_name] = data['gene_ids'];} // Store for later.
+  
   $("#gene_weblinks").html(gene_external_links(data['gene_ids'], '|', true));
   
   $("#result_info").html( "For "+ search_by +"gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
@@ -245,6 +291,12 @@ function populate_table(data,t0) {
 		default: alert("Invalid search_by: "+search_by);
 	}
 
+	// Vraiables for links to string.org:
+    var search_gene_string_protein = '9606.'+global_selected_gene_info['ensembl_protein_id'];
+	var string_url_with_search_protein = "http://string-db.org/api/image/network?identifiers=" + search_gene_string_protein;
+	var string_url_all_interactions = string_url_with_search_protein;  // For a call for all interactions in this table. Doesn't need the above search_gene_string_protein.
+	var interaction_count = 0;
+	
 	results = data['results']
 	//console.log(results);
 	
@@ -272,7 +324,7 @@ function populate_table(data,t0) {
 
 	  var darkgreen_UCD_logo  = '#00A548';
 	  var midgreen_SBI_logo   = '#92C747';
-	  var lightgreen_SBI_logo = '#ADD17C';
+	  var lightgreen_SBI_logo = '#CDF19C'; // was actually:'#ADD17C';
 	  
 	  var val = parseFloat(d[ieffect_size]); // convert to float value
       if      (val >= 90) {bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"'}
@@ -287,17 +339,30 @@ function populate_table(data,t0) {
 	  else if (val <= 0.01)   {bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'}
 	  else {bgcolor = '';}	  
 	  var wilcox_p_cell = '<td'+bgcolor+'>' + d[iwilcox_p].replace('E', ' x 10<sup>') + '</sup></td>';
-/*
-	  switch (d[iinteraction]) { // This will be in scientific format, eg: 5E-4
-        case 'Highest': bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"';  break;
-	    case 'High':    bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'    break;
-	    case 'Medium':  bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'; break;
-	    default: bgcolor = '';
-	  }
-	  var interaction_cell = '<td'+bgcolor+'>'+d[iinteraction]+'</td>';
-*/
-	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 
+	  var interaction_cell;
+	  if (d[iinteraction] == '') {interaction_cell = '<td></td>';}
+	  else {
+		// alert("interaction='"+d[iinteraction]+"'")
+	    var interaction = d[iinteraction].split('#'); // as contains, eg: High#ENSP00000269571 (ie protein id)
+	    switch (interaction[0]) { // This will be in scientific format, eg: 5E-4
+          case 'Highest': bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"';  break;
+	      case 'High':    bgcolor=' style="background-color:'+midgreen_SBI_logo+'"';   break;
+	      case 'Medium':  bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'; break;
+	      default: bgcolor = '';
+        }
+		
+		var string_protein = '9606.'+interaction[1];
+		string_url_all_interactions += '%0D'+string_protein; // For link for all interactions in table.
+        interaction_count ++;
+		var string_url = string_url_with_search_protein + "%0D" + string_protein + "&required_score=400&limit=20";
+		  		  
+	      // var string_function = "string('" + driver + comma + target + "');";
+	      // interaction_cell = '<td'+bgcolor+'><a href="javascript:void(0);" onclick="'+string_function+'">'+interaction[0]+'</a></td>';
+		interaction_cell = '<td'+bgcolor+'><a href="'+ string_url +'" target="_blank">'+interaction[0]+'</a></td>';
+	  }
+	  
+//	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'+
         '<td gene="'+d[igene]+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
@@ -344,7 +409,9 @@ function populate_table(data,t0) {
 		*/
 	}
 
-
+	var limit = Math.max(interaction_count,100).toString();  // Limit of 100 or num interactions if greater.
+    $("#string_link").attr("href", string_url_all_interactions + '&required_score=400&limit='+limit);
+    $("#string_link").html('Interactions with '+interaction_count.toString());
 	
     //	var t1 = performance.now();
     // console.log("String Loop took " + (t1 - t0) + " milliseconds.")

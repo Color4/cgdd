@@ -40,7 +40,7 @@ def get_timing(start_time, name, time_array=None):
     return datetime.now()
 
 
-def index(request, search_by = 'driver', gene=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
+def index(request, search_by = 'driver', gene_name=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
     
     driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
 
@@ -55,10 +55,10 @@ def index(request, search_by = 'driver', gene=''): # Default is search boxes, wi
     dependency_list = None # For now.
         
     # This page can be called from the 'drivers' or 'targets' page, with a driver as a POST parameter, so then should display the POST results?
-    if gene == '': # if gene not passed using the '/gene_name' parameter in urls.py
-        if   request.method == 'GET':  gene = request.GET.get('gene', '')
-        elif request.method == 'POST': gene = request.POST.get('gene', '')
-        else: gene = ''
+    if gene_name == '': # if gene not passed using the '/gene_name' parameter in urls.py
+        if   request.method == 'GET':  gene_name = request.GET.get('gene_name', '')
+        elif request.method == 'POST': gene_name = request.POST.get('gene_name', '')
+        else: gene_name = ''
     
     # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
     # current_url = request.build_absolute_uri()
@@ -66,7 +66,7 @@ def index(request, search_by = 'driver', gene=''): # Default is search boxes, wi
     current_url =  request.META['HTTP_HOST']
 
     # Optionally could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'search_by': search_by, 'gene': gene, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
+    context = {'search_by': search_by, 'gene_name': gene_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
     return render(request, 'gendep/index.html', context)
 
 
@@ -186,12 +186,12 @@ def gene_ids_as_dictionary(gene):
     'gene_name': gene.gene_name,
     'entrez_id': gene.entrez_id,
     'ensembl_id': gene.ensembl_id,
-    # 'ensembl_protein_id': gene.ensembl_protein_id,
+    'ensembl_protein_id': gene.ensembl_protein_id,
     'vega_id': gene.vega_id,
     'omim_id': gene.omim_id,
     'hgnc_id': gene.hgnc_id,
     'cosmic_id': gene.cosmic_id,
-    'uniprot_id': gene.uniprot_id
+    'uniprot_id': gene.uniprot_id    
     }
     
     
@@ -320,13 +320,20 @@ def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histot
         # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
         # But cannot use gene (driver/target) as key, as dict assumes that gene is unique within this driver's data: (currently it isn't unique within histotype & study_pmid)
 
+        if d.interaction_hhm is None or d.interaction_hhm == '':  # should not be None, as set in table by script to ''.
+            interaction = ''
+        else:    
+            interaction = d.interaction_hhm+'#'+gene.ensembl_protein_id 
+            # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
+            # Append the protein id so can use this to link to string.org
+        
         results.append([
                     d.target_id if search_by_driver else d.driver_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
                     format(d.wilcox_p, ".0E").replace("E-0", "E-"),  # Scientific format, remove leading zero from the exponent
                     format(d.effect_size*100, ".1f"),  # As a percentage
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
                     d.study_id, # returns the underlying pmid number rather than the Study object
-                    'Y' if d.interaction else '', # will change to Medium/High/Highest. Is Null also read as False?
+                    interaction,                    
                     '',  # d.inhibitors - but empty for now.
                     d.target_variant  # Just temporary to ensure display correct achilles boxplot image.
                     ])  # optionally an id: d_json['1'] = 
@@ -477,9 +484,9 @@ def contact(request):
 
 
 
-search_by_driver_column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']                                 
+search_by_driver_column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Ensembl_protein_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']                                 
 
-search_by_target_column_headings_for_download = ['Driver', 'Driver description', 'Entez_id',  'Ensembl_id', 'Driver synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
+search_by_target_column_headings_for_download = ['Driver', 'Driver description', 'Entez_id',  'Ensembl_id', 'Ensembl_protein_id', 'Driver synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
 
 
 # ===========================================    
@@ -577,7 +584,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
       for d in dependency_list:  # Not using iteractor() as count() above will already have run query.
          writer.writerow([
             d.target.gene_name, # or d.target_id
-            d.target.full_name, d.target.entrez_id, d.target.ensembl_id,
+            d.target.full_name, d.target.entrez_id, d.target.ensembl_id, d.target.ensembl_protein_id,
             d.target.prev_names_and_synonyms_spaced(), # <-- Merge this into one field in future
             d.wilcox_p, d.effect_size,   # wilcox_p was stringformat:".0E",  		    
             d.get_histotype_display(),
@@ -592,7 +599,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
       for d in dependency_list:  # Not using iteractor() as count() above will already have run query.
          writer.writerow([
             d.driver.gene_name,  # or d.driver_id
-            d.driver.full_name, d.driver.entrez_id, d.driver.ensembl_id,
+            d.driver.full_name, d.driver.entrez_id, d.driver.ensembl_id, d.driver.ensembl_protein_id,
             d.driver.prev_names_and_synonyms_spaced(), # <-- Merge this into one 'prevname_synonyms' field in future
             d.wilcox_p, d.effect_size,  		    
             d.get_histotype_display(),

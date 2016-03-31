@@ -141,8 +141,13 @@ class Dependency(models.Model):
     mutation_type = models.CharField('Mutation type', max_length=10)  # Set this to 'Both' for now.
     wilcox_p    = models.FloatField('Wilcox P-value', db_index=True)     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9). Index on wilcox_p because this is the order_by clause for the dependency result query.
     effect_size = models.FloatField('Effect size', db_index=True) # or should this be an integer or float? If use float and is part of query then could index this field.
+    
+    
     # Change this later to a Character when next rebuild table, as can't alter table columns in SQLite
     interaction = models.NullBooleanField('Functional interaction', db_index=True, ) # True if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values
+    # Need to update the "add_ensembl_proteinids_and_stringdb.py" and "views.py" script field name too (as can't change field type in sqlite):
+    interaction_hhm = models.CharField('String interaction', max_length=10, blank=True)  # Medium, High, Highest (or 4,7,9) for 400,700,900
+    
     # interaction = models.CharField('Functional interaction', max_length=10, db_index=True, ) # For (Medium, High, Higher) if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values
     study       = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
     study_table = models.CharField('Study Table', max_length=10) # The table the data is from.

@@ -31,6 +31,29 @@ protein_interaction_input_file = "stringdb_homo_sapiens_9606.protein.links.v10.t
 
 
 
+"""
+# From: http://string-db.org/help/index.jsp?topic=/org.string-db.docs/ch04.html
+You can use the file of protein aliases available from the download page protein.aliases.v8.3.txt.gz. This file has four columns: species_ncbi_taxon_id, protein_id, alias, source. To figure out which is the string identifier for trpA in E. coli K12, you can do something like this in you terminal:
+
+ 
+          zgrep ^83333 protein.aliases.v8.3.txt.gz | grep trpB
+          
+which would return:
+
+ 
+          83333	b1261	trpB	BLAST_UniProt_GN RefSeq
+          
+from this you can get the string name by concatenating the two first column with a period (83333.b1261)
+
+# curl "http://string-db.org/api/tsv/resolve?identifier=ERBB2&species=9606" > string_id.junk
+
+9606.ENSP00000354910    9606    Homo sapiens    NRG2    neuregulin 2; Direct ligand for ERBB3 and ERBB4 ....
+9606.ENSP00000331305    9606    Homo sapiens    TOB2    .....
+...
+9606.ENSP00000269571    9606    Homo sapiens    ERBB2   v-erb-b2 erythroblastic leukemia viral ....
+....
+"""
+
 def extract_ensembl_ids(id, result):
     ensembl_gene = None
     ensembl_proteins = None
@@ -376,15 +399,15 @@ def add_interaction_scores_to_dependenct_table_in_db():
            d.interaction = False  # The rows with empty protein id will be left as null.
            count_no_interaction += 1
 # In future when change interaction to a CharField, use:           
-#          if score >=900:
-#              d.interaction = 'Highest'
-#              count_highest += 1
-#          elif score >=700:
-#              d.interaction = 'High'
-#              count_high += 1
-#          else:
-#              d.interaction = 'Medium'
-#              count_medium += 1      
+      if score >=900:
+           d.interaction_hhm = 'Highest'
+           count_highest += 1
+      elif score >=700:
+           d.interaction_hhm = 'High'
+           count_high += 1
+      elif score >=400:
+           d.interaction_hhm = 'Medium'
+           count_medium += 1      
       d.save()
 
   print("count_dependencies: %d,  count_have_both_protein_ids: %d,  count_all_in_stringdb: %d" %(count_dependencies, count_have_both_protein_ids,count_all_in_stringdb))
