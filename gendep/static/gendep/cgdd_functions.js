@@ -355,7 +355,9 @@ function show_stringdb_image() {
 	// The following works:
 	console.log("\nUsing standard javascript:");
     var list_of_proteins ='';
-    var protein_count = 0;
+	var protein_dict = {}; // Need to use a dictionary as if tissue is 'All tissues' then each protein can appear several times in dependency table (just with different tissue each time).
+	var protein_count = 0;
+	
 /*	
 	var table_tbody = document.getElementById("result_table").tBodies[0]; // only is one tbody in this table. console.log("tbodies:",table.tBodies.length);
 	for (var i = 1, row; row = table_tbody.rows[i]; i++) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
@@ -367,19 +369,25 @@ function show_stringdb_image() {
 	    // console.log(i, (cell.innerText || cell.textContent)); // although text() would be better than html
         console.log(i,row); // ensembl protein id
 		if (protein_id != '') {
-		  protein_count++;
 		  if (list_of_proteins=='') {list_of_proteins += protein_id;}
 		  else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
 		}
     }
 */	
+
+    // If
+	// 353 is the maximum number of protein id that can be send on the GET line, otherwisse stringdb server reports: 
+	// Request-URI Too Long The requested URL's length exceeds the capacity limit for this server.
+	// This url of corresponds to 8216 characters (see example in file: max_stringdb_url.txt)
     //console.log('first-child:')
+	
     $('#result_table tbody tr:visible td:first-child').each(function(index) {
         if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
 	        var protein_id = $(this).attr("epid");
-	        if (protein_id != '') {
-		        protein_count++;
+	        if ((protein_count <= global_max_stringdb_proteins_ids) && (protein_id != '') && !(protein_id in protein_dict)) {
+				protein_dict[protein_id] = true;
+				protein_count ++;
 		        if (list_of_proteins=='') {list_of_proteins += protein_id;}
 		        else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
             }
@@ -387,8 +395,8 @@ function show_stringdb_image() {
     });
 	
 	var string_url = '';
-	if (protein_count == 0) {alert("No rows that have ensembl protein ids"); return false;}
-	else if (protein_count == 1) {string_url = global_url_for_stringdb_one_network + list_of_proteins;} // + "&limit=20";
+	if (protein_dict.length == 0) {alert("No rows that have ensembl protein ids"); return false;}
+	else if (protein_dict.length == 1) {string_url = global_url_for_stringdb_one_network + list_of_proteins;} // + "&limit=20";
 	else {string_url = global_url_for_stringdb_networkList + list_of_proteins;}
 	window.open(string_url);  // should open a new tab in browser.
 	

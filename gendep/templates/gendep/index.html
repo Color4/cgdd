@@ -77,6 +77,7 @@ var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 var global_url_for_stringdb_networkList = "http://string-db.org/api/image/networkList?network_flavor=confidence&required_score=700&identifiers="; // confidence (single lines) rather than evidence (multiple coloured lines)
 
 var global_url_for_stringdb_one_network = "http://string-db.org/api/image/network?network_flavor=confidence&required_score=700&identifier="; // network and identifier
+var global_max_stringdb_proteins_ids = 350; // Max number of ensembl_protein_ids that fit into the GET query. Maybe if set species and not use the "9606." then should allow a few more. (can actually sent 353 if paste into the url)
 
 var experimenttype_array = [
    {% for experimenttype in experimenttype_list %} {value: "{{ experimenttype.0 }}" },
@@ -206,7 +207,7 @@ $(document).ready(function() {
 		filter_ignoreCase: true, // so filtering ignores case
 	})
 	.bind('filterEnd', function(e, filter){
-       $("#string_link").html("String image - " + ($('#result_table tbody tr:visible').length-1)+" rows"); // the -1 is because of the filter widget row
+       $("#string_link").html("String image - " + ($('#result_table tbody tr:visible').length-1)+" rows <font size='-2'>(max: "+global_max_stringdb_proteins_ids+")</font>"); // the -1 is because of the filter widget row
     });
 	
 
