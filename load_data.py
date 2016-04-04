@@ -670,7 +670,10 @@ if __name__ == "__main__":
   load_hgnc_dictionary()
   load_mygene_hgnc_dictionary()
   
-  study_pmid = "26947069"
+  # ============================================================================================
+  study_pmid     = "26947069"
+  study_old_pmid = "nnnnnnnn" # This is  the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
+  study_old_pmid = "26947069"
   study_code = "B" # 'B' for campBell
   study_short_name = "Campbell(2016)"
   study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
@@ -680,8 +683,6 @@ if __name__ == "__main__":
   study_experiment_type = "kinome siRNA"
   study_journal = "Cell reports"
   study_pub_date = "2016, 2 Mar"
-  study_old_pmid = "nnnnnnnn" # This is  the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
-  study_old_pmid = "26947069"
  
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
@@ -712,9 +713,10 @@ if __name__ == "__main__":
     # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
     # cannot compute exact p-value with ties
 
-    
-  # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
-    study_pmid = "25984343"
+    # ============================================================================================
+    # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
+    study_pmid     = "25984343"
+    study_old_pmid = "25984343"
     study_code = "A" # 'A' for Achilles
     study_short_name = "Cowley(2014)"
     study_title = "Parallel genome-scale loss of function screens in 216 cancer cell lines for the identification of context-specific genetic dependencies."
@@ -724,7 +726,6 @@ if __name__ == "__main__":
     study_experiment_type = "genome shRNA"
     study_journal = "Scientific Data"
     study_pub_date = "2014, 30 Sep"
-    study_old_pmid = "25984343"
     study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
 
     #Achilles_results_pancan = "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt"
@@ -747,10 +748,32 @@ if __name__ == "__main__":
 #Size of a request header field exceeds server limit.
 #Cookie
 #/n
-    Functional Genomic Landscape of Human Breast Cancer Drivers, Vulnerabilities, and Resistance
+    # ==================================================================================================
+    # Colt:  https://neellab.github.io/bfg/   https://www.ncbi.nlm.nih.gov/pubmed/26771497
+   
+    study_pmid     = "26771497"
+    study_old_pmid = "26771497"
+    study_code = "C"  # 'C' for Colt
+    study_short_name = "Marcotte(2016)"
+    study_title = "Functional Genomic Landscape of Human Breast Cancer Drivers, Vulnerabilities, and Resistance."
+    study_authors = "Marcotte R, Sayad A, Brown KR, Sanchez-Garcia F, Reimand J, Haider M, Virtanen C, Bradner JE, Bader GD, Mills GB, Pe'er D, Moffat J, Neel BG"
+    study_abstract = "Large-scale genomic studies have identified multiple somatic aberrations in breast cancer, including copy number alterations and point mutations. Still, identifying causal variants and emergent vulnerabilities that arise as a consequence of genetic alterations remain major challenges. We performed whole-genome small hairpin RNA (shRNA) \"dropout screens\" on 77 breast cancer cell lines. Using a hierarchical linear regression algorithm to score our screen results and integrate them with accompanying detailed genetic and proteomic information, we identify vulnerabilities in breast cancer, including candidate \"drivers,\" and reveal general functional genomic properties of cancer cells. Comparisons of gene essentiality with drug sensitivity data suggest potential resistance mechanisms, effects of existing anti-cancer drugs, and opportunities for combination therapy. Finally, we demonstrate the utility of this large dataset by identifying BRD4 as a potential target in luminal breast cancer and PIK3CA mutations as a resistance determinant for BET-inhibitors."
+    study_summary = "shRNA screen of on 77 breast cancer cell lines. Dropout trends for each screen in at three time points (8-9 arrays per screen, and a total of 621 arrays)"
+    study_experiment_type = "genome shRNA"
+    study_journal = "Cell"
+    study_pub_date = "2016, 14 Jan"
+    study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+
+    # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
+    table_name = ''
+    Colt_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
+    csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
+    read_colt .... colt / achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isColt=True)
+
     
-    # I downlaoded: https://neellab.github.io/bfg/
-    "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
+    # I downloaded: https://neellab.github.io/bfg/
+    # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
     
+    # ============================================================================================
     add_counts_of_study_tissue_and_target_to_drivers() and add counts of num_drivers 
     add_counts_of_driver_tissue_and_target_to_studies()

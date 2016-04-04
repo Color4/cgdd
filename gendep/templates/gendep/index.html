@@ -21,8 +21,20 @@
   <script type="text/javascript" src="{% static 'gendep/jquery/jquery.js' %}"></script>
   <script type="text/javascript" src="{% static 'gendep/jquery-ui-1.11.4.custom/jquery-ui.min.js' %}"></script>
 {% endcomment %}
-  
-  
+
+{% comment%}
+  <!-- DataTables -->  
+  <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/t/ju/jqc-1.12.0,dt-1.10.11,sc-1.4.1,se-1.1.2/datatables.min.css"/>
+  <script type="text/javascript" src="https://cdn.datatables.net/t/ju/jqc-1.12.0,dt-1.10.11,sc-1.4.1,se-1.1.2/datatables.min.js"></script>
+{% endcomment %}  
+
+{% comment %}
+  <!-- or local datatables when my computer is off internet -->
+  <link rel="stylesheet" type="text/css" href="{% static 'gendep/datatables/datatables.min.css' %}"/>
+  <script type="text/javascript" src="{% static 'gendep/datatables/datatables.min.js' %}"></script>
+{% endcomment %}
+
+
   <!-- Size of script from: http://code.stephenmorley.org/javascript/finding-the-memory-usage-of-objects/ -->
   <script type="text/javascript" src="{% static 'gendep/sizeof.js' %}"></script>
   
@@ -62,6 +74,9 @@ var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
+var global_url_for_stringdb_networkList = "http://string-db.org/api/image/networkList?network_flavor=confidence&required_score=700&identifiers="; // confidence (single lines) rather than evidence (multiple coloured lines)
+
+var global_url_for_stringdb_one_network = "http://string-db.org/api/image/network?network_flavor=confidence&required_score=700&identifier="; // network and identifier
 
 var experimenttype_array = [
    {% for experimenttype in experimenttype_list %} {value: "{{ experimenttype.0 }}" },
@@ -179,14 +194,24 @@ $(document).ready(function() {
 	                "&le; 1 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0001; }	
                 }				
 				// 5 : {.....experimenttype_array},
-            }				
+            }
+
+// Add 'Any' as option for interaction column (in addition to Medium/High/Highest and unfiltered)
+
         },  // widgetOptions maybe need to be after the widgets: [...] line.
 		sortInitialOrder: "asc", // default sort order
 		sortRestart: true, // so sort always restarts from the specified sortInitialOrder.
 		sortStable: true,
 		ignoreCase: true,  // so sorting ignores case
 		filter_ignoreCase: true, // so filtering ignores case
-	});
+	})
+	.bind('filterEnd', function(e, filter){
+       $("#string_link").html("String image - " + ($('#result_table tbody tr:visible').length-1)+" rows"); // the -1 is because of the filter widget row
+    });
+	
+
+	
+	;
 	
    // From: https://jqueryui.com/tooltip/#custom-content
 /*
@@ -555,7 +580,7 @@ $.ajax({
 <td>Search filter:</td>
 <td>
   <!-- label for="driver">Driver gene:</label-->
-  <select name="search_by" id="search_by" style = "background-color: #ddddff;">
+  <select name="search_by" id="search_by" style = "background-color: #8FD4EA;">
     <option value="driver" {% if search_by != "target" %}selected="selected"{% endif %}>Driver gene:</option>
     <option value="target" {% if search_by == "target" %}selected="selected"{% endif %}>Target/Dependency gene:</option> <!-- If select target need to retreive target gene list, and set result table header to 'Driver' instead of 'Dependency'-->
   </select>	
@@ -607,7 +632,7 @@ $.ajax({
 <form id="download_csv_form" method="get" action="">
 <p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
 <button id="download_csv_button" type="submit">Download as CSV file</button>
-<a href="" id="string_link" target="_blank"></a>
+<a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a>
 </p>
 </form>
 {# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}
@@ -625,7 +650,7 @@ $.ajax({
   <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>
-  <th class="filter-select filter-onlyAvail"><a class="tipleft">String Interaction<span>Known functional interaction between driver and target/dependent gene, from string-db.org</span></a></th>
+  <th class="filter-select filter-onlyAvail"><a class="tipleft">String Interaction<span>Known functional interaction between driver and target/dependent gene, from string-db.org</span></a></th>  <!-- Add 'Any' as option for interaction -->
   <th>Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">

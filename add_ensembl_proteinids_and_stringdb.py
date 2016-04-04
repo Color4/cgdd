@@ -11,15 +11,68 @@ django.setup()
 from gendep.models import Gene, Dependency  # Study, Drug.  Removed: Histotype
 
 
-entrez_to_stringdb_protein_ids_input_file = "entrez_gene_id.vs.string.v10.28042015.tsv"
+# Got contact at StringDB from Help page email: Peer Bork: bork@embl.de
+#  http://string-db.org/newstring_cgi/show_download_page.pl
+
+  
+  
+
+entrez_to_stringdb_protein_ids_input_file = "StringDB/entrez_gene_id.vs.string.v10.28042015.tsv"
 # Got these entrez mappings from: http://string-db.org/mapping_files/entrez_mappings/
+# ie: http://string-db.org/mapping_files/entrez_mappings/entrez_gene_id.vs.string.v10.28042015.tsv
 # Format is:
 #  #Entrez_Gene_ID STRING_Locus_ID
 #  1       9606.ENSP00000263100
 #  2       9606.ENSP00000323929
 #  etc...
 
-protein_interaction_input_file = "stringdb_homo_sapiens_9606.protein.links.v10.txt"
+protein_alias_file = "StringDB/9606.protein.aliases.v10.txt"
+# Got from bottom of page: http://string-db.org/newstring_cgi/show_download_page.pl
+# Format:
+#   ## string_protein_id ## alias ## source ##
+#   9606.ENSP00000360761     1-@ACYLGLYCEROL-3-PHOSPHATE O-ACYL [*603100]   Ensembl_MIM_GENE
+#   9606.ENSP00000380184     1-@ACYLGLYCEROL-3-PHOSPHATE O-ACYL [*608143]   Ensembl_MIM_GENE
+# But also:
+# 9606.ENSP00000320485    ARID1A  BLAST_KEGG_NAME BLAST_UniProt_DE BLAST_UniProt_GN BioMart_HUGO Ensembl_EntrezGene Ensembl_HGNC Ensembl_UniProt Ensembl_UniProt_DE Ensembl_UniProt_GN Ensembl_WikiGene
+#9606.ENSP00000320485    ARID1A protein  BLAST_UniProt_DE Ensembl_UniProt_DE
+#9606.ENSP00000320485    ARID1A variant protein  BLAST_UniProt_DE BLAST_UniProt_GN
+#9606.ENSP00000320485    ARID1A-001      Ensembl_HGNC_transcript_name Ensembl_Vega_transcript
+#9606.ENSP00000320485    ARID1A-002      Ensembl_HGNC_transcript_name Ensembl_Vega_transcript
+"""
+# From StringDB FAQ page: http://string-db.org/help/topic/org.string-db.docs/ch04.html
+This file has four columns: species_ncbi_taxon_id, protein_id, alias, source. To figure out which is the string identifier for trpA in E. coli K12, you can do something like this in you terminal:
+
+ 
+          zgrep ^83333 protein.aliases.v8.3.txt.gz | grep trpB
+          
+which would return:
+
+ 
+          83333	b1261	trpB	BLAST_UniProt_GN RefSeq
+          
+from this you can get the string name by concatenating the two first column with a period (83333.b1261)
+
+Q:	
+Is there an automatic way of to mapping proteins to STRING? I need mappings for more three thousand proteins.
+
+A:
+
+A convenient way of mapping your proteins to STRING entries is to use the STRING API. As an example, for a single protein, the alias can be retrieved by:
+
+ http://string-db.org/api/tsv/resolve?identifier=trpA\&amp;species=83333
+Alternatively, instead of making on call per protein you can try to all the identifiers for a list of protein (separated by '%0D'):
+
+ http://string-db.org/api/tsv/resolveList?identifiers=trpA%0DtrpB\&amp;species=83333
+In such cases you may have a problems with the length limit of the URL, but this can be circumvented by sending the request as a HTTP POST request. For example using cURL:
+
+ 
+          curl -d "identifiers=trpA%0DtrpC%0DtrpB%0DtrpD\&amp;species=83333" string-db.org/api/tsv/resolveList
+"""
+
+protein_interaction_input_file = "StringDB/stringdb_homo_sapiens_9606.protein.links.v10.txt"
+# Got from http://string-db.org/newstring_cgi/show_download_page.pl
+#   with filter menu set to 'Humo sapiens'
+
 # Format is one space between columns:
 # protein1 protein2 combined_score
 # 9606.ENSP00000000233 9606.ENSP00000003084 150
@@ -213,6 +266,85 @@ def lookup_symbol(id):
 # sys.exit()
 
 
+
+
+symbol_to_stringdb = dict()
+def load_stringdb_protein_alias_file_into_sqlite_db():
+  print("Loading StringDB Protain alias into dictionary ...")
+  # *** A very good Sqlite & Python: https://pymotw.com/2/sqlite3/
+  
+  # A good article on SQLite and python:  http://sebastianraschka.com/Articles/2014_sqlite_in_python_tutorial.html
+  # SQLite docs: https://www.sqlite.org/lang_createtable.html
+  # more: http://www.askingbox.com/info/sqlite-creating-an-index-on-one-or-more-columns
+  # http://zetcode.com/db/sqlitepythontutorial/
+  # https://docs.python.org/3/library/sqlite3.html
+  
+  import sqlite3
+  conn = sqlite3.connect('db_symbol_to_string_protein.sqlite3')
+  c = conn.cursor()
+  """
+  #c.execute('''CREATE TABLE alias_to_stringdb (alias text PRIMARY KEY, string_protein text, source text)''') # Create table
+  # OR:
+  c.execute('''DROP TABLE alias_to_stringdb''')
+  c.execute('''CREATE TABLE alias_to_stringdb (alias text, string_protein text, source text)''') # Create table
+  c.execute('''CREATE INDEX alias_to_stringdb_index ON alias_to_stringdb(alias)''') # This isn't a UNIQUE index, as alias names might not be unique.
+
+  rows = []
+  row_count = 0
+  total_row_count = 0  
+  with open(protein_alias_file) as f:
+    head = f.readline() # Skip header line
+    for line in f:
+      # alternatively use: line.replace('.',"\t").split("\t")  or: import re; re.split([.\t], line)
+      string_protein, alias, source = line.rstrip("\r\n").split("\t")
+      species, string_protein = string_protein.split('.') # Remove species (always is human 9606)
+ 
+      # c.execute("INSERT INTO alias_to_stringdb VALUES (?, ?, ?)", (alias, string_protein, source)) # Insert a row of data.
+      rows.append((alias, string_protein, source))
+      row_count += 1
+      total_row_count+=1
+
+      if row_count == 1000: # commit each thousand.
+        c.executemany('INSERT INTO alias_to_stringdb VALUES (?,?,?)', rows) # Insert many records at a time.
+        rows = []
+        row_count = 0
+           
+  if row_count > 0: # Add any remaining rows:
+    c.executemany('INSERT INTO alias_to_stringdb VALUES (?,?,?)', rows)
+    rows = []
+
+  conn.commit()  # Save (commit) the changes
+  """
+  # for row in c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", ('ARID1A',)):
+  #for row in c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", ('8343',)):
+  for row in c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", ('8289',)):
+     # 8289 is entrez_id for 'HIST1H2BF';
+     # 8343 is entrz_id for 'ARID1A': http://www.ncbi.nlm.nih.gov/gene/8289
+  # for row in c.execute('SELECT * FROM alias_to_stringdb WHERE alias LIKE ?', ('ARID1A%',)): # startswith
+    print(row)
+
+  conn.close()  # We can also close the connection if we are done with it.- Just be sure any changes have been committed or they will be lost.
+
+ 
+# books = Book.objects.filter(title__startswith=query)
+# or
+#__iexact=
+#__startswith=query
+#__istartswith=  # is: SELECT ... WHERE headline ILIKE 'Will%';
+
+#      if entrez in entrez_to_stringdb:
+#        print("Error: in stringdb duplicated entrez id:",entrez)
+#      else:
+#        entrez_to_stringdb[entrez] = string_protein
+#      if  entrez in stringdb_to_entrez:
+#        print("Error: duplicated string_protein:",string_protein)
+#      else:    
+#        stringdb_to_entrez[string_protein] = entrez
+
+  print("Read %d entrez to stringdb lines" %(len(entrez_to_stringdb)))
+
+  
+
 # or could use pandas and read into a dataframe, eg: 
 # from http://stackoverflow.com/questions/23057219/how-to-convert-csv-to-dictionary-using-pandas
 #  dic = pd.Series.from_csv(filename, names=cols, header=None).to_dict()
@@ -264,12 +396,15 @@ def add_ensembl_proteins_to_Gene_table_in_db():
   count_empty = 0
   count_not_found = 0
   count_found = 0
+  driver_count_not_found = 0
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
     for g in Gene.objects.all().iterator():
       #print(g.gene_name,"   ",g.entrez_id)
+      driver_text = '*DRIVER*' if g.is_driver else ''
       if g.entrez_id is None or g.entrez_id == '':
-          print("Entrez Id is empty for gene %s" %(g.gene_name))
+          print("Entrez Id is empty for %s gene %s" %(driver_text, g.gene_name))
           count_empty += 1
+          if g.is_driver: driver_count_not_found += 1
           e_genes,e_proteins,entrez = lookup_symbol(g.gene_name)
           if e_proteins is not None:
               if isinstance(e_proteins,str):
@@ -277,7 +412,7 @@ def add_ensembl_proteins_to_Gene_table_in_db():
               print(e_proteins)                    
               for p in e_proteins:
                 if p in stringdb_to_entrez:
-                    print("***** symbol '%s' protein %s found in stringdb_to_entrez with entrez id %s" %(g.gene_name,p,stringdb_to_entrez[p]))
+                    print("***** %s symbol '%s' protein %s found in stringdb_to_entrez with entrez id %s" %(driver_text,g.gene_name,p,stringdb_to_entrez[p]))
           
           # result = mg.getgene(entrez_id, fields="ensembl.gene, symbol, ensembl.gene", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
           print("")
@@ -285,8 +420,9 @@ def add_ensembl_proteins_to_Gene_table_in_db():
           # continue
           ensembl_protein_id = entrez_to_stringdb.get(g.entrez_id, None)
           if ensembl_protein_id is None:
-              print("Error: for '%s' entrez id '%s' NOT found in entrez_to_stringdb map" %(g.gene_name,g.entrez_id))
+              print("Error: for %s '%s' entrez id '%s' NOT found in entrez_to_stringdb map" %(driver_text,g.gene_name,g.entrez_id))
               count_not_found += 1
+              if g.is_driver: driver_count_not_found += 1
               e_genes,e_proteins = lookup_entrez_id(g.entrez_id)
               if e_proteins is not None:
                 if isinstance(e_proteins,str):
@@ -294,7 +430,7 @@ def add_ensembl_proteins_to_Gene_table_in_db():
                 print(e_proteins)  
                 for p in e_proteins:
                   if p in stringdb_to_entrez:
-                    print("***** %s: entrez '%s' protein %s found in stringdb_to_entrez with entrez '%s'" %(g.gene_name,g.entrez_id,p,stringdb_to_entrez[p]))
+                    print("***** %s %s: entrez '%s' protein %s found in stringdb_to_entrez with entrez '%s'" %(driver_text,g.gene_name,g.entrez_id,p,stringdb_to_entrez[p]))
               
               print("")
           else:
@@ -302,7 +438,137 @@ def add_ensembl_proteins_to_Gene_table_in_db():
               g.save()
               count_found += 1
 
-  print("Empty: %d,  Not_found: %d,  Found: %d" %(count_empty, count_not_found, count_found))
+  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d" %(count_empty, count_not_found, driver_count_not_found, count_found))
+  
+  
+# ======
+def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
+  # Scan trough the Gene table:
+  print("Adding Ensembl protein Ids to the Gene table ...")
+  import sqlite3
+  conn = sqlite3.connect('db_symbol_to_string_protein.sqlite3')
+  c = conn.cursor()
+  
+  # As the SELECT .... LIKE ... is non-case sensitive, then need to create a NOCASE index otherwise very slow:  
+  # c.execute('''CREATE INDEX nocase_alias_to_stringdb_index ON alias_to_stringdb(alias COLLATE NOCASE)''')
+    
+  count_empty = 0
+  count_not_found = 0
+  count_found = 0
+  count_protein_ids_differ = 0
+  count_multiple_protein_ids = 0
+  driver_count_not_found = 0
+  driver_count_multiple_protein_ids = 0
+  count_entrez_not_found = 0
+  
+  protein_dict = dict()
+  with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
+    for g in Gene.objects.all().iterator():
+      #print(g.gene_name,"   ",g.entrez_id)
+      driver_text = '*DRIVER*' if g.is_driver else ''
+      protein_id_from_entrez_id = ''
+      
+      if g.entrez_id is not None and g.entrez_id != '':
+        rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.entrez_id,)).fetchall()
+        # columns are: alias, string_protein, source
+        if len(rows) == 0:
+          print("\nEntrez_id %s NOT found for %s %s" %(g.entrez_id,driver_text,g.gene_name))
+          count_entrez_not_found += 1
+        elif len(rows) == 1:
+          protein_id_from_entrez_id = rows[0][1]
+        else:
+           print("For %s %s Multiple protein_id_from_entrez_id %s:" %(driver_text,g.gene_name,g.entrez_id))
+           print(rows)
+           
+      rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.gene_name,)).fetchall()
+      # columns are: alias, string_protein, source
+      
+      if len(rows) == 0:
+        print("\nAlias NOT found for %s %s" %(driver_text,g.gene_name))
+        count_not_found += 1
+        if g.is_driver: driver_count_not_found += 1
+        rows = c.execute('SELECT * FROM alias_to_stringdb WHERE alias LIKE ?', (g.gene_name+'%',)).fetchall()
+        if len(rows)>0: print("  BUT found %d LIKE it: %s" %(len(rows), rows))
+        
+      elif len(rows) == 1:
+        if protein_id_from_entrez_id!='' and protein_id_from_entrez_id!=rows[0][1]:
+          print("\nWarning: %s %s protein_id %s from entrez_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_entrez_id,rows[0][1]))
+        if g.ensembl_protein_id is None or g.ensembl_protein_id != '':
+          g.ensembl_protein_from_alias_table = True
+          g.ensembl_protein_id = rows[0][1]
+          g.save()
+          count_found += 1
+        elif rows[0][1] != g.ensembl_protein_id: # check if is same as that already added due to the entrez_id
+          print("\nWarning: %s protein_ids differ: was: %, new: %s" %(driver_text,g.ensembl_protein_id,rows[0][1]))
+          count_protein_ids_differ += 1
+        # else is same so don't need to do anything.
+        
+      else: # rows > 1
+        # see if the aliases string_proteins are all the same - could add a distinct(string_protein) on sql in postegres
+        protein_dict.clear()          # or could use a set.
+        for alias,protein,source in rows:
+          protein_dict[protein] = True
+        if len(protein_dict) == 1:
+          g.ensembl_protein_from_alias_table = True
+          g.ensembl_protein_id = protein_dict.keys()[0]
+          g.save()        
+        else:
+          print("\nFor %s %s several string_proteins: %s" %(driver_text,g.gene_name, protein_dict.keys()))
+          print(rows)
+          
+          if protein_id_from_entrez_id in protein_dict:
+            print("  but for %s %s GOOD NEWS: protein_id_from_entrez %s is one of these" %(driver_text,g.gene_name,protein_id_from_entrez_id))
+          else:
+            count_multiple_protein_ids += 1
+            if g.is_driver: driver_count_multiple_protein_ids += 1
+                
+     # 8289 is entrez_id for 'HIST1H2BF';
+     # 8343 is entrz_id for 'ARID1A': http://www.ncbi.nlm.nih.gov/gene/8289
+  # for row in c.execute('SELECT * FROM alias_to_stringdb WHERE alias LIKE ?', ('ARID1A%',)): # startswith
+
+
+
+      """  
+      if g.entrez_id is None or g.entrez_id == '':
+          print("Entrez Id is empty for %s gene %s" %(driver_text, g.gene_name))
+          count_empty += 1
+          if g.is_driver: driver_count_not_found += 1
+          e_genes,e_proteins,entrez = lookup_symbol(g.gene_name)
+          if e_proteins is not None:
+              if isinstance(e_proteins,str):
+                  e_proteins = [e_proteins,]
+              print(e_proteins)                    
+              for p in e_proteins:
+                if p in stringdb_to_entrez:
+                    print("***** %s symbol '%s' protein %s found in stringdb_to_entrez with entrez id %s" %(driver_text,g.gene_name,p,stringdb_to_entrez[p]))
+          
+          # result = mg.getgene(entrez_id, fields="ensembl.gene, symbol, ensembl.gene", email="sbridgett@gmail.com")  # use entrez gene id (string or integer) OR ensembl gene id.
+          print("")
+      else:
+          # continue
+          ensembl_protein_id = entrez_to_stringdb.get(g.entrez_id, None)
+          if ensembl_protein_id is None:
+              print("Error: for %s '%s' entrez id '%s' NOT found in entrez_to_stringdb map" %(driver_text,g.gene_name,g.entrez_id))
+              count_not_found += 1
+              if g.is_driver: driver_count_not_found += 1
+              e_genes,e_proteins = lookup_entrez_id(g.entrez_id)
+              if e_proteins is not None:
+                if isinstance(e_proteins,str):
+                  e_proteins = [e_proteins,]
+                print(e_proteins)  
+                for p in e_proteins:
+                  if p in stringdb_to_entrez:
+                    print("***** %s %s: entrez '%s' protein %s found in stringdb_to_entrez with entrez '%s'" %(driver_text,g.gene_name,g.entrez_id,p,stringdb_to_entrez[p]))
+              
+              print("")
+          else:
+              g.ensembl_protein_id = ensembl_protein_id
+              g.save()
+              count_found += 1
+      """
+
+  conn.close()  # We can also close the connection if we are done with it.- Just be sure any changes have been 
+  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_protein_ids_differ: %d,  count_multiple_protein_ids: %d, driver_count_multiple_protein_ids: %d, count_entrez_not_found: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_protein_ids_differ, count_multiple_protein_ids, driver_count_multiple_protein_ids,count_entrez_not_found))
   
 # RP4-592A1.2-001	ENST00000427762	690	No protein  
 
@@ -392,14 +658,14 @@ def add_interaction_scores_to_dependenct_table_in_db():
           if key in p1p2_dict:
               score = p1p2_dict[key]
               count_all_in_stringdb += 1
-      if score >=400:  # The p1p2_dict only contains 
+      if score >=400 or driver_protein == target_protein:  # The p1p2_dict only contains 
            d.interaction = True  # As column is currently set to NullBoolean.
            count_has_interaction += 1
       else:
            d.interaction = False  # The rows with empty protein id will be left as null.
            count_no_interaction += 1
 # In future when change interaction to a CharField, use:           
-      if score >=900:
+      if score >=900 or driver_protein == target_protein:    # self interaction marked as 'Highest' as Colm suggested: "can you mark any interaction where the driver and target are the same gene as 'Highest'? For example KRAS has a dependency upon KRAS & ERBB2 has a dependency upon ERBB2"
            d.interaction_hhm = 'Highest'
            count_highest += 1
       elif score >=700:
@@ -419,11 +685,16 @@ def add_interaction_scores_to_dependenct_table_in_db():
 
 
 if __name__ == "__main__":
-#    load_entrez_to_stringdb_dictionary()
-#    add_ensembl_proteins_to_Gene_table_in_db()
+    # load_stringdb_protein_alias_file_into_sqlite_db()
+    add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()
+    
+    # load_entrez_to_stringdb_dictionary()
+    
+    # add_ensembl_proteins_to_Gene_table_in_db()
 
-    load_stringdb_protein_interaction_file_into_dictionary()
-    add_interaction_scores_to_dependenct_table_in_db()
+    
+    # load_stringdb_protein_interaction_file_into_dictionary()
+    # add_interaction_scores_to_dependenct_table_in_db()
     print("Finished")
 
 # sys.exit()

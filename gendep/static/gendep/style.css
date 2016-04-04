@@ -94,7 +94,7 @@ span.title {
 
 #searchbox_table {
 	padding: 5px;
-	background-color: #ddddff;
+	background-color: #8FD4EA;  /* #1CADE1 #07ADE3 blues from top of SBI logo. was #0088CF but too dark blue from top third of the UCD logo. Originally #ddddff; */
 	margin-top: 10px;
 	margin-bottom: 10px;
 	border: 1px solid #004279;  /* same blue colour as page header */

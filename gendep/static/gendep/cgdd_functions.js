@@ -127,8 +127,99 @@ function gene_external_links(id, div, all) {
 // http://string-db.org/api/image/network?identifiers=DRD1_HUMAN%0DDRD2_HUMAN&required_score=400&limit=20
 // http://string-db.org/api/image/network?identifiers=ENSP00000354859%0DENSP00000288309&required_score=400&limit=20
 
+/*
+My API request:
+http://string-db.org/api/image/networkList?network_flavor=confidence&required_score=700&identifiers=
+9606.ENSP00000388648
+9606.ENSP00000283109
+9606.ENSP00000402084
+9606.ENSP00000423665
+9606.ENSP00000373574
 
+
+Interactive String db:
+
+<textarea name="multiple_input_items" id="multiple_identifiers" rows="5" cols="40" style="width:95%;height:6em;"></textarea>
+<input style="width:280px;height:1.5em;" type="text" name="species_text" id="species_text" value="auto-detect" onfocus="onFocusCheckEntry(this,'auto-detect',false);" onblur="onBlurCheckEntry(this,'auto-detect',false);" autocomplete="off">
+<form id="protein_mode_form" action="http://string-db.org/newstring_cgi/show_input_page.pl" method="post">
+<div><input name="targetmode" type="hidden" value="proteins">
+<input name="UserId" type="hidden" value="031PLk08ktVZ">
+<input name="sessionId" type="hidden" value="mO1ejnRv9HM3">
+<input name="input_query_species" type="hidden">
+<input name="identifier" type="hidden">
+<input name="sequence" type="hidden">
+<input name="input_page_type" type="hidden" value="multiple_identifiers">
+</div></form>
+
+From chrome dev tools:
+
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="flash"
+
+21
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="required_score"
+
+400
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="empty"
+
+
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="UserId"
+
+031PLk08ktVZ
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="sessionId"
+
+mO1ejnRv9HM3
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="have_user_input"
+
+2
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="multi_input"
+
+1
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="multiple_input_items"
+
+9606.ENSP00000388648
+9606.ENSP00000283109
+9606.ENSP00000402084
+9606.ENSP00000423665
+9606.ENSP00000373574
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="multiple_input_type"
+
+multi_identifier
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="advanced_menu"
+
+yes
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="limit"
+
+0
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="multiple_input_uploaded_file"; filename=""
+Content-Type: application/octet-stream
+
+
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="species_text"
+
+auto-detect
+------WebKitFormBoundary84EnaJKpl1u4qBtC
+Content-Disposition: form-data; name="input_query_species"
+
+auto_detect
+------WebKitFormBoundary84EnaJKpl1u4qBtC--
+
+http://string-db.org/newstring_cgi/show_network_section.pl?taskId=QybRp3rYXqXH&interactive=yes&advanced_menu=yes&network_flavor=evidence
 //}
+*/
+
 
 function show_search_info(data) {
   var qi = data['query_info']; // best to test if this exists in the query
@@ -148,7 +239,9 @@ function show_search_info(data) {
   
   $("#gene_weblinks").html(gene_external_links(data['gene_ids'], '|', true));
   
-  $("#result_info").html( "For "+ search_by +"gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in "+qi['study_details'] );
+  $("#result_info").html( "For "+ search_by +" gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in " + study_info(qi['study_pmid'])[3]);
+  
+  // was: qi['study_details']
 
   var download_csv_url = global_url_for_download_csv.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
   
@@ -252,7 +345,125 @@ function setup_qtips() {
 });
 }
 
+
+function show_stringdb_image() {
+// http://stackoverflow.com/questions/3065342/how-do-i-iterate-through-table-rows-and-cells-in-javascript
+// To get all the filtered cells in the table, use: 	
+
+//	can run this command in the browser console to experiment)
+		
+	// The following works:
+	console.log("\nUsing standard javascript:");
+    var list_of_proteins ='';
+    var protein_count = 0;
+/*	
+	var table_tbody = document.getElementById("result_table").tBodies[0]; // only is one tbody in this table. console.log("tbodies:",table.tBodies.length);
+	for (var i = 1, row; row = table_tbody.rows[i]; i++) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
+	console.log(i,row.style);
+	    // This 'none' doesn't work - better to check if class is 'filtered'
+        if (row.className == "filtered") {continue;}  // class="filtered" for hidden rows, style.display == 'none' doesn't work.
+	    var protein_id = row.cells[0].getAttribute("epid"); // ensembl_protein_id
+	    // innerText for IE, textContent for other browsers:
+	    // console.log(i, (cell.innerText || cell.textContent)); // although text() would be better than html
+        console.log(i,row); // ensembl protein id
+		if (protein_id != '') {
+		  protein_count++;
+		  if (list_of_proteins=='') {list_of_proteins += protein_id;}
+		  else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
+		}
+    }
+*/	
+    //console.log('first-child:')
+    $('#result_table tbody tr:visible td:first-child').each(function(index) {
+        if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
+		// continue doesn't work with each(...)
+	        var protein_id = $(this).attr("epid");
+	        if (protein_id != '') {
+		        protein_count++;
+		        if (list_of_proteins=='') {list_of_proteins += protein_id;}
+		        else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
+            }
+		}
+    });
 	
+	var string_url = '';
+	if (protein_count == 0) {alert("No rows that have ensembl protein ids"); return false;}
+	else if (protein_count == 1) {string_url = global_url_for_stringdb_one_network + list_of_proteins;} // + "&limit=20";
+	else {string_url = global_url_for_stringdb_networkList + list_of_proteins;}
+	window.open(string_url);  // should open a new tab in browser.
+	
+	return false; 
+/*
+// or jquery, but the above plane javascript is probably faster.
+	console.log("\nUsing jQuery:");
+//	 Or with jquery, something like:
+  $('#result_table tbody tr:visible').each(function(index){
+    if (index>0) {console.log(index,$(this).find('td:first').attr("epid"));} // or .text() for text content, not the full html()
+  });
+  
+*/
+  // Ajax request to retreive the ensembl protein ids from django server:
+  // get_ensembl_protein_ids()
+}
+	
+/*
+// Using jquery:
+//	$('#result_table tbody tr:visible');
+  $('#mytab1 tr').each(function(){
+    $(this).find('td').each(function(){
+        //do your stuff, you can use $(this) to get current cell
+    })
+  });
+	
+	
+	var table = document.getElementById("mytab1");
+for (var i = 0, row; row = table.rows[i]; i++) {
+   //iterate through rows
+   //rows would be accessed using the "row" variable assigned in the for loop
+   for (var j = 0, col; col = row.cells[j]; j++) {
+     //iterate through columns
+     //columns would be accessed using the "col" variable assigned in the for loop
+   }  
+}
+
+OR jQuery: 
+
+
+	$('#fixed-columns-table tbody tr').each(function(){
+    console.log($(this).cells[0])
+	}
+
+	$('#mytab1 tr').each(function(){
+    $(this).find('td').each(function(){
+        //do your stuff, you can use $(this) to get current cell
+    })
+})
+
+// Also if send the driver gene tissues as a string (one character representing each tissue), then could use string.split("") in javascript to split it into characters.
+"How are you doing today?";
+var res = str.split("");
+
+
+On Python side, could use, eg:  http://stackoverflow.com/questions/16060899/alphabet-range-python
+  eg: range(ord('a'), ord('z')+1)))
+  list(map(chr, range(97, 123)))
+  
+
+===============================
+http://stackoverflow.com/questions/28323237/tablesorter-jquery-how-to-get-values-after-filtering
+= could use the attr =  col ?
+
+ $('#mytable tbody tr td:nth-child(4)').each(function () {
+        if ($(this).attr('td')) {
+            colCount += +1;
+        } else {
+            colCount++;
+        }
+    });
+//==============================================================================	
+*/
+
+
 function populate_table(data,t0) {
   var html = '';
 	// The position of the P-value column needs to correspond with the index.htm javascript for "filter-select:"
@@ -291,10 +502,24 @@ function populate_table(data,t0) {
 		default: alert("Invalid search_by: "+search_by);
 	}
 
-	// Vraiables for links to string.org:
+	// Variables for links to string.org:
     var search_gene_string_protein = '9606.'+global_selected_gene_info['ensembl_protein_id'];
-	var string_url_with_search_protein = "http://string-db.org/api/image/network?identifiers=" + search_gene_string_protein;
-	var string_url_all_interactions = string_url_with_search_protein;  // For a call for all interactions in this table. Doesn't need the above search_gene_string_protein.
+	
+	// additional_network_nodes = 0 ?????
+	
+	// Alternative (?default) is 'evidence'.
+		
+	// API options:
+	// identifiers - required parameter for multiple items, e.g.DRD1_HUMAN%0DDRD2_HUMAN
+	// network - The network image for the query item
+    // networkList - The network image for the query items
+    // limit - Maximum number of nodes to return, e.g 10.
+    // required_score - Threshold of significance to include a interaction, a number between 0 and 1000
+    // additional_network_nodes - Number of additional nodes in network (ordered by score), e.g./ 10
+    // network_flavor - The style of edges in the network. evidence for colored multilines. confidence for singled lines where hue correspond to confidence score. (actions for stitch only)
+	
+	// var string_url_all_interactions = global_url_for_stringdb_networkList;  // For a call for all interactions in this table. Doesn't need the above search_gene_string_protein.
+	
 	var interaction_count = 0;
 	
 	results = data['results']
@@ -352,19 +577,30 @@ function populate_table(data,t0) {
 	      default: bgcolor = '';
         }
 		
-		var string_protein = '9606.'+interaction[1];
-		string_url_all_interactions += '%0D'+string_protein; // For link for all interactions in table.
-        interaction_count ++;
-		var string_url = string_url_with_search_protein + "%0D" + string_protein + "&required_score=400&limit=20";
-		  		  
+		var string_protein = '';
+		if (interaction[1] == '') {
+		  interaction_cell = '<td'+bgcolor+'>'+interaction[0]+'</td>';
+		} else {
+		  string_protein = '9606.'+interaction[1];
+		  
+		  // if (interaction_count > 0) {string_url_all_interactions += '%0D'} // The return character is the separator
+		  // string_url_all_interactions += string_protein; // The link for all interactions in table.
+          interaction_count ++;
+		  
+		  // BUT this is just the target identifier now:
+		  var string_url = global_url_for_stringdb_one_network + string_protein; // + "&limit=20";
+		  // was previously the driver and the target:
+		  // var string_url = global_url_for_stringdb_networkList + search_gene_string_protein + "%0D" + string_protein; // + "&limit=20";
+
 	      // var string_function = "string('" + driver + comma + target + "');";
 	      // interaction_cell = '<td'+bgcolor+'><a href="javascript:void(0);" onclick="'+string_function+'">'+interaction[0]+'</a></td>';
-		interaction_cell = '<td'+bgcolor+'><a href="'+ string_url +'" target="_blank">'+interaction[0]+'</a></td>';
+		  interaction_cell = '<td'+bgcolor+'><a href="'+ string_url +'" target="_blank">'+interaction[0]+'</a></td>';
+		}
 	  }
 	  
 //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'+
-        '<td gene="'+d[igene]+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
+        '<td gene="'+d[igene]+'" epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
          wilcox_p_cell + 
@@ -409,9 +645,9 @@ function populate_table(data,t0) {
 		*/
 	}
 
-	var limit = Math.max(interaction_count,100).toString();  // Limit of 100 or num interactions if greater.
-    $("#string_link").attr("href", string_url_all_interactions + '&required_score=400&limit='+limit);
-    $("#string_link").html('Interactions with '+interaction_count.toString());
+	// var limit = Math.max(interaction_count,100).toString();  // Limit of 100 or num interactions if greater.
+    // $("#string_link").attr("href", string_url_all_interactions);  //  + '&limit='+limit // now done by a function for all visible rows.
+    // $("#string_link").html('Interactions with '+interaction_count.toString());
 	
     //	var t1 = performance.now();
     // console.log("String Loop took " + (t1 - t0) + " milliseconds.")

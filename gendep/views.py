@@ -316,14 +316,37 @@ def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histot
         
         results.append(d_json)
         """
-        
+
+        """
+Test stringdb:
+CHECK1
+RIOK2
+WEE1
+CDK18
+TTK
+PLK1
+PRKCD
+AURKA
+GUCY2F
+DCK
+TWF1
+BUB1
+XRCC6BP1
+CDKN2C
+CDK11A
+        """
         # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
         # But cannot use gene (driver/target) as key, as dict assumes that gene is unique within this driver's data: (currently it isn't unique within histotype & study_pmid)
 
         if d.interaction_hhm is None or d.interaction_hhm == '':  # should not be None, as set in table by script to ''.
-            interaction = ''
-        else:    
-            interaction = d.interaction_hhm+'#'+gene.ensembl_protein_id 
+            #interaction = ''
+            if d.target.ensembl_protein_id is None:
+                interaction = '#'
+            else:
+                interaction = '#'+d.target.ensembl_protein_id # Sending interaction protein always.
+        
+        else:        
+            interaction = d.interaction_hhm+'#'+d.target.ensembl_protein_id  # The ensembl_protein_id might be empty.
             # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
             # Append the protein id so can use this to link to string.org
         
