@@ -493,13 +493,13 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
       elif len(rows) == 1:
         if protein_id_from_entrez_id!='' and protein_id_from_entrez_id!=rows[0][1]:
           print("\nWarning: %s %s protein_id %s from entrez_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_entrez_id,rows[0][1]))
-        if g.ensembl_protein_id is None or g.ensembl_protein_id != '':
+        if g.ensembl_protein_id is None or g.ensembl_protein_id == '':
           g.ensembl_protein_from_alias_table = True
           g.ensembl_protein_id = rows[0][1]
           g.save()
           count_found += 1
         elif rows[0][1] != g.ensembl_protein_id: # check if is same as that already added due to the entrez_id
-          print("\nWarning: %s protein_ids differ: was: %, new: %s" %(driver_text,g.ensembl_protein_id,rows[0][1]))
+          print("\nWarning: %s protein_ids differ: was: %s new: %s" %(driver_text,g.ensembl_protein_id,rows[0][1]))
           count_protein_ids_differ += 1
         # else is same so don't need to do anything.
         
@@ -658,34 +658,50 @@ def add_interaction_scores_to_dependenct_table_in_db():
           if key in p1p2_dict:
               score = p1p2_dict[key]
               count_all_in_stringdb += 1
-      if score >=400 or driver_protein == target_protein:  # The p1p2_dict only contains 
-           d.interaction = True  # As column is currently set to NullBoolean.
-           count_has_interaction += 1
-      else:
-           d.interaction = False  # The rows with empty protein id will be left as null.
-           count_no_interaction += 1
+              
+#      if score >=400 or driver_protein == target_protein:  # The p1p2_dict only contains 
+#           d.interaction = True  # As column is currently set to NullBoolean.
+#           count_has_interaction += 1
+#      else:
+#           d.interaction = False  # The rows with empty protein id will be left as null.
+#           count_no_interaction += 1
+
 # In future when change interaction to a CharField, use:           
       if score >=900 or driver_protein == target_protein:    # self interaction marked as 'Highest' as Colm suggested: "can you mark any interaction where the driver and target are the same gene as 'Highest'? For example KRAS has a dependency upon KRAS & ERBB2 has a dependency upon ERBB2"
-           d.interaction_hhm = 'Highest'
+           d.interaction = 'Highest' # was: 'd.interaction_hhm'
            count_highest += 1
       elif score >=700:
-           d.interaction_hhm = 'High'
+           d.interaction = 'High'
            count_high += 1
       elif score >=400:
-           d.interaction_hhm = 'Medium'
-           count_medium += 1      
+           d.interaction = 'Medium'
+           count_medium += 1
+      else:
+           count_no_interaction += 1
       d.save()
 
+  count_has_interaction = count_medium + count_high + count_highest
+  
   print("count_dependencies: %d,  count_have_both_protein_ids: %d,  count_all_in_stringdb: %d" %(count_dependencies, count_have_both_protein_ids,count_all_in_stringdb))
   print("count_has_interaction: %d, count_no_interaction: %d" %(count_has_interaction, count_no_interaction))
   print("count_medium: %d,  count_high: %d,  count_highest: %d" %(count_medium, count_high, count_highest))
 # Found: count_medium: 681,  count_high: 234,  count_highest: 381
 
 
+#### The following is already done in load_data.py
+#def merge_prevnames_and_synonyms():
+  #with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
+#    for g in Gene.objects.all():  # .iterator()
+#      g.prevnames_synonyms = g.prev_names + ('' if g.prev_names == '' or g.synonyms == '' else '|') + g.synonyms
+#      #print(g.prevnames_synonyms)
+#      g.save()
 
-
+      
 if __name__ == "__main__":
     # load_stringdb_protein_alias_file_into_sqlite_db()
+    
+    #### merge_prevnames_and_synonyms()
+    
     add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()
     
     # load_entrez_to_stringdb_dictionary()
@@ -694,7 +710,7 @@ if __name__ == "__main__":
 
     
     # load_stringdb_protein_interaction_file_into_dictionary()
-    # add_interaction_scores_to_dependenct_table_in_db()
+    add_interaction_scores_to_dependenct_table_in_db()
     print("Finished")
 
 # sys.exit()

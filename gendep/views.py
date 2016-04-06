@@ -337,8 +337,8 @@ CDK11A
         """
         # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
         # But cannot use gene (driver/target) as key, as dict assumes that gene is unique within this driver's data: (currently it isn't unique within histotype & study_pmid)
-
-        if d.interaction_hhm is None or d.interaction_hhm == '':  # should not be None, as set in table by script to ''.
+# was 'interaction_hhm'
+        if d.interaction is None or d.interaction == '':  # should not be None, as set in table by script to ''.
             #interaction = ''
             if d.target.ensembl_protein_id is None:
                 interaction = '#'
@@ -346,7 +346,7 @@ CDK11A
                 interaction = '#'+d.target.ensembl_protein_id # Sending interaction protein always.
         
         else:        
-            interaction = d.interaction_hhm+'#'+d.target.ensembl_protein_id  # The ensembl_protein_id might be empty.
+            interaction = d.interaction+'#'+d.target.ensembl_protein_id  # The ensembl_protein_id might be empty.
             # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
             # Append the protein id so can use this to link to string.org
         

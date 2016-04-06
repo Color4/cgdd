@@ -346,19 +346,19 @@ function setup_qtips() {
 }
 
 
-function show_stringdb_image() {
-// http://stackoverflow.com/questions/3065342/how-do-i-iterate-through-table-rows-and-cells-in-javascript
-// To get all the filtered cells in the table, use: 	
-
-//	can run this command in the browser console to experiment)
-		
+function get_protein_id_list_for_depenedencies() {
+	
+	// could add a parameter in future: max_number_to_get
+	
 	// The following works:
-	console.log("\nUsing standard javascript:");
+	//console.log("\nUsing standard javascript:");
     var list_of_proteins ='';
 	var protein_dict = {}; // Need to use a dictionary as if tissue is 'All tissues' then each protein can appear several times in dependency table (just with different tissue each time).
 	var protein_count = 0;
-	
-/*	
+
+// http://stackoverflow.com/questions/3065342/how-do-i-iterate-through-table-rows-and-cells-in-javascript
+// To get all the filtered cells in the table, use: 	
+	/*	
 	var table_tbody = document.getElementById("result_table").tBodies[0]; // only is one tbody in this table. console.log("tbodies:",table.tBodies.length);
 	for (var i = 1, row; row = table_tbody.rows[i]; i++) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 	console.log(i,row.style);
@@ -385,7 +385,8 @@ function show_stringdb_image() {
         if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
 	        var protein_id = $(this).attr("epid");
-	        if ((protein_count <= global_max_stringdb_proteins_ids) && (protein_id != '') && !(protein_id in protein_dict)) {
+		    if (protein_count > global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
+		    if ((protein_id != '') && !(protein_id in protein_dict)) {
 				protein_dict[protein_id] = true;
 				protein_count ++;
 		        if (list_of_proteins=='') {list_of_proteins += protein_id;}
@@ -394,13 +395,9 @@ function show_stringdb_image() {
 		}
     });
 	
-	var string_url = '';
-	if (protein_dict.length == 0) {alert("No rows that have ensembl protein ids"); return false;}
-	else if (protein_dict.length == 1) {string_url = global_url_for_stringdb_one_network + list_of_proteins;} // + "&limit=20";
-	else {string_url = global_url_for_stringdb_networkList + list_of_proteins;}
-	window.open(string_url);  // should open a new tab in browser.
-	
-	return false; 
+	return (protein_count,list_of_proteins)
+}
+//	return false; 
 /*
 // or jquery, but the above plane javascript is probably faster.
 	console.log("\nUsing jQuery:");
@@ -412,7 +409,6 @@ function show_stringdb_image() {
 */
   // Ajax request to retreive the ensembl protein ids from django server:
   // get_ensembl_protein_ids()
-}
 	
 /*
 // Using jquery:
@@ -467,9 +463,34 @@ http://stackoverflow.com/questions/28323237/tablesorter-jquery-how-to-get-values
         } else {
             colCount++;
         }
-    });
-//==============================================================================	
+ }
 */
+
+function show_stringdb_interactive() {
+	var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
+	if (protein_list[0] == 0) {alert("No rows that have ensembl protein ids"); return false;}
+	var string_url = '';
+	if (protein_list[0] == 1) {string_url = global_url_for_stringdb_interactive_one_network + protein_list[0];} // + "&limit=20";
+	else {string_url = global_url_for_stringdb_interactive_networkList + protein_list;}
+	window.open(string_url);  // should open a new tab in browser.
+	return false; // or maybe return true?
+//	can run this command in the browser console to experiment)		
+}
+
+function show_stringdb_image() {
+    // An alternativbe to string-db is to use the stringdb links to build own cyctoscape display: http://thebiogrid.org/113894/summary/homo-sapiens/arid1a.html
+	var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
+	if (protein_list[0] == 0) {alert("No rows that have ensembl protein ids"); return false;}
+	var string_url = '';
+	if (protein_list[0] == 1) {string_url = global_url_for_stringdb_one_network + protein_list[0];} // + "&limit=20";
+	else {string_url = global_url_for_stringdb_networkList + protein_list;}
+	window.open(string_url);  // should open a new tab in browser.
+	return false; // or maybe return true?
+//	can run this command in the browser console to experiment)	
+}
+//==============================================================================	
+
+
 
 
 function populate_table(data,t0) {

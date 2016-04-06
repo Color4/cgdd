@@ -52,10 +52,8 @@
 <script type="text/javascript">
 
 
-// Optimising the javascript, good artticle: https://www.smashingmagazine.com/2012/11/writing-fast-memory-efficient-javascript/
+// Optimising the javascript, good article: https://www.smashingmagazine.com/2012/11/writing-fast-memory-efficient-javascript/
 // eg start chrome with: -user-data-dir <empty_directory>
-
- 
 
 // Using this preloaded array gives faster response than AJAX call - but in future the driver list may grow too big to preload quickly.
 // The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
@@ -74,10 +72,30 @@ var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
-var global_url_for_stringdb_networkList = "http://string-db.org/api/image/networkList?network_flavor=confidence&required_score=700&identifiers="; // confidence (single lines) rather than evidence (multiple coloured lines)
+var stringdb_options="network_flavor=confidence&limit=0&required_score=400&advanced_menu=yes";  // &additional_network_nodes=0
+// The online stringdb uses:
+// "required_score" 400
+// "advanced_menu" yes
+// "limit" 0
 
-var global_url_for_stringdb_one_network = "http://string-db.org/api/image/network?network_flavor=confidence&required_score=700&identifier="; // network and identifier
+// Also added: "&additional_network_nodes=0"  :	 Number of additional nodes in network (ordered by score), e.g./ 10
+var global_url_for_stringdb_networkList = "http://string-db.org/api/image/networkList?"+stringdb_options+"&identifiers="; // confidence (single lines) rather than evidence (multiple coloured lines)
+
+var global_url_for_stringdb_one_network = "http://string-db.org/api/image/network?"+stringdb_options+"&identifier="; // network and identifier
+
 var global_max_stringdb_proteins_ids = 350; // Max number of ensembl_protein_ids that fit into the GET query. Maybe if set species and not use the "9606." then should allow a few more. (can actually sent 353 if paste into the url)
+
+// From Lars for the interactive:
+var global_url_for_stringdb_interactive_networkList = 
+"http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options+"&identifiers=";
+
+var global_url_for_stringdb_interactive_one_network = 
+"http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options+"&identifier=";
+
+
+
+// eg: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&required_score=700&identifiers=9606.ENSP00000388648%0D9606.ENSP00000283109%0D9606.ENSP00000402084%0D9606.ENSP00000423665%0D9606.ENSP00000373574
+
 
 var experimenttype_array = [
    {% for experimenttype in experimenttype_list %} {value: "{{ experimenttype.0 }}" },
@@ -85,7 +103,7 @@ var experimenttype_array = [
 ];
   
 var driver_array = [
-   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}"},
+   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" },
    {% endfor %}
 ];
 
@@ -108,8 +126,9 @@ var gene_info_cache = {}; // To cache gene_info retrieved by AJAX call for the t
 function study_info(pmid) {
   switch (pmid) {
    {% for s in study_list %}
-   case "{{s.pmid}}": return([ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ]); // break;
+   case "{{s.pmid}}": return([ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ]); // 'break;' not needed as return
    {% endfor %}
+   case "ALL_STUDIES": return([ "All studies", "All studies", "All studies", "<b>All studies</b>" ]);
    default: return([ "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found" ]);
   }
 }  
@@ -120,7 +139,8 @@ function histotype_display(histotype) {
 	{% for histotype in histotype_list %}
     case "{{ histotype.0 }}": return "{{ histotype.1 }}";// break;
 	{% endfor %}
-   default: return('Error: Histotype Not Found');
+    case "ALL_HISTOTYPES": return "All tissues";// break;
+    default: return('Error: Histotype "'+histotype+'" Not Found');
   }
 }
 
@@ -207,7 +227,8 @@ $(document).ready(function() {
 		filter_ignoreCase: true, // so filtering ignores case
 	})
 	.bind('filterEnd', function(e, filter){
-       $("#string_link").html("String image - " + ($('#result_table tbody tr:visible').length-1)+" rows <font size='-2'>(max: "+global_max_stringdb_proteins_ids+")</font>"); // the -1 is because of the filter widget row
+	   var num_rows = ($('#result_table tbody tr:visible').length-1).toString();
+       $("#string_link").html("for "+num_rows+" rows <font size='-2'>(max: "+global_max_stringdb_proteins_ids+")</font>"); // the -1 is because of the filter widget row
     });
 	
 
@@ -442,7 +463,7 @@ console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
 console.log("Json parsing: ",performance.now()-t0); t0 = performance.now();			
 			$("#result_progress_div").html("Data received from server. Building results table ....");
   	        $("#welcome_div").hide(); // hide the welcome text...
-console.log(data);
+//console.log(data);
 			//console.log(Object.keys(data).length);
 			//console.log(sizeof(data)); // This sizeof() script slows loading.
 			show_search_info(data);
@@ -504,6 +525,29 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
             .appendTo( ul );
     };
 	
+	$("#gene").on("autocompletechange", function( event, ui ) {
+	
+        var tissue_list = ui['item']['tissue_list'];  // 'ui' is the row object from the driver_array.        
+		var available = tissue_list=='' ? [] : tissue_list.split(';');
+		var selected = ('PANCAN' in available) ? ' selected="selected"' : '';
+		var options_html = '<option value="ALL_HISTOTYPES">'+histotype_display('ALL_HISTOTYPES')+'</option>';
+		for (var i=0; i<available.length; i++) {
+		   var selected = available[i]=='PANCAN' ? ' selected="selected"' : '';
+  	       options_html += '<option value="'+available[i]+'"'+selected+'>'+histotype_display(available[i])+'</option>';
+		}
+        $("#histotype").empty().append(options_html);
+
+        var study_list = ui['item']['study_list'];  // 'ui' is the row object from the driver_array.        
+		var available = study_list=='' ? [] : study_list.split(';');
+		//console.log(available);
+		var options_html = '<option value="ALL_STUDIES">'+study_info('ALL_STUDIES')[0]+'</option>';
+		for (var i=0; i<available.length; i++) {
+  	       options_html += '<option value="'+available[i]+'">'+study_info(available[i])[0]+'</option>';
+		}
+        $("#study").empty().append(options_html);
+		//console.log(options_html);		
+	});
+	
 	// From: http://stackoverflow.com/questions/13508166/jquery-autocomplete-enter-keypress-action-in-firefox-not-working-properly
 	// Test this:
 	$("#gene").keypress(function(e){
@@ -516,6 +560,10 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
             return false;
         }
     });
+	
+
+
+	
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
 
@@ -633,7 +681,11 @@ $.ajax({
 <form id="download_csv_form" method="get" action="">
 <p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
 <button id="download_csv_button" type="submit">Download as CSV file</button>
-<a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a>
+<!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->
+&nbsp String-DB:
+<input type="button" id="string_image" value="Image" onclick="show_stringdb_image();" />
+<input type="button" id="string_interactive" value="Interactive" onclick="show_stringdb_interactive();" />
+<span id="string_link"></span>
 </p>
 </form>
 {# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}

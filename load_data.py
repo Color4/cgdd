@@ -38,8 +38,8 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 
 
  
-FETCH_BOXPLOTS = True # Should also test that is running on development computer.
-ACHILLES_FETCH_BOXPLOTS = True # Should also test that is running on development computer.
+FETCH_BOXPLOTS = False # True # Should also test that is running on development computer.
+ACHILLES_FETCH_BOXPLOTS = False # True # Should also test that is running on development computer.
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
@@ -211,8 +211,8 @@ def load_mygene_hgnc_dictionary():
   # Format for file:
   # sol.name        mg_symbol       entrez  mg_entrez  mg_hgnc  hgnc_ensembl     mg_ensembl       name_used_for_R
   # A2ML1_1_01110   A2ML1           144568  144568     23336    ENSG00000166535  ENSG00000166535  A2ML11_ENSG00000166535
-  row = next(dataReader) # To read the first heading line.
 
+  row = next(dataReader) # To read the first heading line.
   # if dataReader.line_num == 1: # The header line.
   cols = dict() # The column name to number for the above HGNC dict. 
   for i in range(len(row)): cols[row[i]] = i       # Store column numbers for each header item
@@ -224,7 +224,7 @@ def load_mygene_hgnc_dictionary():
   ihgnc_ensembl_id = cols['hgnc_ensembl']
   img_ensembl_id = cols['mg_ensembl']
   iname_used_for_R = cols['name_used_for_R']
-  for row in dataReader:      
+  # for row in dataReader:      
     #else:
       # Need to fix this for row:
       # Loading ATARmap mygne dictionary from file: Achilles_data\Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt
@@ -235,8 +235,7 @@ def load_mygene_hgnc_dictionary():
       #  print("*** Warning: Duplicate name_used_for_R %s in file: " %(key),row)
       #ATARmap[key] = row
 
-      
-  
+
 RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
 
 def find_or_add_gene(names, is_driver, is_target, isAchilles):  # names is a tuple of: gene_name, entrez_id, ensembl_id
@@ -302,7 +301,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles):  # names is a tup
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   http://docs.mygene.info/en/latest/doc/query_service.html  Fields available:  http://mygene.info/v2/gene/1017     http://docs.mygene.info/en/latest/
       # or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
 #      if info_source == 'HGNC':
-      prevnames_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
+      prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
 
       g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
                original_name = original_gene_name,
@@ -474,9 +473,9 @@ def add_counts_of_study_tissue_and_target_to_drivers():
       elif not g.is_driver: 
         print("*** ERROR: count gene isn't marked as a driver '%s'" %(g.gene_name))
       else:
-        g.num_studies = row['num_studies']
-        g.num_histotypes = row['num_histotypes']
-        g.num_targets = row['num_targets']
+        g.driver_num_studies = row['num_studies']
+        g.driver_num_histotypes = row['num_histotypes']
+        g.driver_num_targets = row['num_targets']
         g.save()
     except ObjectDoesNotExist: # Not found by the objects.get()
       print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(row['driver']))
@@ -661,12 +660,81 @@ marker  target  nA      nB      sensitive.threshold     med.grpA        med.grpB
 MYC_4609_ENSG00000136997        A2ML11_ENSG00000166535  5       7       -1.82415217849227       0.804801172130142       -0.0271821540880284     0.83198332621817        0       0       0       0       -1.3856690863059        -0.431582700695377      0.465170523984072       0.936225670531354       0.946969696969697       NA      BREAST
 ....
 """
-    
-if __name__ == "__main__":
+   
 
-  add_counts_of_driver_tissue_and_target_to_studies()
-  sys.exit()
-    
+def add_tissue_and_study_lists_for_each_driver():
+    print("Adding tissue list to each driver")
+    # For setting the tissue menu after user selects gene of interest:
+    # for 
+    # http://joelsaupe.com/programming/order-distinct-values-django/
+    # Doesn't work: q = Dependency.objects.only('driver_id','histotype').annotate().order_by('driver_id')
+    # print(q.query)
+   
+    q = Dependency.objects.order_by('driver_id').values('driver_id','histotype').distinct() # putting order_by() after distinct() might not work correctly.
+    # print(q.query)
+    driver_tissues = dict()
+    for d in q:
+        # print(d)
+        driver = d['driver_id']
+        if driver in driver_tissues:
+            driver_tissues[driver] += ';'+d['histotype']
+        else:
+            driver_tissues[driver] = d['histotype']
+            
+    with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()    
+      for driver in driver_tissues:
+        # try:
+        g = Gene.objects.get(gene_name=driver)        
+        g.driver_histotype_list = driver_tissues[driver]
+        num_in_list = g.driver_histotype_list.count(';')+1
+        if g.driver_num_histotypes != num_in_list:   # BUT 'g.num_histotypes' could drefer to targets not drivers.
+            print("Count mismatch: g.num_histotypes(%d) != num_in_list(%d)" %(g.driver_num_histotypes,num_in_list))
+        g.save()
+        print(g.gene_name,g.driver_histotype_list);
+        # except ObjectDoesNotExist: # Not found by the objects.get()
+
+    q = Dependency.objects.order_by('driver_id').values('driver_id','study_id').distinct() # putting order_by() after distinct() might not work correctly.
+    #print(q.query)
+    driver_studies = dict()
+    for d in q:
+        # print(d)
+        driver = d['driver_id']
+        if driver in driver_studies:
+            driver_studies[driver] += ';'+d['study_id']
+        else:
+            driver_studies[driver] = d['study_id']
+            
+    with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()        
+      for driver in driver_studies:
+        # try:
+        g = Gene.objects.get(gene_name=driver)
+        g.driver_study_list = driver_studies[driver]
+        num_in_list = g.driver_study_list.count(';')+1
+        if g.driver_num_studies != num_in_list:   # BUT 'g.num_studies' could drefer to targets not drivers.
+            print("Count mismatch: g.num_studies(%d) != num_in_list(%d)" %(g.driver_num_studies,num_in_list))
+        g.save()
+        print(g.gene_name,g.driver_study_list);        
+        # except ObjectDoesNotExist: # Not found by the objects.get()
+        
+    print("Finished adding tissue and study lists to drivers")
+   
+   # Dependency.objects.order_by('driver_id').values('driver_id','histotype').distinct() # putting order_by() after distinct() won't work correctly.
+   # q = ProductOrder.objects.values('Category').distinct()
+   
+   #ProductOrder.objects.order_by('category').values_list('category', flat=True).distinct()
+   
+# print q.query # See for yourself.
+
+   
+   
+if __name__ == "__main__":
+ add_tissue_and_study_lists_for_each_driver()
+
+  #add_counts_of_driver_tissue_and_target_to_studies()
+  #sys.exit()
+  #exit()
+
+if __name__ == "__sjb_ignore_these__":  
   load_hgnc_dictionary()
   load_mygene_hgnc_dictionary()
   
@@ -768,12 +836,15 @@ if __name__ == "__main__":
     table_name = ''
     Colt_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
-    read_colt .... colt / achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isColt=True)
+    ####read_colt .... colt / achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isColt=True)
 
     
     # I downloaded: https://neellab.github.io/bfg/
     # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
     
     # ============================================================================================
-    add_counts_of_study_tissue_and_target_to_drivers() and add counts of num_drivers 
+    add_counts_of_study_tissue_and_target_to_drivers()
+    #### ***** and add counts of num_drivers 
     add_counts_of_driver_tissue_and_target_to_studies()
+    
+    add_tissue_and_study_lists_for_each_driver()
