@@ -52,13 +52,20 @@ class Gene(models.Model):
         return self.gene_name
     def prev_names_and_synonyms_spaced(self):
         # To dispay in the template for the driver search box, as cant use functions that have arguments in the template (unless use extra custom template tgs)
-        prev_names_and_synonyms = self.prev_names + ('' if self.prev_names == '' or self.synonyms == '' else '|') + self.synonyms
-        return prev_names_and_synonyms.replace('|',' | ')
-        # return self.prevname_synonyms.replace('|',' | ')
+        # prev_names_and_synonyms = self.prev_names + ('' if self.prev_names == '' or self.synonyms == '' else '|') + self.synonyms
+        # return prev_names_and_synonyms.replace('|',' | ')
+        return self.prevname_synonyms.replace('|',' | ')
         
-    # The "external_links" functions taht were in the Gene class, as now moved to the javascript "cgdd_functions.js" 
+    # The "external_links" functions that were in the Gene class, as now moved to the javascript "cgdd_functions.js" 
     
+    def driver_histotype_list_full_names(self):
+        result = ''
+        for h in self.driver_histotype_list.split(';'):
+            if result != '': result += ", " # Just using a comma as newline doesn't work in html, would need <br/>
+            result += Dependency.histotype_full_name(h)
+        return result
 
+        
     
 # Links to the research study papers:
 class Study(models.Model):
@@ -100,7 +107,6 @@ class Study(models.Model):
     def weblink(self):
         return '<a class="tipright" href="%s" target="_blank">%s<span>%s, %s et al, %s, %s</span></a>' %(self.url(), self.short_name, self.title, self.authors[0:30], self.journal, self.pub_date)
         # <a href="http://www.ncbi.nlm.nih.gov/pubmed/{{ dependency.study.pmid }}" title="{{ dependency.study.title }}, {{ dependency.study.authors|slice:":30" }} et al, {{ dependency.study.journal }}, {{ dependency.study.pub_date }}" target="_blank">{{ dependency.study.short_name }} {{ dependency.study.pmid }}</a>
-
 
 
 class Drug(models.Model):
@@ -193,9 +199,11 @@ class Dependency(models.Model):
             if not found: raise ValueError('Invalid value "%s" for histotype choices: %s' %(value, Dependency.HISTOTYPE_CHOICES))
         models.Model.__setattr__(self, name, value)
         
-    def boxplot_filename(self):
-       return self.driver.gene_name + "_" + self.target.gene_name+self.target_variant + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
+    # def boxplot_filename(self):
+    #   return self.driver.gene_name + "_" + self.target.gene_name+self.target_variant + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
 
+   
+       
 # NOTES:
 # =====
 # For ForeignKeys:

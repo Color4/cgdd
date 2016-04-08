@@ -352,7 +352,7 @@ function get_protein_id_list_for_depenedencies() {
 	
 	// The following works:
 	//console.log("\nUsing standard javascript:");
-    var list_of_proteins ='';
+    // var list_of_proteins ='';
 	var protein_dict = {}; // Need to use a dictionary as if tissue is 'All tissues' then each protein can appear several times in dependency table (just with different tissue each time).
 	var protein_count = 0;
 
@@ -388,15 +388,96 @@ function get_protein_id_list_for_depenedencies() {
 		    if (protein_count > global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
 		    if ((protein_id != '') && !(protein_id in protein_dict)) {
 				protein_dict[protein_id] = true;
-				protein_count ++;
-		        if (list_of_proteins=='') {list_of_proteins += protein_id;}
-		        else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
+                protein_count++;
             }
 		}
     });
-	
-	return (protein_count,list_of_proteins)
+
+	return protein_dict;
 }
+
+function dict_to_string(dict,div) {
+	var str = '';
+	for (key in dict)
+	{
+		if (str != '') {str += div;}
+		str += key
+	}
+	return str;
+}
+
+function count_char(s,c) {
+	var count = 0;
+    for(var i=0; i < s.length; i++){
+        if (s.charAt(i) == c) {count++;}
+		}
+	return count;
+}
+
+function show_stringdb(display_callback_function) {
+	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+	var protein_dict = get_protein_id_list_for_depenedencies();
+	
+	// Try to remove unconnected proteins for the list before displaying the string network image.
+	
+	//var url = global_url_for_stringdb_interactionsList + dict_to_string(protein_dict,'%0D'); // Need a function to do this? eg. jQuery.makeArray() or in EM 5.1: Object.keys(protein_dict);
+	
+	var protein_list = dict_to_string(protein_dict,';');
+	console.log("Original protein count:",count_char(protein_list,';')+1, "Protein list:",protein_list);
+	var url = global_url_for_stringdb_interactionsList.replace('myproteins', protein_list);  // Using semi-colon instead of return character '%0D'
+
+	// Because of AJAX same origin policy (ie. no cross-site requests) so need to use pythonanywhere server as a proxy to get the string interaction list.
+	
+	//console.log(url);
+    $.ajax({
+      url: url,
+      dataType: 'text',  // 'csv', // really is tab deliminated
+      })
+      .done(function(protein_list2, textStatus, jqXHR) {  // or use .always(function ...	  
+	    //console.log("Received:", protein_list2);
+		protein_list = protein_list2;
+		
+		// This parsing is done on pythonanywhere server now:
+	    //var protein_dict2 = {};
+	    //lines = data.split("\n"); ** There will be an empty line as newline at end - unless change the python code to use join? 
+		//for (var i=0; i < lines.length; i++) {
+		//	console.log(lines[i]);
+		//	cols = lines[i].split("\t");
+		//	console.log(cols);
+		//	if (!(cols[0] in protein_dict)) {alert('Protein returned "'+cols[0]+'" was not in the original list');} // <-- This test can be removed in future.
+		//	if (!(cols[1] in protein_dict)) {alert('Protein returned "'+cols[1]+'" was not in the original list');} // <-- This test can be removed in future.
+		//	protein_dict2[cols[0]] = true;
+		//	protein_dict2[cols[1]] = true;
+		//	protein_dict = protein_dict2; // list will now have any unconnected proteins removed.
+		//    }
+		// Parse the result which is tab-deliminated in the format:	
+		 // string:9606.ENSP00000302530	string:9606.ENSP00000300093	BUB1	PLK1	-	-	-	-	-	taxid:9606	taxid:9606	-	-	-	score:0.998|ascore:0.183|escore:0.722|dscore:0.9|tscore:0.933	
+        
+		 })
+	  .fail(function(jqXHR, textStatus, errorThrown) {
+		 alert("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");  // Just display the original list below anyway.
+         })
+	  .always(function() {
+	     // var protein_count = (protein_list == '') ? 0 : count_char(protein_list,';')+1;
+		 protein_list = protein_list.split(';');
+		 protein_count = protein_list.length;
+		 protein_list = protein_list.join('%0D');  // as javascript's replace(';', '%0D') only replaces the first instance.
+		 console.log("Count after removing unconnected proteins:",protein_count, "Protein list:",protein_list);
+	  	 display_callback_function(protein_count, protein_list);
+	     });
+		 
+    return false; // Return false to the caller so won't move on the page as is called from a href="...		 
+ }
+	
+
+	
+//				protein_count ++;
+//		        if (list_of_proteins=='') {list_of_proteins += protein_id;}
+//		        else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
+				
+
+//	return (protein_count,list_of_proteins)
+//}
 //	return false; 
 /*
 // or jquery, but the above plane javascript is probably faster.
@@ -466,29 +547,94 @@ http://stackoverflow.com/questions/28323237/tablesorter-jquery-how-to-get-values
  }
 */
 
-function show_stringdb_interactive() {
-	var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
-	if (protein_list[0] == 0) {alert("No rows that have ensembl protein ids"); return false;}
-	var string_url = '';
-	if (protein_list[0] == 1) {string_url = global_url_for_stringdb_interactive_one_network + protein_list[0];} // + "&limit=20";
-	else {string_url = global_url_for_stringdb_interactive_networkList + protein_list;}
+function stringdb_interactive(protein_count,protein_list) {
+	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
+	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
+	var string_url = (protein_count == 1) ? global_url_for_stringdb_interactive_one_network : global_url_for_stringdb_interactive_networkList;
+    string_url += protein_list
 	window.open(string_url);  // should open a new tab in browser.
 	return false; // or maybe return true?
 //	can run this command in the browser console to experiment)		
 }
 
-function show_stringdb_image() {
+/*
+  api
+  
+  json	JSON format either as a list of hashes/dictionaries, or as a plain list (if there is only one value to be returned per record)
+tsv	Tab separated values, with a header line
+tsv-no-header	Tab separated values, without header line
+psi-mi	The interaction network in PSI-MI 2.5 XML format
+psi-mi-tab	Tab-delimited form of PSI-MI (similar to tsv, modeled after the IntAct specification. (Easier to parse, but contains less information than the XML format.)
+
+
+  interactionsList	Interaction network as above, but for a list of identifiers
+  
+	identifiers
+	limit	Maximum number of nodes to return, e.g 10.
+required_score	Threshold of significance to include a interaction, a number between 0 and 1000
+additional_network_nodes	Number of additional nodes in network (ordered by score), e.g./ 10
+network_flavor
+*/
+
+
+function stringdb_image(protein_count,protein_list) {
     // An alternativbe to string-db is to use the stringdb links to build own cyctoscape display: http://thebiogrid.org/113894/summary/homo-sapiens/arid1a.html
-	var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
-	if (protein_list[0] == 0) {alert("No rows that have ensembl protein ids"); return false;}
-	var string_url = '';
-	if (protein_list[0] == 1) {string_url = global_url_for_stringdb_one_network + protein_list[0];} // + "&limit=20";
-	else {string_url = global_url_for_stringdb_networkList + protein_list;}
-	window.open(string_url);  // should open a new tab in browser.
-	return false; // or maybe return true?
+	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
+  if (protein_count == 0) {alert("No rows that have ensembl protein ids"); return false;}
+  var string_url = (protein_count == 1) ? global_url_for_stringdb_one_network : global_url_for_stringdb_networkList;
+  string_url += protein_list;
+	
+//	window.open(string_url);  // should open a new tab in browser.
+//	return false; // or maybe return true?
 //	can run this command in the browser console to experiment)	
-}
+
+//function show_stringdb_image_in_fancybox() {
+//}
 //==============================================================================	
+// + '" width="'+boxplot_width+'" height"'+boxplot_height
+  var mycontent = '<img src="' + string_url +'" alt="Loading StringDB image...."/>';
+  var href = string_url;
+    
+//  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('E', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
+
+//  plot_title += '</p>';
+  
+  $.fancybox.open({
+  //$(".fancybox").open({
+    // href: url_boxplot,
+    preload: 0, // Number of gallary images to preload
+    minWidth: 550,
+    maxHeight: 550,
+	autoSize: false,  // true,  // false, // otherwise it resizes too tall.
+    padding: 2,  	// is space between image and fancybox, default 15
+    margin:  2, 	// is space between fancybox and viewport, default 20
+	// width:  boxplot_width+legend_width+8, // default is 800
+	// height: boxplot_height + 8, // default is 600 /// the title is below this again, ie. outside this, so the 25 is just to allow for the margins top and bottom 
+    aspectRatio: true,
+    fitToView: true,
+    arrows: false,
+	closeEffect : 'none',
+    helpers: {
+        title: {
+            type: 'inside'
+        },
+        overlay: {
+            showEarly: false   // false  // as otherwise incorrectly sized box displays before images have arrived.
+        }
+    },
+
+    // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
+    // or $(...).content - Overrides content to be displayed - maybe for inline content
+	//type: 'html', // 'iframe', // 'html', //'inline',
+    //content:
+//    href: href,	
+	content: mycontent //,
+//    title: plot_title,
+   });
+   
+   return false; // Return false to the caller so won't move on the page
+}
+  
 
 
 
@@ -773,9 +919,8 @@ function is_form_complete() {
   }
 
 
-
 // Could possibly use $(this).parent() to set background colour for row, then store this in global variable, then in fancybox close event set row color back to normal...eg: http://stackoverflow.com/questions/4253558/how-to-get-the-html-table-particullar-cell-value-using-javascript
-function show_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
+function show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
   // This is a separate function from plot(...) as this can be a called when Ajax succeeds.
 
 // eg: http://jsfiddle.net/STgGM/
@@ -863,7 +1008,7 @@ function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, targ
   var target_info;
   if (target in gene_info_cache) {
 	target_info = gene_info_cache[target];
-	show_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
+	show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
 	}
   else {
 	// The target_info will usually have already been retreived by hoovering over the target in table, but if user clicked fast, then might not have been retreived yet.
@@ -883,7 +1028,7 @@ function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, targ
 		 // target_info = undefined;
          })
 	  .always(function() {
-	  	 show_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
+	  	 show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
 	     });
     }
 	

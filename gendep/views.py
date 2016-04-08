@@ -451,6 +451,64 @@ CDK11A
     #    context = {'dependency_list': dependency_list, 'gene': gene, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
+
+def get_stringdb_interactions(request, protein_list):
+    print("In: ", get_stringdb_interactions)
+    stringdb_options="network_flavor=confidence&limit=0&required_score=400";  # &additional_network_nodes=0
+    # The online interactive stringdb uses: "required_score" 400 and: "limit" 0 (otherwise by default will add 10 more proteins)
+
+    protein_dict =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
+    
+    protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
+
+    url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
+    print(url)
+    from urllib.request import Request, urlopen
+    from urllib.error import  URLError
+# or maybe use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
+# import requests
+# r = requests.get(url, stream=True)
+# for line in r.iter_lines():
+#   if line: print line
+
+    req = Request(url)
+    try:
+        response = urlopen(req)
+    except URLError as e:
+        if hasattr(e, 'reason'):
+            print('We failed to reach a server:', e.reason)
+        elif hasattr(e, 'code'):
+            print('The server couldn\'t fulfill the request. Error code:', e.code)
+    else:  # everything is fine
+        protein_dict2 = dict()
+        for line in response:
+          # if line:
+            cols = line.decode('utf-8').rstrip().split("\t")
+            if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
+            protein = cols[0].replace('string:', '') # as ids start with 'string:'
+            if protein in protein_dict: protein_dict2[protein] = True
+            else: print("Protein returned '%' is not in original list" %(protein))
+
+            protein = cols[1].replace('string:', '') # as ids start with 'string:'
+            if protein in protein_dict: protein_dict2[protein] = True
+            else: print("Protein returned '%' is not in original list" %(protein))
+
+        protein_list2 = ';'.join(protein_dict2.keys())
+            
+        #data = response.read().decode('utf-8') # Maybe don't need to decode it?
+        # lines = data.split("\n")  # string:9606.ENSP00000302530	string:9606.ENSP00000300093
+        # result = ""
+        #for line in lines:
+        #    print(line)
+        #    cols = line.split("\t")
+        #    if len(cols)<2: continue # As eg. has a newline at end so empty line at end
+        #    result += cols[0].replace('string:', '')+"\t"+cols[1].replace('string:', '')+"\n"
+        print(protein_list2)
+        return HttpResponse(protein_list2, content_type='text/plain') # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
+    
+    # Maybe handle any exception - eg. server doesn't respond
+    
+    
     
 def qtip(tip):
     # Returns the ajax request to qtips

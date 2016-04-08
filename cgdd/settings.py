@@ -50,9 +50,16 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders'   ## Added by SJB to enable Cross-Origin AJAX requests, for requesting string-db interactionsList 
+                    ## see: http://techmightsolutions.blogspot.co.uk/2015/05/cors-in-django-rest-framework.html
+                    ## and https://github.com/ottoyiu/django-cors-headers
+                    ### BUT this doesn't help as still error about:
+                    # XMLHttpRequest cannot load http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confide…54991%0D9606.ENSP00000356355%0D9606.ENSP00000311684%0D9606.ENSP00000367830. No 'Access-Control-Allow-Origin' header is present on the requested resource. Origin 'http://localhost:8000' is therefore not allowed access.
 ]
 
 MIDDLEWARE_CLASSES = [
+    'corsheaders.middleware.CorsMiddleware',  # For CORS - needs to be at start of this list
+    'django.middleware.common.CommonMiddleware',  # For CORS
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -72,6 +79,11 @@ if DEVELOPMENT:
     # RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
 
 ROOT_URLCONF = 'cgdd.urls'
+
+CORS_ORIGIN_WHITELIST = (  # SJB added to enable CORS for stringdb
+        'string-db.org',
+    )
+
 
 TEMPLATES = [
     {

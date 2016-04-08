@@ -32,6 +32,11 @@ urlpatterns = [
     url(r'^download_csv/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
     
     url(r'^get_gene_info/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.gene_info, name='get_gene_info'), # tip=element.data('url'),
+
+    #url(r'get_stringdb_interactions/(?P<protein_list>.+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
+    
+    # Alloweed carriage return character (as is %0D) - using a semi colon as the divider instead of return:
+    url(r'get_stringdb_interactions/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
     
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
 
