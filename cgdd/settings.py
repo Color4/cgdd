@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'corsheaders'   ## Added by SJB to enable Cross-Origin AJAX requests, for requesting string-db interactionsList 
+# BUT CORS would need enabled on the string-db.org site:
+#    'corsheaders'   ## Added by SJB to enable Cross-Origin AJAX requests, for requesting string-db interactionsList 
                     ## see: http://techmightsolutions.blogspot.co.uk/2015/05/cors-in-django-rest-framework.html
                     ## and https://github.com/ottoyiu/django-cors-headers
                     ### BUT this doesn't help as still error about:
@@ -58,8 +59,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE_CLASSES = [
-    'corsheaders.middleware.CorsMiddleware',  # For CORS - needs to be at start of this list
-    'django.middleware.common.CommonMiddleware',  # For CORS
+    # 'corsheaders.middleware.CorsMiddleware',  # For CORS - needs to be at start of this list
+    # 'django.middleware.common.CommonMiddleware',  # For CORS
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -80,9 +81,9 @@ if DEVELOPMENT:
 
 ROOT_URLCONF = 'cgdd.urls'
 
-CORS_ORIGIN_WHITELIST = (  # SJB added to enable CORS for stringdb
-        'string-db.org',
-    )
+#CORS_ORIGIN_WHITELIST = (  # SJB added CORS, but would need enabled on string-db.org
+#        'string-db.org',
+#    )
 
 
 TEMPLATES = [

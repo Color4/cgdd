@@ -185,6 +185,28 @@ function histotype_display(histotype) {
 
 $(document).ready(function() {
 
+// add parser through the tablesorter addParser method. Based on: https://mottie.github.io/tablesorter/docs/example-parsers.html
+$.tablesorter.addParser({
+  id: 'pvalue',   // sets a unique id for this parser.
+  // The parse column is set in the html (or optionally in the tablesorter inititialisation below.
+  // is: function(s, table, cell, $cell) {  // option from tablesorter version  2.7.4, 
+    // return false so this parser is not auto detected
+  //  return false;
+  // },
+  format: function(s, table, cell, cellIndex) {
+    // format your data for normalization
+    // var e = s.replace(' x 10<sup>','e').replace('</sup>','');   // populate_table() does: .replace('e', ' x 10<sup>') + '</sup></td>';
+	// as this parser function receives only the text (seems to be .text() not .html()), not the markup, so 's' is: "4 x 10-3" not: "4 x 10<sup>-3</sup>"
+    var e = s.replace(' x 10','e');
+	//console.log(cellIndex,"'"+s+"' '"+e+"'");
+	return e
+  },
+  // set type, either numeric or text
+  type: 'numeric'
+});
+
+
+
     // Alternative tables: jqgrid: http://www.jqwidgets.com/jquery-widgets-demo/demos/jqxgrid/index.htm#demos/jqxgrid/deferredscrolling.htm
 	
 	// Datatables: http://www.datatables.net/index
@@ -194,7 +216,8 @@ $(document).ready(function() {
 	// http://zippyui.com/react-datagrid/#/
     // jEasyUI: http://www.jeasyui.com/tutorial/datagrid/datagrid27_demo.html
 
-	
+
+
 	$("#result_table").tablesorter({
 	    // For diocs see: https://mottie.github.io/tablesorter/docs/
 		// https://mottie.github.io/tablesorter/docs/#methods
@@ -208,33 +231,61 @@ $(document).ready(function() {
         // removeRows: true, // "remove rows from the table to speed up the sort of large tables. Setting this to false, only hides the non-visible rows; needed if you plan to add/remove rows with the pager enabled."
 
 		theme: 'blue',
-		widgets: ["filter", "scroller"], // "zebra",    // removed the zebra row colouring as might be making table slow - see: https://github.com/Mottie/tablesorter/issues/273  So the zebra effect can be in the CSS instead.
+		widgets: ["filter", "scroller"], //, "resizable"], // "zebra",    // removed the zebra row colouring as might be making table slow - see: https://github.com/Mottie/tablesorter/issues/273  So the zebra effect can be in the CSS instead.
+		
+		widthFixed : true,
+
 		widgetOptions: {
             // zebra: ["even", "odd"],
 			scroller_height: 400,  // default is 300
+			resizable_widths: [ '16%', '12%', '12%', '12%', '12%', '12%', '12%', '12%'], // or can use px, eg. '20px' (8 columns currently)
 			filter_functions: {
                 // Note that only the normalized (n) value will contain numerical data
                 // If you use the exact text, you'll need to parse it (parseFloat or parseInt)
 				// These column indexes are zero-based, and must correspond with the 'wilcox_p' column position in the "populate_table()" javascript function
+				
+	// as this parser function receives only the text, not the markup, so 's' is: "4 x 10-3" not: "4 x 10<sup>-3</sup>"
+    //var e = s.replace(' x 10','e');
+	//console.log(cellIndex,"'"+s+"' '"+e+"'");
+	
+	//  "&le; 0.05" becomes "≤ 0.05", which is unicode (U+2264) or in python: u"\u2264", or can type in MS Windows type: Alt 243
+	// From: http://www.javascripter.net/faq/mathsymbols.htm
+	// chr  HexCode   Numeric   HTML entity  escape(chr)   encodeURI(chr)   Description
+	// ≤    \u2264    &#8804;   &le;	     %u2264        %E2%89%A4        less-than or equal to
+	
+	// "&le; 5 x 10<sup>-4</sup>" => "\u2264 5 x 10-4", but just using: '<'
+	// so seems to gets the: .val() for the filter select menu
+	// not using parameters: , $r, c, data)
+	//console.log("e:",e, "n:",n, "f:",f, "i",i, "$r:",$r, "c",c, "data:",data);
+    // where: 'e' is 4 x 10-3",e, "n:",n, "f:",f, "i
                 1 : {
-                    "&le; 0.05"   : function(e, n, f, i) { alert(e); return n <= 0.05; },
-                    "&le; 0.01"   : function(e, n, f, i) { alert(n); return n <= 0.01; },
-                    "&le; 5 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.005; },
-	                "&le; 1 x 10<sup>-3</sup>"  : function(e, n, f, i) { return n <= 0.001; },
-	                "&le; 5 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0005; },
-	                "&le; 1 x 10<sup>-4</sup>" : function(e, n, f, i) { return n <= 0.0001; }	
-                }				
+                    //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
+                    "<0.01"              : function(e, n, f, i) {return n <= 0.01;},    // 1e-2
+                    "<5x10<sup>-3</sup>" : function(e, n, f, i) {return n <= 0.005;},   // 5e-3
+	                "<1x10<sup>-3</sup>" : function(e, n, f, i) {return n <= 0.001;},   // 1e-3
+	                "<5x10<sup>-4</sup>" : function(e, n, f, i) {return n <= 0.0005;},  // 5e-4
+	                "<1x10<sup>-4</sup>" : function(e, n, f, i) {return n <= 0.0001;}	// 1e-4
+                }
 				// 5 : {.....experimenttype_array},
-            }
-
+            },
+//data-value="T" "\u2264 0.05"
 // Add 'Any' as option for interaction column (in addition to Medium/High/Highest and unfiltered)
+
+filter_placeholder: {
+        //th_pvalue : 'From...' //,
+		search: 'Search',
+		select: 'Select'
+        //to   : 'To...'
+      }
 
         },  // widgetOptions maybe need to be after the widgets: [...] line.
 		sortInitialOrder: "asc", // default sort order
 		sortRestart: true, // so sort always restarts from the specified sortInitialOrder.
 		sortStable: true,
 		ignoreCase: true,  // so sorting ignores case
-		filter_ignoreCase: true, // so filtering ignores case
+		filter_ignoreCase: true //, // so filtering ignores case
+		// "sorter-pvalue" added as a class name in the HTML or uncomment the option below:
+		// headers: { 1: { sorter: 'pvalue' } }
 	})
 	.bind('filterEnd', function(e, filter){
 	   var num_rows = ($('#result_table tbody tr:visible').length-1).toString();
@@ -530,14 +581,33 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
         delay: 1,  // 1 millisecond delay.
         autoFocus: true,
     }).autocomplete( "instance" )._renderItem = function( ul, item ) {
+	    // Add the item's value as a data attribute on the <li>
+		// see: https://api.jqueryui.com/autocomplete/#method-_renderItem
         return $( "<li>" )
             .append( "<a><b>" + item.value + "</b> | " + item.synonyms_spaced + '<br/><font size="-2">' + item.full_name + "</font></a>" )
             .appendTo( ul );
-    };
+    };  // .val('SMAD4').data('autocomplete')._trigger('change');
 	
-	$("#gene").on("autocompletechange", function( event, ui ) {
+	// alternatibvely this change can be within the above as: change: function(..)
+	// see: https://api.jqueryui.com/autocomplete/#event-change
+    $("#gene").on("autocompletechange", function( event, ui ) {
 
-        var tissue_list = ui['item']['tissue_list'];  // 'ui' is the row object from the driver_array.        
+        var item = ui.item;   // alternatively first test: if (ui.hasOwnProperty("item")) {..... but maybe less browser support and slower
+		// item is "The item selected from the menu, if any. Otherwise the property is null."
+		console.log("Change .....");
+        if (typeof item  === 'undefined') {
+		  // As this change is called because directly value was set by URL eg: "/genedep/driver/SMAD2/"
+		  // Otherwise get error about: "Uncaught TypeError: Cannot read property 'tissue_list' of undefined"
+          var val = $(this).val(); // should be same as: $("#gene").val(); whereas 'this.value' maybe is only the text when ititialised.
+	      for (var i=0; i<driver_array.length; i++) {
+	        if (driver_array[i].value == val) {
+	        item = driver_array[i];
+		    break;
+		    }
+	      }
+        }
+		
+        var tissue_list = item['tissue_list'];  // 'ui.item' is the row object from the driver_array.        
 		var available = tissue_list=='' ? [] : tissue_list.split(';');
 		var selected = ($.inArray('PANCAN', available) > -1) ? ' selected="selected"' : '';
         // An alternative way is using the "new Option(...)"  see: http://www.javascriptkit.com/javatutors/selectcontent.shtml
@@ -547,8 +617,9 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
   	       options_html += '<option value="'+available[i]+'"'+selected+'>'+histotype_display(available[i])+'</option>';
 		}
         $("#histotype").empty().append(options_html);
-
-        var study_list = ui['item']['study_list'];  // 'ui' is the row object from the driver_array.        
+		//console.log("Tissue menu:",options_html);
+		
+        var study_list = item['study_list'];  // 'ui.item' is the row object from the driver_array.
 		var available = study_list=='' ? [] : study_list.split(';');
 		//console.log(available);
 		var options_html = '<option value="ALL_STUDIES">'+study_info('ALL_STUDIES')[0]+'</option>';
@@ -556,8 +627,20 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
   	       options_html += '<option value="'+available[i]+'">'+study_info(available[i])[0]+'</option>';
 		}
         $("#study").empty().append(options_html);
-		//console.log(options_html);		
+		//console.log("Study menu:",options_html);		
 	});
+
+	
+	//  or try: http://stackoverflow.com/questions/6406786/jquery-ui-autocomplete-how-to-get-change-event-to-fire-earlier
+	//this.value=ui.item.value; 
+    //$(this).trigger('change');
+	
+	// When the index page is loaded with "/gendep/driver/SMAD2/" so already has a driver selected, so need to set Tissue and Study menus to suit that driver:
+	if ($("#gene").val()!='') {
+	//$( "#gene" ).autocomplete({/* do whatever */}).val('Banana').data('autocomplete')._trigger('select');
+	  $("#gene").data("ui-autocomplete")._trigger("change"); // alternatively.
+	  //$("#gene").trigger("autocompletechange");
+	  }	
 	
 	// From: http://stackoverflow.com/questions/13508166/jquery-autocomplete-enter-keypress-action-in-firefox-not-working-properly
 	// Test this:
@@ -709,11 +792,13 @@ $.ajax({
 
 {# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
 
+<!-- was: data-placeholder="< 0.05" data-placeholder="&le; 0.05" data-value="T" "\u2264 0.05"  just using '<' for simplicity instead of '&le;' -->
+<!-- data-placeholder=">= 65.0" -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead><tr>
   <th id="dependency_col_name">Dependency</th>
-  <th class="filter-select" data-placeholder="&le; 0.05">P-value</th>
-  <th data-placeholder=">= 65.0">Effect size (%)</th> <!-- class="filter-select" -->
+  <th data-placeholder="<0.05" class="filter-select sorter-pvalue"> P-value </th>
+  <th data-placeholder=">= 65.0">Effect size (%)</th>
   <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>

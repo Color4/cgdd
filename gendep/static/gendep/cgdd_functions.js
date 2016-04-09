@@ -436,6 +436,8 @@ function show_stringdb(display_callback_function) {
       .done(function(protein_list2, textStatus, jqXHR) {  // or use .always(function ...	  
 	    //console.log("Received:", protein_list2);
 		protein_list = protein_list2;
+		// I had tried retrieving interactionsList directly from String-DB.org, but it would need to support either JSNOP or CORS in its replies: http://stackoverflow.com/questions/15477527/cross-domain-ajax-request
+		// http://hayageek.com/cross-domain-ajax-request-jquery/
 		
 		// This parsing is done on pythonanywhere server now:
 	    //var protein_dict2 = {};
@@ -595,7 +597,7 @@ function stringdb_image(protein_count,protein_list) {
   var mycontent = '<img src="' + string_url +'" alt="Loading StringDB image...."/>';
   var href = string_url;
     
-//  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('E', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
+//  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
 
 //  plot_title += '</p>';
   
@@ -738,7 +740,7 @@ function populate_table(data,t0) {
 	  else if (val <= 0.001)  {bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'}
 	  else if (val <= 0.01)   {bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'}
 	  else {bgcolor = '';}	  
-	  var wilcox_p_cell = '<td'+bgcolor+'>' + d[iwilcox_p].replace('E', ' x 10<sup>') + '</sup></td>';
+	  var wilcox_p_cell = '<td'+bgcolor+'>' + d[iwilcox_p].replace('e', ' x 10<sup>') + '</sup></td>';
 
 	  var interaction_cell;
 	  if (d[iinteraction] == '') {interaction_cell = '<td></td>';}
@@ -809,7 +811,7 @@ function populate_table(data,t0) {
 	  /*
       html += '<tr>'+
         '<td><a class="tipright" href="plot(\"' + d['t'] + '\");">' + d['t'] + '</a></td>' +
-		'<td>' + d['p'].replace('E', ' x 10<sup>')+'</sup></td>' + // inlined this replace()
+		'<td>' + d['p'].replace('e', ' x 10<sup>')+'</sup></td>' + // inlined this replace()
         '<td>' + d['e'] + '</td>' + 
 		'<td>' + study[0] + '</td>' + // study_weblink
         '<td>' + histotype_display(d['h']) + '</td>' +
@@ -950,7 +952,7 @@ function show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_
 //console.log(gene_info_cache[target]);
 //console.log(target_ids);
     
-  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('E', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
+  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
 
   if (typeof target_info === 'undefined') {plot_title += '<br/>Unable to retrieve synonyms and external links for this gene';}
   else {

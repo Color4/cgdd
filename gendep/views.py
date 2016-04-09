@@ -248,7 +248,9 @@ def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histot
     # effect_size = request.POST.get('effect_size', "ALL_EFFECT_SIZES")
     # return json_error('Hello') # HttpResponse("Hello", json_mimetype)
     
-    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p') # can add select related if needed, eg: for target gene synonyms.
+    select_related = 'target__inhibitors' if search_by_driver else 'driver__inhibitors'
+    
+    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # can add select related if needed, eg: for target gene synonyms.
     if error_msg != '': return json_error("Error: "+error_msg)
 
     # gene_weblinks = gene.external_links('|') # Now in javascript
@@ -338,6 +340,9 @@ CDK11A
         # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
         # But cannot use gene (driver/target) as key, as dict assumes that gene is unique within this driver's data: (currently it isn't unique within histotype & study_pmid)
 # was 'interaction_hhm'
+
+        # NEED to change this target/driver search by protein ids.
+        # *** should include this protein_id in related fields above for speed, as either driver or target
         if d.interaction is None or d.interaction == '':  # should not be None, as set in table by script to ''.
             #interaction = ''
             if d.target.ensembl_protein_id is None:
@@ -350,14 +355,17 @@ CDK11A
             # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
             # Append the protein id so can use this to link to string.org
         
+        inhibitors = d.target.inhibitors if search_by_driver else d.driver.inhibitors
+        if inhibitors is None: inhibitors = ''
+        
         results.append([
                     d.target_id if search_by_driver else d.driver_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
-                    format(d.wilcox_p, ".0E").replace("E-0", "E-"),  # Scientific format, remove leading zero from the exponent
+                    format(d.wilcox_p, ".0E").replace("E-0", "e-"),  # Scientific format, remove leading zero from the exponent
                     format(d.effect_size*100, ".1f"),  # As a percentage
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
                     d.study_id, # returns the underlying pmid number rather than the Study object
-                    interaction,                    
-                    '',  # d.inhibitors - but empty for now.
+                    interaction,
+                    inhibitors,  #'',  # d.inhibitors - but empty for now.
                     d.target_variant  # Just temporary to ensure display correct achilles boxplot image.
                     ])  # optionally an id: d_json['1'] = 
         """
@@ -462,7 +470,7 @@ def get_stringdb_interactions(request, protein_list):
     protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
-    print(url)
+    #print(url)
     from urllib.request import Request, urlopen
     from urllib.error import  URLError
 # or maybe use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
@@ -487,11 +495,11 @@ def get_stringdb_interactions(request, protein_list):
             if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
             protein = cols[0].replace('string:', '') # as ids start with 'string:'
             if protein in protein_dict: protein_dict2[protein] = True
-            else: print("Protein returned '%' is not in original list" %(protein))
+            else: print("*** Protein returned '%' is not in original list ***" %(protein))
 
             protein = cols[1].replace('string:', '') # as ids start with 'string:'
             if protein in protein_dict: protein_dict2[protein] = True
-            else: print("Protein returned '%' is not in original list" %(protein))
+            else: print("*** Protein returned '%' is not in original list ***" %(protein))
 
         protein_list2 = ';'.join(protein_dict2.keys())
             
@@ -503,7 +511,7 @@ def get_stringdb_interactions(request, protein_list):
         #    cols = line.split("\t")
         #    if len(cols)<2: continue # As eg. has a newline at end so empty line at end
         #    result += cols[0].replace('string:', '')+"\t"+cols[1].replace('string:', '')+"\n"
-        print(protein_list2)
+        #print(protein_list2)
         return HttpResponse(protein_list2, content_type='text/plain') # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
     
     # Maybe handle any exception - eg. server doesn't respond
