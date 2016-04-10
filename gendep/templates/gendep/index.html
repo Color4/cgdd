@@ -72,7 +72,9 @@ var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
-var stringdb_options="network_flavor=confidence&limit=0&required_score=400";  // &additional_network_nodes=0
+// &targetmode=proteins (does this work for genes?) - from the gene_cards link
+
+var stringdb_options="network_flavor=confidence&limit=0&required_score=400&caller_identity=CGDD";  // &additional_network_nodes=0
 // The online interactive stringdb uses:
 // "required_score" 400
 // "advanced_menu" yes
@@ -84,6 +86,7 @@ var stringdb_options="network_flavor=confidence&limit=0&required_score=400";  //
 var global_url_for_stringdb_interactionsList = "{% url 'gendep:get_stringdb_interactions' protein_list='myproteins' %}";
 // Because of AJAX same origin policy (ie. no cross-site requests) so need to use pythonanywhere server as a proxy to get the string interaction list.
 
+var global_url_for_cytoscape = "{% url 'gendep:cytoscape' protein_list='myproteins' %}"
 
 // Also maybe: "&additional_network_nodes=0"  :	 Number of additional nodes in network (ordered by score), e.g./ 10
 var global_url_for_stringdb_networkList = "http://string-db.org/api/image/networkList?"+stringdb_options+"&identifiers="; // confidence (single lines) rather than evidence (multiple coloured lines)
@@ -258,25 +261,31 @@ $.tablesorter.addParser({
 	// not using parameters: , $r, c, data)
 	//console.log("e:",e, "n:",n, "f:",f, "i",i, "$r:",$r, "c",c, "data:",data);
     // where: 'e' is 4 x 10-3",e, "n:",n, "f:",f, "i
-                1 : {
+                1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
                     "<0.01"              : function(e, n, f, i) {return n <= 0.01;},    // 1e-2
                     "<5x10<sup>-3</sup>" : function(e, n, f, i) {return n <= 0.005;},   // 5e-3
 	                "<1x10<sup>-3</sup>" : function(e, n, f, i) {return n <= 0.001;},   // 1e-3
 	                "<5x10<sup>-4</sup>" : function(e, n, f, i) {return n <= 0.0005;},  // 5e-4
 	                "<1x10<sup>-4</sup>" : function(e, n, f, i) {return n <= 0.0001;}	// 1e-4
-                }
+                },
 				// 5 : {.....experimenttype_array},
-            },
+				6: {
+				   "Any"    : function(e, n, f, i) {return e != '';},
+				   "Medium" : function(e, n, f, i) {return e == 'Medium';},
+				   "High"   : function(e, n, f, i) {return e == 'High';},
+				   "Highest": function(e, n, f, i) {return e == 'Highest';},
+				}
+            }
 //data-value="T" "\u2264 0.05"
 // Add 'Any' as option for interaction column (in addition to Medium/High/Highest and unfiltered)
 
-filter_placeholder: {
+//filter_placeholder: {
         //th_pvalue : 'From...' //,
-		search: 'Search',
-		select: 'Select'
-        //to   : 'To...'
-      }
+//		search: 'Search',
+//		select: 'Select'
+//        //to   : 'To...'
+//      }
 
         },  // widgetOptions maybe need to be after the widgets: [...] line.
 		sortInitialOrder: "asc", // default sort order
@@ -307,7 +316,7 @@ filter_placeholder: {
     //$( document ).tooltip({
 	$('#result_table_tbody').tooltip({
       //items: "img, [title]",
-	  items: "[gene], [exptype], [study]",
+	  items: "[gene], [exptype], [study], [drug]",
 	  // track:true,
 	  show: false, //{ effect: "", duration: 0, delay: 0},
 	  hide: false, // { effect: "", duration: 0, delay: 0}, // see: http://webduos.com/tooltip-using-jquery-ui-library/#.Vvb48uKLSih
@@ -387,6 +396,10 @@ filter_placeholder: {
 	      var study = study_info(element.attr("study"));
           return '<b>'+study[0]+':</b> '+study[3]; //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
         }
+      else if ( element.is( "[drug]" ) ) {
+          return element.attr("drug"); // drug contains the list of inhibitors
+        }
+		
      //if ( element.is( "img" ) ) {
       //  return element.attr( "alt" );
       //}	
@@ -722,7 +735,7 @@ $.ajax({
 <td>Search filter:</td>
 <td>
   <!-- label for="driver">Driver gene:</label-->
-  <select name="search_by" id="search_by" style = "background-color: #8FD4EA;">
+  <select name="search_by" id="search_by" class="searchbox_dropdown">
     <option value="driver" {% if search_by != "target" %}selected="selected"{% endif %}>Driver gene:</option>
     <option value="target" {% if search_by == "target" %}selected="selected"{% endif %}>Target/Dependency gene:</option> <!-- If select target need to retreive target gene list, and set result table header to 'Driver' instead of 'Dependency'-->
   </select>	
@@ -770,7 +783,7 @@ $.ajax({
 
 <p><b><span id="gene_search_by"></span> gene: <span id="gene_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="gene_synonyms"></span></p>
 <p><u>Gene Descripion:</u> <span id="gene_full_name"></span></p>
-<p><u>External links:</u> <span id="gene_weblinks"></span></p>
+<p><u>External links:</u> <font size="-1"><span id="gene_weblinks"></span></font></p>
 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
@@ -780,8 +793,9 @@ $.ajax({
 <button id="download_csv_button" type="submit">Download as CSV file</button>
 <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->
 &nbsp String-DB:
-<input type="button" id="string_image" value="Image" onclick="show_stringdb(stringdb_image);" />
-<input type="button" id="string_interactive" value="Interactive" onclick="show_stringdb(stringdb_interactive);" />
+<input type="button" id="string_image" value="image" onclick="show_stringdb(stringdb_image);" />
+<input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" />
+<input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" />
 <span id="string_link"></span>
 </p>
 </form>
@@ -796,14 +810,14 @@ $.ajax({
 <!-- data-placeholder=">= 65.0" -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead><tr>
-  <th id="dependency_col_name">Dependency</th>
+  <th data-placeholder="Search by name" id="dependency_col_name">Dependency</th>
   <th data-placeholder="<0.05" class="filter-select sorter-pvalue"> P-value </th>
   <th data-placeholder=">= 65.0">Effect size (%)</th>
   <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>
-  <th class="filter-select filter-onlyAvail"><a class="tipleft">String Interaction<span>Known functional interaction between driver and target/dependent gene, from string-db.org</span></a></th>  <!-- Add 'Any' as option for interaction -->
-  <th>Inhibitors</th>
+  <th class="filter-select"><a class="tipleft">String Interaction<span>Known functional interaction between driver and target/dependent gene, from string-db.org</span></a></th>  <!-- Add 'Any' as option for interaction -->
+  <th class="filter-select">Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>

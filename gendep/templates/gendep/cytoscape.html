@@ -1,0 +1,94 @@
+{% extends 'gendep/base.html' %}
+{% load staticfiles %}
+{% block links_top %}
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
+  <!-- script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script -->
+  <script src="http://cytoscape.github.io/cytoscape.js/api/cytoscape.js-latest/cytoscape.min.js"></script>
+{% endblock %}
+{% block scripts %}
+<style type="text/css">
+  body { 
+      font: 12px helvetica neue, helvetica, arial, sans-serif;
+    }
+	
+    #cy {
+      height: 100%;
+      width: 100%;
+      position: absolute;
+      left: 0;
+      top: 0;
+    }
+</style>
+
+<script type="text/javascript">
+ $(function() { // on dom ready
+
+    $('#cy').cytoscape({
+
+        style: cytoscape.stylesheet()
+            .selector('node')
+            .css({
+            'content': 'data(name)',
+                'text-valign': 'center',
+                'color': 'white',
+                'text-outline-width': 2,
+                'text-outline-color': '#888'
+        })
+            .selector('edge')
+            .css({
+            'target-arrow-shape': 'triangle'
+        })
+            .selector(':selected')
+            .css({
+                'background-color': 'black',
+                'line-color': 'black',
+                'target-arrow-color': 'black',
+                'source-arrow-color': 'black'
+        })
+            .selector('.faded')
+            .css({
+                'opacity': 0.25,
+                'text-opacity': 0
+        }),
+
+elements: {
+  nodes: [
+{% for node in node_list %}  {data: {id: '{{ node }}', name: '{{ node }}'} }{% if not forloop.last %},{% endif %}
+{% endfor %} ],
+  edges: [
+{% for edge in edge_list %}  {data: { source: '{{ edge.0 }}', target: '{{ edge.1 }}'} }{% if not forloop.last %},{% endif %}
+{% endfor %} ]
+},
+
+            ready: function() {
+                window.cy = this;
+
+                // giddy up...
+
+                cy.elements().unselectify();
+
+                cy.on('tap', 'node', function(e) {
+                    var node = e.cyTarget;
+                    var neighborhood = node.neighborhood().add(node);
+
+                    cy.elements().addClass('faded');
+                    neighborhood.removeClass('faded');
+                });
+
+                cy.on('tap', function(e) {
+                    if (e.cyTarget === cy) {
+                        cy.elements().removeClass('faded');
+                    }
+                });
+            }
+
+        });
+
+    }); // on dom ready
+</script>	
+{% endblock %}
+
+{% block content %}
+<p>Cytoscape proteins and connections.....</p>
+  <div id="cy"></div>
+{% endblock%}

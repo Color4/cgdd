@@ -38,6 +38,8 @@ urlpatterns = [
     # Alloweed carriage return character (as is %0D) - using a semi colon as the divider instead of return:
     url(r'get_stringdb_interactions/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
     
+    url(r'cytoscape/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.cytoscape, name='cytoscape' ),
+    
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
 
     # url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/gene_name/    

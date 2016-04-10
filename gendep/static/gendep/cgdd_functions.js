@@ -71,18 +71,20 @@ function gene_external_links(id, div, all) {
   // was previously in 'models.py'
   // Note the above sprinf() returns empty string if variable is undefined.
   //console.log("external_links ids=",id)
-  links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene='+id['gene_name']+'" target="_blank">GeneCards<span>Genecards</span></a> ';
-  links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+id['entrez_id']+'" target="_blank">Entrez<span>Entrez Gene at NCBI</span></a> '; 
-  links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene</span></a> ', id['ensembl_id']);
-  links += div + sprintf(' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee</span></a> ', id['hgnc_id']);  
+  links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene='+id['gene_name']+'" target="_blank">GeneCards<span>Genecards: '+id['gene_name']+'</span></a> ';
+  if (id['entrez_id']) {links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+id['entrez_id']+'" target="_blank">Entrez<span>Entrez Gene at NCBI: '+id['entrez_id']+'</span></a> ';}
+  if (id['ensembl_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene: %s</span></a> ', id['ensembl_id'], id['ensembl_id']);}
+  if (id['hgnc_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee: %s</span></a> ', id['hgnc_id'], id['hgnc_id']);}
   if (all) {
-    links += div + sprintf(' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation</span></a> ', id['vega_id']);
-    links += div + sprintf(' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man</span></a> ', id['omim_id']);
-    links += div + sprintf(' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search</span></a> ', id['gene_name']);
+    if (id['vega_id'] != '') {links += div + sprintf(' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation: %s</span></a> ', id['vega_id'], id['vega_id']);}
+    if (id['omim_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man: %s</span></a> ', id['omim_id'], id['omim_id']);}
+    links += div + sprintf(' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search: %s</span></a> ', id['gene_name'],id['gene_name']);
 	}
-  links += div + sprintf(' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics</span></a> ', id['gene_name']);
-  if (id['cosmic_id'] != '') {links += div + sprintf(' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer</span></a> ', id['cosmic_id']);}
-  links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR</span></a>', id['uniprot_id']);
+  links += div + sprintf(' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics: %s</span></a> ', id['gene_name'],id['gene_name']);
+  if (id['cosmic_id'] != '') {links += div + sprintf(' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer: %s</span></a> ', id['cosmic_id'],id['cosmic_id']);}
+  if (id['uniprot_id'] != '') {links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}  // CanSAR uses UniProt ids
+   if (all && (id['uniprot_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.uniprot.org/uniprot/%s" target="_blank">UniProtKB<span>UniProtKB: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}
+  if (id['ensembl_protein_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/protview?peptide=%s" target="_blank">Ensembl_protein<span>Ensembl Protein: %s</span></a> ', id['ensembl_protein_id'],id['ensembl_protein_id']);}
   return links;
 }
 
@@ -385,7 +387,7 @@ function get_protein_id_list_for_depenedencies() {
         if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
 	        var protein_id = $(this).attr("epid");
-		    if (protein_count > global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
+		    if (protein_count >= global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
 		    if ((protein_id != '') && !(protein_id in protein_dict)) {
 				protein_dict[protein_id] = true;
                 protein_count++;
@@ -413,6 +415,22 @@ function count_char(s,c) {
 		}
 	return count;
 }
+
+function show_cytoscape() {
+	$("#result_progress_div").html("<b><font color='red'>Fetching Cytoscape protein list for cytoscape image....</font></b>");
+	var protein_dict = get_protein_id_list_for_depenedencies();
+	
+	// Try to remove unconnected proteins for the list before displaying the string network image.
+	
+	//var url = global_url_for_stringdb_interactionsList + dict_to_string(protein_dict,'%0D'); // Need a function to do this? eg. jQuery.makeArray() or in EM 5.1: Object.keys(protein_dict);
+	
+	var protein_list = dict_to_string(protein_dict,';');
+	console.log("Cytoscape original protein count:",count_char(protein_list,';')+1, "Protein list:",protein_list);
+	var url = global_url_for_cytoscape.replace('myproteins', protein_list);  // Using semi-colon instead of return character '%0D'
+	window.open(url);  // should open a new tab in browser.
+	return false; // or maybe return true?	
+}
+
 
 function show_stringdb(display_callback_function) {
 	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
@@ -775,6 +793,12 @@ function populate_table(data,t0) {
 		}
 	  }
 	  
+	  var inhibitor_cell;
+	  if (d[iinhibitors] == '') {inhibitor_cell='<td></td>';}
+	  else {		  
+		  inhibitor_cell = '<td drug="'+d[iinhibitors]+'" style="background-color: beige;">Yes</td>';		  
+	  }
+	  
 //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'+
         '<td gene="'+d[igene]+'" epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
@@ -789,10 +813,9 @@ function populate_table(data,t0) {
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
 		'<td exptype="'+d[istudy_pmid]+'">' + study[1] + '</td>' + // experiment type. The 'exptype=""' is use by tooltips
-        interaction_cell +
-		// '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
+        interaction_cell +  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
 		
-	    '<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
+	    inhibitor_cell +  //'<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
 		'</tr>';  // The newline cahracter was removed from end of each row, as the direct trigger update method complains about undefined value.
 /*
 	  html += '<tr>'+

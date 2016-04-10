@@ -191,7 +191,7 @@ def gene_ids_as_dictionary(gene):
     'omim_id': gene.omim_id,
     'hgnc_id': gene.hgnc_id,
     'cosmic_id': gene.cosmic_id,
-    'uniprot_id': gene.uniprot_id    
+    'uniprot_id': gene.uniprot_id
     }
     
     
@@ -460,13 +460,12 @@ CDK11A
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
 
-def get_stringdb_interactions(request, protein_list):
-    print("In: ", get_stringdb_interactions)
+    
+def stringdb_interactions(protein_list):
+    print("In: get_stringdb_interactions")
     stringdb_options="network_flavor=confidence&limit=0&required_score=400";  # &additional_network_nodes=0
     # The online interactive stringdb uses: "required_score" 400 and: "limit" 0 (otherwise by default will add 10 more proteins)
 
-    protein_dict =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
-    
     protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
@@ -484,10 +483,20 @@ def get_stringdb_interactions(request, protein_list):
         response = urlopen(req)
     except URLError as e:
         if hasattr(e, 'reason'):
-            print('We failed to reach a server:', e.reason)
+            return False, 'We failed to reach a server: ' + e.reason
         elif hasattr(e, 'code'):
-            print('The server couldn\'t fulfill the request. Error code:', e.code)
+            return False, 'The server couldn\'t fulfill the request. Error code:' + e.code
     else:  # everything is fine
+        return True, response
+
+
+def get_stringdb_interactions(request, protein_list):
+
+    success, response = stringdb_interactions(protein_list) # Fetches list of actual interactions
+    
+    if success:
+        protein_dict =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
+    
         protein_dict2 = dict()
         for line in response:
           # if line:
@@ -513,9 +522,59 @@ def get_stringdb_interactions(request, protein_list):
         #    result += cols[0].replace('string:', '')+"\t"+cols[1].replace('string:', '')+"\n"
         #print(protein_list2)
         return HttpResponse(protein_list2, content_type='text/plain') # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
-    
+    else:
+        print(response)
+        return HttpResponse('ERROR: '+response, content_type='text/plain')
     # Maybe handle any exception - eg. server doesn't respond
+
+
     
+def cytoscape(request, protein_list):
+    success, response = stringdb_interactions(protein_list) # Fetches list of actual interactions
+    
+    if success:
+        initial_nodes =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
+    
+        nodes = dict() # The protein nodes for cytoscape
+        edges = dict()   # The edges for cytoscape
+        for line in response:
+          # if line:
+            cols = line.decode('utf-8').rstrip().split("\t")
+            if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
+            protein1 = cols[0].replace('string:', '') # as ids start with 'string:'
+            if protein1 in initial_nodes:
+                protein1 = protein1.replace('9606.', '')            
+                nodes[protein1] = True
+            else: print("*** Protein1 returned '%s' is not in original list ***" %(protein1))
+
+            protein2 = cols[1].replace('string:', '') # as ids start with 'string:'
+            if protein2 in initial_nodes:
+                protein2 = protein2.replace('9606.', '')
+                nodes[protein2] = True
+            else: print("*** Protein2 returned '%s' is not in original list ***" %(protein2))
+
+            edge = protein1+'#'+protein2
+            edge_reversed = protein2+'#'+protein1
+            if edge not in edges and edge_reversed not in edges:
+                edges[edge] = True
+
+        node_list = sorted(nodes)
+        #print(node_list)
+        
+        edge_list = []
+        for edge in edges:
+            edge_list.append(edge.split('#')) # So should be array of arrays.
+        # print(edge_list)
+
+        context = {'node_list': node_list, 'edge_list': edge_list}
+        return render(request, 'gendep/cytoscape.html', context)
+
+        # return HttpResponse(protein_list2, content_type='text/plain') # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data 
+    else:
+        print(response)
+        return HttpResponse('ERROR: '+response, content_type='text/plain')
+    # Maybe handle any exception - eg. server doesn't respond
+
     
     
 def qtip(tip):
