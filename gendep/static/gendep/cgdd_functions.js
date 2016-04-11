@@ -1,6 +1,6 @@
 // Javascript functions for CGDD web interface.
 
-// Good for testing javascript: http://fiddlesalad.com/javascript/
+// Good for testing javascript: http://fiddlesalad.com/javascript/strin
 
 // Tips on making javascript faster:
 // Tips on making javascript faster:
@@ -74,6 +74,7 @@ function gene_external_links(id, div, all) {
   links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene='+id['gene_name']+'" target="_blank">GeneCards<span>Genecards: '+id['gene_name']+'</span></a> ';
   if (id['entrez_id']) {links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+id['entrez_id']+'" target="_blank">Entrez<span>Entrez Gene at NCBI: '+id['entrez_id']+'</span></a> ';}
   if (id['ensembl_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene: %s</span></a> ', id['ensembl_id'], id['ensembl_id']);}
+  // Ensembl_protein not needed now: if (all && (id['ensembl_protein_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/protview?peptide=%s" target="_blank">Ensembl_protein<span>Ensembl Protein: %s</span></a> ', id['ensembl_protein_id'],id['ensembl_protein_id']);}
   if (id['hgnc_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee: %s</span></a> ', id['hgnc_id'], id['hgnc_id']);}
   if (all) {
     if (id['vega_id'] != '') {links += div + sprintf(' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation: %s</span></a> ', id['vega_id'], id['vega_id']);}
@@ -83,8 +84,9 @@ function gene_external_links(id, div, all) {
   links += div + sprintf(' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics: %s</span></a> ', id['gene_name'],id['gene_name']);
   if (id['cosmic_id'] != '') {links += div + sprintf(' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer: %s</span></a> ', id['cosmic_id'],id['cosmic_id']);}
   if (id['uniprot_id'] != '') {links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}  // CanSAR uses UniProt ids
-   if (all && (id['uniprot_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.uniprot.org/uniprot/%s" target="_blank">UniProtKB<span>UniProtKB: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}
-  if (id['ensembl_protein_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/protview?peptide=%s" target="_blank">Ensembl_protein<span>Ensembl Protein: %s</span></a> ', id['ensembl_protein_id'],id['ensembl_protein_id']);}
+  if (all && (id['uniprot_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.uniprot.org/uniprot/%s" target="_blank">UniProtKB<span>UniProtKB: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}
+  if (all) {links += div + ' <a class="tip" href=" http://www.genomernai.org/v15/gene' + ( id['entrez_id']=='' ?  'Search/'+id['gene_name'] : 'details/'+id['entrez_id'] ) + '" target="_blank">GenomeRNAi<span>GenomeRNAi - phenotypes from RNA interference</span></a>';}  // as links are eg:  http://www.genomernai.org/v15/geneSearch/ERBB2 and http://www.genomernai.org/v15/genedetails/2064 
+   
   return links;
 }
 
@@ -432,6 +434,27 @@ function show_cytoscape() {
 }
 
 
+
+function show_stringdb_interactive() {
+	// NOW keeping the unconnected proteins in the interactive image as interactive alows users to do enrichment so means more if keep all proteins. 
+    //	
+	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+	var protein_dict = get_protein_id_list_for_depenedencies();
+
+	protein_count = len(protein_dict)	
+	var protein_list = dict_to_string(protein_dict, '%0D');
+	
+	console.log("Original protein count:",count_char(protein_count,';')+1, "Protein list:",protein_list);
+
+	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
+	var string_url = (protein_count == 1) ? global_url_for_stringdb_interactive_one_network : global_url_for_stringdb_interactive_networkList;
+    string_url += protein_list;
+	window.open(string_url);  // should open a new tab in browser.
+	return false; // or maybe return true?
+//	can run this command in the browser console to experiment)
+}
+
+
 function show_stringdb(display_callback_function) {
 	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
 	var protein_dict = get_protein_id_list_for_depenedencies();
@@ -446,7 +469,8 @@ function show_stringdb(display_callback_function) {
 
 	// Because of AJAX same origin policy (ie. no cross-site requests) so need to use pythonanywhere server as a proxy to get the string interaction list.
 	
-	//console.log(url);
+	console.log("url.length:", url.length);
+    console.log("url:", url);	
     $.ajax({
       url: url,
       dataType: 'text',  // 'csv', // really is tab deliminated
@@ -615,9 +639,9 @@ function stringdb_image(protein_count,protein_list) {
   var mycontent = '<img src="' + string_url +'" alt="Loading StringDB image...."/>';
   var href = string_url;
     
-//  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
+//  var box_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
 
-//  plot_title += '</p>';
+  var box_title = '<p align="center" style="margin-top: 0;">Showing high confidence (score&ge;700) string-db interactions between the dependencies associated with driver gene <b>'+global_selected_gene+'</b></p>';
   
   $.fancybox.open({
   //$(".fancybox").open({
@@ -648,8 +672,8 @@ function stringdb_image(protein_count,protein_list) {
 	//type: 'html', // 'iframe', // 'html', //'inline',
     //content:
 //    href: href,	
-	content: mycontent //,
-//    title: plot_title,
+	content: mycontent,
+    title: box_title  //,
    });
    
    return false; // Return false to the caller so won't move on the page
@@ -783,10 +807,9 @@ function populate_table(data,t0) {
           interaction_count ++;
 		  
 		  // BUT this is just the target identifier now:
-		  var string_url = global_url_for_stringdb_one_network + string_protein; // + "&limit=20";
-		  // was previously the driver and the target:
-		  // var string_url = global_url_for_stringdb_networkList + search_gene_string_protein + "%0D" + string_protein; // + "&limit=20";
-
+		  var string_url = global_url_for_stringdb_interactive_networkList_score400 + search_gene_string_protein + "%0D" + string_protein;
+		  // Colm wants driver + target as they interact as (Med/High/Highest) link means these interact with score >=400. 
+		  
 	      // var string_function = "string('" + driver + comma + target + "');";
 	      // interaction_cell = '<td'+bgcolor+'><a href="javascript:void(0);" onclick="'+string_function+'">'+interaction[0]+'</a></td>';
 		  interaction_cell = '<td'+bgcolor+'><a href="'+ string_url +'" target="_blank">'+interaction[0]+'</a></td>';

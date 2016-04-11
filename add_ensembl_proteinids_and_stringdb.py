@@ -625,7 +625,9 @@ def load_stringdb_protein_interaction_file_into_dictionary():
 # or if hash these ?
 
 
-def add_interaction_scores_to_dependenct_table_in_db():
+def add_interaction_scores_to_dependency_table_in_db():
+  if len(p1p2_dict) == 0:
+     print("*****ERROR: p1p2_dict is EMPTY - need to load it first ******")
   print("Adding interaction scores to the Dependency table ...")
   count_dependencies = 0
   count_have_both_protein_ids = 0
@@ -702,15 +704,15 @@ if __name__ == "__main__":
     
     #### merge_prevnames_and_synonyms()
     
-    add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()
+    # Still needed to rebuild table:
+    # add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()
     
-    # load_entrez_to_stringdb_dictionary()
-    
+    # load_entrez_to_stringdb_dictionary()   
     # add_ensembl_proteins_to_Gene_table_in_db()
 
-    
-    # load_stringdb_protein_interaction_file_into_dictionary()
-    add_interaction_scores_to_dependenct_table_in_db()
+    # Both needed to rebuild table ### (11 April 2016):
+    load_stringdb_protein_interaction_file_into_dictionary()
+    add_interaction_scores_to_dependency_table_in_db()
     print("Finished")
 
 # sys.exit()

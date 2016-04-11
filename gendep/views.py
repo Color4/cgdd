@@ -461,9 +461,9 @@ CDK11A
 
 
     
-def stringdb_interactions(protein_list):
+def stringdb_interactions(required_score, protein_list):
     print("In: get_stringdb_interactions")
-    stringdb_options="network_flavor=confidence&limit=0&required_score=400";  # &additional_network_nodes=0
+    stringdb_options="network_flavor=confidence&limit=0&required_score="+required_score;  # &additional_network_nodes=0
     # The online interactive stringdb uses: "required_score" 400 and: "limit" 0 (otherwise by default will add 10 more proteins)
 
     protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
@@ -490,9 +490,9 @@ def stringdb_interactions(protein_list):
         return True, response
 
 
-def get_stringdb_interactions(request, protein_list):
+def get_stringdb_interactions(request, required_score, protein_list):
 
-    success, response = stringdb_interactions(protein_list) # Fetches list of actual interactions
+    success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
     
     if success:
         protein_dict =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
@@ -529,8 +529,8 @@ def get_stringdb_interactions(request, protein_list):
 
 
     
-def cytoscape(request, protein_list):
-    success, response = stringdb_interactions(protein_list) # Fetches list of actual interactions
+def cytoscape(request, required_score, protein_list):
+    success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
     
     if success:
         initial_nodes =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
