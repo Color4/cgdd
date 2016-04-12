@@ -364,14 +364,14 @@ run_univariate_tests <- function(
 	i <- NULL
 	for(i in seq(1:length(colnames(mutations)))){
 
-#       Skip if driver mutation is NOT in the above list of 21 genes for the Achilles data	
+#       Skip if driver mutation is NOT in the above list of 21 genes for the Achilles and the Colt data	
 #       Added by SJB to speed up initialy analysis of Achilles data by focusing in the 21 genes.
 #	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
-#       Skip if driver mutation IS in the above list of 21 genes - as they are already processed.
-	    #if ( (colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
-		#	print(paste("skipping:", colnames(mutations)[i]))
-		#	next
-		#}
+#       or change to Skip if driver mutation IS in the above list of 21 genes - as they are already processed.
+	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
+			print(paste(toString(i),"skipping:", colnames(mutations)[i]))
+			next
+		}
 
 		print(paste(toString(i),"working on:", colnames(mutations)[i]))
 		
@@ -642,9 +642,22 @@ make_mini_box_dot_plots <- function(
 				-2,0,col="red",lty=2
 				)
 			# Draw the absline while xpdf=FALSE (changed to TRUE for legend), otherwise line draw accross whole image, instead of just accross the plots area.
-			mtext(paste(marker_gene, "status"), 1, line=2, cex=1.5)
-			mtext(paste(target_gene, response_type), 2, line=2.2, cex=1.5)
+			
+			# Trim the target_variant last character from the gene names for Achilles data:
+			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 
+			# mtext() - write text onto the margins of a plot:
+			# where: side is (1=bottom, 2=left, 3=top, 4=right).
+			# line	= on which MARgin line, starting at 0 counting outwards.
+			# cex= character expansion factor. NULL and NA are equivalent to 1.0. This is an absolute measure, not scaled by par("cex") or by setting par("mfrow") or par("mfcol"). Can be a vector.
+			# SJB, changed line=2 to line=2.2 for horizontal axis text:
+			
+			mtext(paste(marker_gene, "status"), 1, line=2.3, cex=1.5)  # is horizontal axis text
+			mtext(paste(target_gene, response_type), 2, line=2.3, cex=1.5)
+
+			### remove last character .....substr(t, 1, nchar(t)-1)
+			# or regexp: gsub(".$", "", c('01asap05a', '02ee04b')) 
+			
 #			print(summary(wt_mut_grps))
 
 			# Draw legend first, so plot points can be drawn over it x=0.45,y=-4.2

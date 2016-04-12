@@ -69,16 +69,18 @@ var global_url_for_download_csv = "{% url 'gendep:download_csv' search_by='mysea
 var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
 var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
 
+var global_url_for_faq = "{% url 'gendep:faq' %}"; 
+
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
 // &targetmode=proteins (does this work for genes?) - from the gene_cards link
 
-var stringdb_options="network_flavor=confidence&limit=0&caller_identity=CGDD";  // &additional_network_nodes=0
+var stringdb_options="network_flavor=confidence&caller_identity=CGDD";  // &additional_network_nodes=0
 
 var stringdb_options_score400 = stringdb_options + "&required_score=400"; // Used for the Driver + Target links (Medium, High, Highest)  
 
-var stringdb_options_score700 = stringdb_options + "&required_score=700"; // Used for overall view for all the dependencies.
+var stringdb_options_score700 = stringdb_options + "&required_score=700&limit=0"; // Used for overall view for all the dependencies.
 
 var global_url_for_stringdb_interactionsList = "{% url 'gendep:get_stringdb_interactions' required_score='700' protein_list='myproteins' %}";
 
@@ -102,8 +104,6 @@ var global_url_for_stringdb_networkList = "http://string-db.org/api/image/networ
 
 var global_url_for_stringdb_one_network = "http://string-db.org/api/image/network?"+stringdb_options_score700+"&identifier="; // network and identifier
 
-var global_max_stringdb_proteins_ids = 350; // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
-//Browser URL limits:  IE 2083 characters, Chrome around 2000 characters, Firefox 2047 characters. So aim < 2000 characters.
 
 
 // From Lars for the interactive:  The '&advanced_menu=yes' is just needed for the interactive (flash) network view:
@@ -116,8 +116,12 @@ var global_url_for_stringdb_interactive_networkList =
 var global_url_for_stringdb_interactive_one_network = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifier=";
 
+var global_max_stringdb_proteins_ids = (2000 - global_url_for_stringdb_interactive_networkList.length)/23; // was 350; but too long for internet explorer // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
+//Browser URL limits:  IE 2083 characters, Chrome around 2000 characters, Firefox 2047 characters. So aim < 2000 characters.
+// See: http://stackoverflow.com/questions/812925/what-is-the-maximum-possible-length-of-a-query-string
+// as ensembl protein ids are 20 characters long (eg: "9606.ENSG00000174442" ) plus 3 characters for "%0D", then if max GET string in Internet explorer is 2000 characters (2000-base_url)/23 = 
 
-
+console.log("global_max_stringdb_proteins_ids:",global_max_stringdb_proteins_ids);
 // eg: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&required_score=700&identifiers=9606.ENSP00000388648%0D9606.ENSP00000283109%0D9606.ENSP00000402084%0D9606.ENSP00000423665%0D9606.ENSP00000373574
 
 
@@ -230,8 +234,6 @@ $.tablesorter.addParser({
 	// http://zippyui.com/react-datagrid/#/
     // jEasyUI: http://www.jeasyui.com/tutorial/datagrid/datagrid27_demo.html
 
-
-
 	$("#result_table").tablesorter({
 	    // For diocs see: https://mottie.github.io/tablesorter/docs/
 		// https://mottie.github.io/tablesorter/docs/#methods
@@ -285,7 +287,11 @@ $.tablesorter.addParser({
 				   "Any"    : function(e, n, f, i) {return e != '';},
 				   "Medium" : function(e, n, f, i) {return e == 'Medium';},
 				   "High"   : function(e, n, f, i) {return e == 'High';},
-				   "Highest": function(e, n, f, i) {return e == 'Highest';},
+				   "Highest": function(e, n, f, i) {return e == 'Highest';}
+				},
+				7: {
+				   "Any"    : function(e, n, f, i) {return e != '';}
+				   // or could use 'inhibitors, '
 				}
             }
 //data-value="T" "\u2264 0.05"
@@ -325,9 +331,12 @@ $.tablesorter.addParser({
   }
 */
     //$( document ).tooltip({
-	$('#result_table_tbody').tooltip({
+
+   // Using tooltips: http://www.tutorialspoint.com/jqueryui/jqueryui_tooltip.htm
+	$('#result_table_tbody, #result_table_thead').tooltip({
+	// $('#result_table').tooltip({	
       //items: "img, [title]",
-	  items: "[gene], [exptype], [study], [drug]",
+	  items: "[gene], [study], [exptype], [note]", // , [drug]
 	  // track:true,
 	  show: false, //{ effect: "", duration: 0, delay: 0},
 	  hide: false, // { effect: "", duration: 0, delay: 0}, // see: http://webduos.com/tooltip-using-jquery-ui-library/#.Vvb48uKLSih
@@ -399,17 +408,20 @@ $.tablesorter.addParser({
 //		  return text;
 //        }
         }
+      else if ( element.is( "[study]" ) ) {
+	      var study = study_info(element.attr("study"));
+          return '<b>'+study[0]+':</b> '+study[3]; //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
+        }		
       else if ( element.is( "[exptype]" ) ) {
           var study = study_info(element.attr("exptype"));
    	      return '<b>'+study[1]+':</b> '+study[2]; //exptype contains the pmid of this study. [1]is expt type, [2] returns exp summary
         }
-      else if ( element.is( "[study]" ) ) {
-	      var study = study_info(element.attr("study"));
-          return '<b>'+study[0]+':</b> '+study[3]; //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
+      else if ( element.is( "[note]" ) ) {
+	      return element.attr("note");
         }
-      else if ( element.is( "[drug]" ) ) {
-          return element.attr("drug"); // drug contains the list of inhibitors
-        }
+      //else if ( element.is( "[drug]" ) ) {
+      //    return element.attr("drug"); // drug contains the list of inhibitors
+      //  }
 		
      //if ( element.is( "img" ) ) {
       //  return element.attr( "alt" );
@@ -520,6 +532,7 @@ var t0 = performance.now();
         // result_start = "1";
         // var numrows = "25"; // Max rows to return for now
 		$("#result_div").hide();
+		$('#result_table').trigger('filterReset'); // To remove filter from the rows.
 		$("#result_progress_div").html("<b>Fetching data from server....</b>");
 		
 		var url = global_url_for_dependency_search.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',histotype).replace('mystudy',study);
@@ -806,7 +819,7 @@ $.ajax({
 &nbsp String-DB:
 <input type="button" id="string_image" value="image" onclick="show_stringdb(stringdb_image);" />
 <input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" />
-<input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" />
+{# <input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" /> #}
 <span id="string_link"></span>
 </p>
 </form>
@@ -820,15 +833,15 @@ $.ajax({
 <!-- was: data-placeholder="< 0.05" data-placeholder="&le; 0.05" data-value="T" "\u2264 0.05"  just using '<' for simplicity instead of '&le;' -->
 <!-- data-placeholder=">= 65.0" -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
-<thead><tr>
-  <th data-placeholder="Search by name" id="dependency_col_name">Dependency</th>
-  <th data-placeholder="<0.05" class="filter-select sorter-pvalue"> P-value </th>
-  <th data-placeholder=">= 65.0">Effect size (%)</th>
+<thead id="result_table_thead"><tr>
+  <th data-placeholder="Search by name" id="dependency_col_name" note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
+  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" note="Wilcox p-value"> P-value </th>
+  <th data-placeholder=">= 65.0" note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
   <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>
-  <th class="filter-select"><a class="tipleft">String Interaction<span>Known functional interaction between driver and target/dependent gene, from string-db.org</span></a></th>  <!-- Add 'Any' as option for interaction -->
-  <th class="filter-select">Inhibitors</th>
+  <th class="filter-select" note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String Interaction</th>
+  <th class="filter-select" note="Inhibitors from DGIdb">Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>

@@ -591,6 +591,32 @@ http://stackoverflow.com/questions/28323237/tablesorter-jquery-how-to-get-values
  }
 */
 
+function toggle_show_drugs(obj,drug_names,div) {
+  // An alternative could be tooltip that stays when link clicked: http://billauer.co.il/blog/2013/02/jquery-tooltip-click-for-help/
+  // or: http://pagenotes.com/pagenotes/tooltipTemplates.htm
+  // or: Modal tooltips: http://qtip2.com/
+  // or: https://www.quora.com/How-do-I-make-a-tooltip-that-stays-visible-when-hovered-over-with-JavaScript
+  obj.innerHTML = obj.innerHTML.indexOf('[more]') > -1 ? make_drug_links(drug_names,div)+' [less]' : drug_names.substr(0,8)+'...[more]';
+}
+
+//function hide_drugs() {
+//  this.innerHTML='';
+//}
+
+//onclick="show_drugs(this);"
+//onclick="hide_drugs(this);"
+
+function make_drug_links(drug_names,div) {
+  // DBIdb paper: http://nar.oxfordjournals.org/content/44/D1/D1036.full
+  var drugs = drug_names.split(div); // 'div' is comma or semi-colon
+  var links ='';
+  for (var i=0; i<drugs.length; i++) {
+	if (i>0) {links += ', ';}
+    links += '<a href="http://dgidb.genome.wustl.edu/drugs/'+drugs[i]+'" target="_blank">'+drugs[i]+'</a>';  
+  }
+  return links;
+}
+
 function stringdb_interactive(protein_count,protein_list) {
 	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
 	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
@@ -642,7 +668,7 @@ function stringdb_image(protein_count,protein_list) {
 //  var box_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
 
   var box_title = '<p align="center" style="margin-top: 0;">Showing high confidence (score&ge;700) string-db interactions between the dependencies associated with driver gene <b>'+global_selected_gene+'</b></p>';
-  
+    
   $.fancybox.open({
   //$(".fancybox").open({
     // href: url_boxplot,
@@ -818,8 +844,18 @@ function populate_table(data,t0) {
 	  
 	  var inhibitor_cell;
 	  if (d[iinhibitors] == '') {inhibitor_cell='<td></td>';}
-	  else {		  
-		  inhibitor_cell = '<td drug="'+d[iinhibitors]+'" style="background-color: beige;">Yes</td>';		  
+	  else {
+		  var drug_links = '';
+		  var onclick = '';
+		  if (d[iinhibitors].length <= 12) {drug_links = make_drug_links(d[iinhibitors],',');}
+		  else {		  
+		    drug_links = d[iinhibitors].substr(0,8)+'...[more]';
+            var onclick_function = "toggle_show_drugs(this,'"+d[iinhibitors]+"', ',');";
+			onclick = ' onclick="'+onclick_function+'"';
+		  }
+		  // removed the attribute: drug="'+d[iinhibitors]+'"
+          inhibitor_cell = '<td style="background-color: beige;"'+onclick+'>'+drug_links+'</td>';
+		  //make_drug_links(drug_names,',')	// div is comma or semi-colon
 	  }
 	  
 //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';

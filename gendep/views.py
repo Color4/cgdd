@@ -248,8 +248,11 @@ def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histot
     # effect_size = request.POST.get('effect_size', "ALL_EFFECT_SIZES")
     # return json_error('Hello') # HttpResponse("Hello", json_mimetype)
     
-    select_related = 'target__inhibitors' if search_by_driver else 'driver__inhibitors'
-    
+    if search_by_driver:
+        select_related = [ 'target__inhibitors', 'target__ensembl_protein_id' ]
+    else:
+        select_related = [ 'driver__inhibitors', 'driver__ensembl_protein_id' ]
+ 
     error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # can add select related if needed, eg: for target gene synonyms.
     if error_msg != '': return json_error("Error: "+error_msg)
 
@@ -343,17 +346,14 @@ CDK11A
 
         # NEED to change this target/driver search by protein ids.
         # *** should include this protein_id in related fields above for speed, as either driver or target
-        if d.interaction is None or d.interaction == '':  # should not be None, as set in table by script to ''.
-            #interaction = ''
-            if d.target.ensembl_protein_id is None:
-                interaction = '#'
-            else:
-                interaction = '#'+d.target.ensembl_protein_id # Sending interaction protein always.
+
+        interaction = d.interaction   # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
+        if interaction is None: interaction = ''   # should not be None, as set in table by script to ''.
+
+        interation_protein_id = d.target.ensembl_protein_id if search_by_driver else d.driver.ensembl_protein_id
+        if interation_protein_id is None: interation_protein_id = ''  # The ensembl_protein_id might be empty.
+        interaction += '#'+interation_protein_id  # Always append the protein id so can use this to link to string.org
         
-        else:        
-            interaction = d.interaction+'#'+d.target.ensembl_protein_id  # The ensembl_protein_id might be empty.
-            # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
-            # Append the protein id so can use this to link to string.org
         
         inhibitors = d.target.inhibitors if search_by_driver else d.driver.inhibitors
         if inhibitors is None: inhibitors = ''

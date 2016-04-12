@@ -17,25 +17,28 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEVELOPMENT = ('Django_projects' in BASE_DIR) # To indicate that is running on my local Windows computer, then set settings below accordingly:
 
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = DEVELOPMENT  # DEBUG = True
+DATABASE_SQLITE = True  # was:  = DEVELOPMENT
+CACHE_DATA = True
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'hi0b%owp27jefp==#xz34=3d5x4f3-)0ezh0%o+4ba=8#&apju'
+# SECRET_KEY = 'hi0b%owp27jefp==#xz34=3d5x4f3-)0ezh0%o+4ba=8#&apju'
 # SJB - Instead automatically build a secret key - from: https://gist.github.com/airtonix/6204802
 # We can put setting.py into github, but don't put base/settings/key.py into github.
-#try:
-#    from .key import *
-#except ImportError:
-#    from base.lib.generate_key import generate_key
-#    secret_key_file = open(os.path.join(HERE_DIR, "key.py"), "w")
-#    secret_key_file.write("""SECRET_KEY = "{0}" """.format(generate_key(40, 128)))
-#    secret_key_file.close()
-#    from .key import *
+try:
+    from .key import *
+except ImportError:
+    from base.lib.generate_key import generate_key
+    secret_key_file = open(os.path.join(HERE_DIR, "key.py"), "w")
+    secret_key_file.write("""SECRET_KEY = "{0}" """.format(generate_key(40, 128)))
+    secret_key_file.close()
+    from .key import *
 
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = DEVELOPMENT  # DEBUG = True
 
 ALLOWED_HOSTS = []
 
@@ -114,7 +117,7 @@ WSGI_APPLICATION = 'cgdd.wsgi.application'
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
 
 
-if DEVELOPMENT:
+if DATABASE_SQLITE:
    # Using sqlite3 on my windows computer:
     DATABASES = {
       'default': {
@@ -160,12 +163,7 @@ else:
   #            'NAME': 'mytestdatabase',
   #        },
 
-if DEVELOPMENT: # Use dummy cache, so can test speed of SQL query repeatidly
-    #CACHES = {
-    #    'default': {
-    #        'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-    #    }
-    #}
+if CACHE_DATA:
     # Or could use the local memory cacahe - which is per process. In Local Memory caching "each process will have its own private cache instance, which means no cross-process caching is possible. This obviously also means the local memory cache isn't particularly memory-efficient, so it's probably not a good choice for production environments. It's nice for development."
     # CACHES = {
     #    'default': {
@@ -178,6 +176,8 @@ if DEVELOPMENT: # Use dummy cache, so can test speed of SQL query repeatidly
     #   'default': {
     #        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
     #        'LOCATION': 'c:/Users/HP/Django_projects/cgdd/cache_dir',
+    # or on pythonAnywhere server, maybe:
+    #        'LOCATION': '/var/tmp/django_cache',  # Needs absolute path
     #    }
     #}
     CACHES = {
@@ -188,18 +188,10 @@ if DEVELOPMENT: # Use dummy cache, so can test speed of SQL query repeatidly
         }
     }
 
-else:
-    #CACHES = {
-    #'default': {
-    #       'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-    #       'LOCATION': '/var/tmp/django_cache',  # Needs absolute path
-    #    }
-    #}
+else: # Use dummy cache, so can test speed of SQL query repeatidly:
     CACHES = {
         'default': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'gendep_cache_table',  # Need to create table using: python manage.py createcachetable
-            'TIMEOUT': 36000, # 36000 = 10 hours. Defaults to 300 seconds (5 minutes). Set TIMEOUT to None so that cache keys never expire. 0 causes keys to immediately expire. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-arguments
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
         }
     }
   
