@@ -18,7 +18,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEVELOPMENT = ('Django_projects' in BASE_DIR) # To indicate that is running on my local Windows computer, then set settings below accordingly:
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = DEVELOPMENT  # DEBUG = True
+DEBUG = True # DEVELOPMENT  # DEBUG = True
 DATABASE_SQLITE = True  # was:  = DEVELOPMENT
 CACHE_DATA = True
 
@@ -26,17 +26,18 @@ CACHE_DATA = True
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-# SECRET_KEY = 'hi0b%owp27jefp==#xz34=3d5x4f3-)0ezh0%o+4ba=8#&apju'
+#SECRET_KEY = 'hi0b%owp27jefp==#xz34=3d5x4f3-)0ezh0%o+4ba=8#&apju'
 # SJB - Instead automatically build a secret key - from: https://gist.github.com/airtonix/6204802
 # We can put setting.py into github, but don't put base/settings/key.py into github.
 try:
-    from .key import *
+    from key.py import *
 except ImportError:
-    from base.lib.generate_key import generate_key
-    secret_key_file = open(os.path.join(HERE_DIR, "key.py"), "w")
-    secret_key_file.write("""SECRET_KEY = "{0}" """.format(generate_key(40, 128)))
-    secret_key_file.close()
-    from .key import *
+    print("Unable to load key into settings.py file")
+#    from base.lib.generate_key import generate_key
+#    secret_key_file = open(os.path.join(HERE_DIR, "key.py"), "w")
+#    secret_key_file.write("""SECRET_KEY = "{0}" """.format(generate_key(40, 128)))
+#    secret_key_file.close()
+#    from .key import *
 
 
 

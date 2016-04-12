@@ -116,12 +116,12 @@ var global_url_for_stringdb_interactive_networkList =
 var global_url_for_stringdb_interactive_one_network = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifier=";
 
-var global_max_stringdb_proteins_ids = (2000 - global_url_for_stringdb_interactive_networkList.length)/23; // was 350; but too long for internet explorer // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
+var global_max_stringdb_proteins_ids = int((2000 +2 - global_url_for_stringdb_interactive_networkList.length)/23); // was 350; but too long for internet explorer // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
 //Browser URL limits:  IE 2083 characters, Chrome around 2000 characters, Firefox 2047 characters. So aim < 2000 characters.
 // See: http://stackoverflow.com/questions/812925/what-is-the-maximum-possible-length-of-a-query-string
 // as ensembl protein ids are 20 characters long (eg: "9606.ENSG00000174442" ) plus 3 characters for "%0D", then if max GET string in Internet explorer is 2000 characters (2000-base_url)/23 = 
 
-console.log("global_max_stringdb_proteins_ids:",global_max_stringdb_proteins_ids);
+//console.log("global_max_stringdb_proteins_ids:",global_max_stringdb_proteins_ids);
 // eg: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&required_score=700&identifiers=9606.ENSP00000388648%0D9606.ENSP00000283109%0D9606.ENSP00000402084%0D9606.ENSP00000423665%0D9606.ENSP00000373574
 
 
