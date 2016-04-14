@@ -64,7 +64,7 @@ if (isAchilles) {
 } else if (isColt) {
 
   # uv_results_kinome_combmuts_file <- "NONE"
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v1_bytissue_kinome_combmuts_31Mar2016_witheffectsize.txt"
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v1_bytissue_kinome_combmuts_12April2016_witheffectsize.txt"
   
   # combined_histotypes_boxplot_dir <- "NONE/"
   separate_histotypes_boxplot_dir <- "separate_histotypes_colt_allbreast/"
@@ -227,4 +227,6 @@ for(this_tissue in tissues){
 		)
 }
 
+
+make_legends()
 

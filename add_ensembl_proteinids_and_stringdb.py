@@ -390,6 +390,7 @@ def load_entrez_to_stringdb_dictionary():
 #    http://string-db.org/version_10/newstring_cgi/show_network_section.pl?all_channels_on=1&identifier=9606.ENSP00000321744
 
 
+
 def add_ensembl_proteins_to_Gene_table_in_db():
   # Scan trough the Gene table:
   print("Adding Ensembl protein Ids to the Gene table ...")
@@ -442,6 +443,7 @@ def add_ensembl_proteins_to_Gene_table_in_db():
   
   
 # ======
+gendep_gene_protein_id_dict = dict()
 def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
   # Scan trough the Gene table:
   print("Adding Ensembl protein Ids to the Gene table ...")
@@ -463,7 +465,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
   
   protein_dict = dict()
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
-    for g in Gene.objects.all().iterator():
+    for g in Gene.objects.all().iterator():      
       #print(g.gene_name,"   ",g.entrez_id)
       driver_text = '*DRIVER*' if g.is_driver else ''
       protein_id_from_entrez_id = ''
@@ -518,10 +520,15 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           
           if protein_id_from_entrez_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_entrez %s is one of these" %(driver_text,g.gene_name,protein_id_from_entrez_id))
+            g.ensembl_protein_id = protein_id_from_entrez_id
+            g.save()
+
           else:
             count_multiple_protein_ids += 1
             if g.is_driver: driver_count_multiple_protein_ids += 1
-                
+            
+      gendep_gene_protein_id_dict[g.ensembl_protein_id] = True # Used later to only load interactions that have protein_ids in the gene table.
+      
      # 8289 is entrez_id for 'HIST1H2BF';
      # 8343 is entrz_id for 'ARID1A': http://www.ncbi.nlm.nih.gov/gene/8289
   # for row in c.execute('SELECT * FROM alias_to_stringdb WHERE alias LIKE ?', ('ARID1A%',)): # startswith
@@ -577,6 +584,9 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
 p1p2_dict = dict()
 def load_stringdb_protein_interaction_file_into_dictionary():
   print("Loading StringDB protein interactions into dictionary ...")
+  if len(gendep_gene_protein_id_dict) == 0:
+     print("**** ERROR: Need to load gendep_gene_protein_id dictionary first")
+     exit()
   
   min_score_to_load = 400 # To reduce memory usage
   dict_count = 0
@@ -590,6 +600,8 @@ def load_stringdb_protein_interaction_file_into_dictionary():
       #if score < min_score_to_load: continue
       species, p1 = p1.split('.')
       species, p2 = p2.split('.')
+      if p1 not in gendep_gene_protein_id_dict or p2 not in gendep_gene_protein_id_dict:
+        continue  # Only need to load interactions for genes in our cgdd gendep_gene table.
       rev_key = p2+'_'+p1
       if rev_key in p1p2_dict: # check score is same.
         if p1p2_dict[rev_key] == score: rev_count+=1
@@ -628,6 +640,8 @@ def load_stringdb_protein_interaction_file_into_dictionary():
 def add_interaction_scores_to_dependency_table_in_db():
   if len(p1p2_dict) == 0:
      print("*****ERROR: p1p2_dict is EMPTY - need to load it first ******")
+     exit()
+     
   print("Adding interaction scores to the Dependency table ...")
   count_dependencies = 0
   count_have_both_protein_ids = 0
@@ -705,7 +719,7 @@ if __name__ == "__main__":
     #### merge_prevnames_and_synonyms()
     
     # Still needed to rebuild table:
-    # add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()
+    add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()
     
     # load_entrez_to_stringdb_dictionary()   
     # add_ensembl_proteins_to_Gene_table_in_db()

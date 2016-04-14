@@ -523,10 +523,11 @@ make_legends <- function(){
     #   tissue_pretty_names <- legend_pretty_tissues
     #   tissue_cols <- legend_col
 
+	# The parameters used in the cgdd website are: 	w16_cex8 (ie. w=1.6, cex 0.8)
 	png(filename=paste("Legend_PMID", pubmed_id, ".png", sep=""),
 		# width=5.3, height=4.5, units="in", res=96)
 		# width=4.0, height=4.5, units="in", res=96)
-		width=1.5, height=4.0, units="in", res=96)
+		width=1.6, height=4.0, units="in", res=96) # was: width=1.5,
 		# width=400, height=400) # default is pixils: , units="in"
 		#  res = .... defaults to 72. The smaller this number, the larger the plot area in inches, and the smaller the text relative to the graph itself.
 
@@ -534,7 +535,7 @@ make_legends <- function(){
 	#par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 1.4)) # <-- for legend at right.  SJB: original was: width=2.5, height=3
 
     plot(1, type="n", axes=FALSE, xlab="", ylab="") # creates an empty plot
-    legend("center", legend=legend_pretty_tissues, fill=legend_col, cex=0.75 )  # was: x=1, y=1
+    legend("center", legend=legend_pretty_tissues, fill=legend_col, cex=0.8 )  # was: x=1, y=1, was: cex=0.75
 	# horiz=TRUE, 
 	dev.off()
 	
@@ -603,7 +604,7 @@ make_mini_box_dot_plots <- function(
 			wt_grp_rows <- which(wt_mut_grps_strings == "wt")
 			nonfunc_mut_grp_rows <- which(wt_mut_grps_strings == "non-rec. mut.")
 			func_mut_grp_rows <- which(wt_mut_grps_strings == "rec. mut.")
-					
+#print("A")
 			png(filename=paste(
 				prefix_for_filename,
 				marker_gene,
@@ -628,7 +629,7 @@ make_mini_box_dot_plots <- function(
             #print(i)
             #print(zscores[wt_grp_rows,results$target[i]])
             #print(zscores[func_mut_grp_rows,results$target[i]])
-			
+#print("B")			
 			boxplot(
 				zscores[wt_grp_rows,results$target[i]],
 				zscores[func_mut_grp_rows,results$target[i]],
@@ -645,7 +646,7 @@ make_mini_box_dot_plots <- function(
 			
 			# Trim the target_variant last character from the gene names for Achilles data:
 			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
-
+#print("C")
 			# mtext() - write text onto the margins of a plot:
 			# where: side is (1=bottom, 2=left, 3=top, 4=right).
 			# line	= on which MARgin line, starting at 0 counting outwards.
@@ -657,7 +658,7 @@ make_mini_box_dot_plots <- function(
 
 			### remove last character .....substr(t, 1, nchar(t)-1)
 			# or regexp: gsub(".$", "", c('01asap05a', '02ee04b')) 
-			
+#print("D")			
 #			print(summary(wt_mut_grps))
 
 			# Draw legend first, so plot points can be drawn over it x=0.45,y=-4.2

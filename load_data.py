@@ -38,8 +38,9 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 
 
  
-FETCH_BOXPLOTS = False # True # Should also test that is running on development computer.
-ACHILLES_FETCH_BOXPLOTS = False # True # Should also test that is running on development computer.
+FETCH_BOXPLOTS = False # True # False # True # Should also test that is running on development computer.
+ACHILLES_FETCH_BOXPLOTS = False # True # False # True # Should also test that is running on development computer.
+COLT_FETCH_BOXPLOTS = True # False
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
@@ -55,6 +56,10 @@ separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes_medium")
 Achilles_combined_boxplots_dir = os.path.join(analysis_dir, "combined_histotypes_achilles")
 Achilles_separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes_achilles")
 
+# As colt is only breast data then no combined data boxplots:
+Colt_separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes_colt_allbreast")
+
+static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
 
@@ -68,13 +73,21 @@ django.setup()
 
 from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
 
+def make_AtoZ_subdirs(to_dir):  
+  for i in range(ord('A'), ord('Z')+1):
+    to_dir_subdir = to_dir + '/' + chr(i)
+    if not os.path.exists(to_dir_subdir): os.mkdir(to_dir_subdir)
+
 
 def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_name,target_name, old_histotype, histotype, old_pmid, pmid):
   from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, old_target_name, old_histotype, old_pmid)
   if not os.path.exists(from_filename): # As mostly already changed in Achilles data
       from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, target_name, old_histotype, old_pmid)
-
-  to_filename   = "%s/%s_%s_%s__PMID%s.png" %(to_dir, driver_name, target_name, histotype, pmid)
+  
+  to_dir_subdir = to_dir+'/' + driver_name[:1] # Storing in A-Z subdirectories to let OS find file a bit faster.
+  # if not os.path.exists(to_dir_subdir): os.mkdir(to_dir_subdir) Already created by make_AtoZ_subdirs()
+  
+  to_filename   = "%s/%s_%s_%s__PMID%s.png" %(to_dir_subdir, driver_name, target_name, histotype, pmid)
   
   # currently the pmid is: nnnnnnnn
 #  if histotype == "PANCAN": 
@@ -113,7 +126,7 @@ def split_driver_gene_name(long_name):
   if not names[1].isdigit() and long_name not in driver_name_warning_already_reported:
       print("** ERROR: Expected integer for Entrez id second part of name '%s'"  %(long_name))
       driver_name_warning_already_reported[long_name] = None
-  if names[2][:4] != 'ENSG' and long_name not in driver_name_warning_already_reported:
+  if names[2][:4] != 'ENSG' and names[2]!='NoEnsemblIdFound' and long_name not in driver_name_warning_already_reported:
       print("ERROR: Expected 'ENSG' for start of driver ensembl name: '%s'" %(long_name))
       driver_name_warning_already_reported[long_name] = None
   # eg: In the data from R, there are several drivers with two or more ensembl gane names:
@@ -132,20 +145,25 @@ def split_driver_gene_name(long_name):
 
 
 target_name_warning_already_reported = dict()
-def split_target_gene_name(long_name):
-  names = long_name.split('_')    # Target format is: DCK_ENSG00000156136
+def split_target_gene_name(long_name, isColt):
+
+  names = long_name.split('_')    # Target format is: DCK_ENSG00000156136 for Campbell and Achilles, but for Colt is: ATP1A1_476
   if len(names)!=2:
     if names[0] == 'CDK12' and len(names)==3 and names[2]=='CRK7': # as "CDK12_ENSG00000167258_CRK7" is an exception to target format (CRK7 is an alternative name)
       names.pop()   # Remove the last 'CRK7' name from the names list
     elif long_name not in target_name_warning_already_reported:
       print('Invalid number of parts in target gene, (as expected 2 parts)',long_name)
       target_name_warning_already_reported[long_name] = None
-      
-  if names[1][:4] != 'ENSG' and long_name not in target_name_warning_already_reported:
+
+  if isColt:
+    names.append('') # As Colt names have entrez id, but not ensembl id.  
+  else:
+    if names[1][:4] != 'ENSG' and names[1]!='NoEnsemblIdFound' and long_name not in target_name_warning_already_reported:
       print("ERROR: Expected 'ENSG' for start of target ensembl name: '%s'" %(long_name))
       target_name_warning_already_reported[long_name] = None
       
-  names.insert(1,'') # (or None, but Django stores None as empty string, rather than as null) to make same number of elements in names array for target names as in driver names.
+    names.insert(1,'') # (or None, but Django stores None as empty string, rather than as null) to make same number of elements in names array for target names as in driver names.
+    
   return names
 
 
@@ -238,7 +256,7 @@ def load_mygene_hgnc_dictionary():
 
 RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
 
-def find_or_add_gene(names, is_driver, is_target, isAchilles):  # names is a tuple of: gene_name, entrez_id, ensembl_id
+def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names is a tuple of: gene_name, entrez_id, ensembl_id
   # if names[0] == 'PIK3CA' and is_driver: print("**** PIK3CA  is_driver: ",names)
   #global RE_GENE_NAME
 #  if isAchilles: names[0] = names[0][:-1]  # Remove the final character from end of the string - but this will mean extra records for some dependecies
@@ -295,7 +313,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles):  # names is a tup
       if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
         print("WARNING: For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[ientrez_id], entrez_id) )
         this_hgnc[ientrez_id] = entrez_id        # So change it to use the one from the Excel file.
-      if entrez_id != 'NoEnsemblIdFound' and ensembl_id != this_hgnc[iensembl_id]:
+      if entrez_id != '' and entrez_id != 'NoEnsemblIdFound' and ensembl_id != this_hgnc[iensembl_id]:
         print("WARNING: For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[iensembl_id], ensembl_id) )
         this_hgnc[iensembl_id] = ensembl_id  # So change it to use the one from the Excel file.
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   http://docs.mygene.info/en/latest/doc/query_service.html  Fields available:  http://mygene.info/v2/gene/1017     http://docs.mygene.info/en/latest/
@@ -380,19 +398,25 @@ def get_boxplot_histotype(histotype):
     else: return histotype
 
 
-def fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles, target_variant=''):
+def fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles, isColt, target_variant=''):
+    global static_gendep_boxplot_dir
     if isAchilles:
       from_dir = Achilles_combined_boxplots_dir if histotype == "PANCAN" else Achilles_separate_boxplots_dir 
       target_gene_name = target_gene.gene_name + target_variant
       target_gene_original_name = target_gene.original_name + target_variant # As already fixed before running R
         # This used old name: 'C8orf44.SGK3' # 'C8orf44-SGK3' is new name in hghc: 48354
         # This used new name: 'STKLD1' # C9orf96 is the old name.
+    elif isColt:
+      if histotype == "PANCAN": print("**** ERROR: Cannot have PANCAN for Colt data *****")
+      from_dir = Colt_separate_boxplots_dir
+      target_gene_name = target_gene.gene_name
+      target_gene_original_name = target_gene.original_name      
     else:
       from_dir = combined_boxplots_dir if histotype == "PANCAN" else separate_boxplots_dir
       target_gene_name = target_gene.gene_name
       target_gene_original_name = target_gene.original_name
        
-    to_dir = "gendep/static/gendep/boxplots"
+    to_dir = static_gendep_boxplot_dir
     old_histotype = get_boxplot_histotype(histotype)
     fetch_boxplot(from_dir, to_dir, driver_gene.original_name, driver_gene.gene_name, target_gene_original_name, target_gene_name, old_histotype, histotype,  study_old_pmid, study.pmid)
     
@@ -427,8 +451,8 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
       count_skipped += 1
       continue  # Skip as the wilcox_p value isn't significant
 
-    driver_gene = find_or_add_gene(split_driver_gene_name(row[0]), is_driver=True, is_target=False, isAchilles=False)
-    target_gene = find_or_add_gene(split_target_gene_name(row[1]), is_driver=False, is_target=True, isAchilles=False)
+    driver_gene = find_or_add_gene(split_driver_gene_name(row[0]), is_driver=True, is_target=False, isAchilles=False, isColt=False)
+    target_gene = find_or_add_gene(split_target_gene_name(row[1]), is_driver=False, is_target=True, isAchilles=False, isColt=False)
     # If using Histotype table: histotype = find_or_add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
     histotype = row[3] # As using CharField(choices=...) and now is validated in the model.
     mutation_type='Both'  # Default to 'Both' for current data now.
@@ -445,7 +469,7 @@ def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pm
 
     # Fetch the boxplot:
     if FETCH_BOXPLOTS:
-        fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles=False)    
+        fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles=False, isColt=False)    
 
     print("\r",count_added, end=" ")
     count_added += 1
@@ -503,13 +527,16 @@ def add_counts_of_driver_tissue_and_target_to_studies():
       print("*** ERROR: study pmid % NOT found in the Study table: '%s'" %(row['study']))
   print("Finished adding driver, tissue and target counts to the study table")
 
-  
-def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tissue_type, isAchilles=True):
-  global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS
+
+def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tissue_type, isAchilles=True, isColt=True):
+  global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS, COLT_FETCH_BOXPLOTS
+  if isAchilles and isColt: print("*** ERROR: Cannot be both Achilles and Colt ******")
+
   print("\nImporting table: ",result_file)
 
   if isAchilles: print("ACHILLES FETCH_BOXPLOTS is: ",ACHILLES_FETCH_BOXPLOTS)
-  else: print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
+  elif isColt:   print("COLT FETCH_BOXPLOTS is: ",COLT_FETCH_BOXPLOTS)
+  else:          print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
   
   target_dict = dict()  # To find and replace any dependecies thart have different wilcox_p, just keeping the dependency with the lowest wilcox_p value.
   
@@ -553,15 +580,16 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     # driver_variant = names[0][-1:] # Seems we can ignore the driver variant as is trimming MYC to MY
     # if driver_variant not in ['1','2','3','4','5']: print("Unexpected driver_variant %s for %s" %(driver_variant,names[0])) 
     # names[0] = names[0][:-1]
-    driver_gene = find_or_add_gene(names, is_driver=True, is_target=False, isAchilles=isAchilles)
 
-    names = split_target_gene_name(row[itarget])
+    driver_gene = find_or_add_gene(names, is_driver=True, is_target=False, isAchilles=isAchilles, isColt=isColt)
+
+    names = split_target_gene_name(row[itarget], isColt)
     target_variant = ''
     if isAchilles:
         target_variant = names[0][-1:]  # As target variant is single integer after target gene name in my formatted Achilles target names.
         names[0] = names[0][:-1]
     
-    target_gene = find_or_add_gene(names, is_driver=False, is_target=True, isAchilles=isAchilles)
+    target_gene = find_or_add_gene(names, is_driver=False, is_target=True, isAchilles=isAchilles, isColt=isColt)
         
     # If using Histotype table: histotype = find_or_add_histotype(row[3], full_name=None)  # was: if row[3] not in histotypes: histotypes.append(row[3])
     if tissue_type=='PANCAN': histotype = 'PANCAN' 
@@ -604,9 +632,9 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     
   # Now fetch the boxplots for those added:
   count_boxplots = 0
-  if (isAchilles and ACHILLES_FETCH_BOXPLOTS) or ((not isAchilles) and FETCH_BOXPLOTS):
+  if (isAchilles and ACHILLES_FETCH_BOXPLOTS) or (isColt and COLT_FETCH_BOXPLOTS) or ((not isAchilles and not isColt) and FETCH_BOXPLOTS) :
      for d in dependencies:
-        fetch_boxplot_file(d.driver, d.target, d.histotype, isAchilles=isAchilles, target_variant=d.target_variant)
+        fetch_boxplot_file(d.driver, d.target, d.histotype, isAchilles=isAchilles, isColt=isColt, target_variant=d.target_variant)
         count_boxplots += 1
         
   print( "%d dependency rows were added to the database, %d replaced and %d not replaced, so %d target_variants" %(count_added,count_replaced, count_not_replaced, count_replaced+count_not_replaced))
@@ -725,16 +753,113 @@ def add_tissue_and_study_lists_for_each_driver():
    
 # print q.query # See for yourself.
 
-   
-   
-if __name__ == "__main__":
- add_tissue_and_study_lists_for_each_driver()
+"""
 
+"ARID1A"
+"CCND1"
+"CDKN2A"
+"EGFR"
+"ERBB2"
+"GNAS"
+"KRAS"
+"MAP2K4"
+"MDM2"
+"MYC"
+"NF1"
+"PIK3CA"
+"PTEN"
+"RB1"
+"SMAD4"
+"TP53"
+
+	"CCND1_595_ENSG00000110092", - 
+	"CDKN2A_1029_ENSG00000147889", - 
+	"EGFR_1956_ENSG00000146648", - 
+	"ERBB2_2064_ENSG00000141736", - 
+	"GNAS_2778_ENSG00000087460", - 
+	"KRAS_3845_ENSG00000133703", - 
+	"SMAD4_4089_ENSG00000141646", - 
+	"MDM2_4193_ENSG00000135679", -
+	"MYC_4609_ENSG00000136997", -
+	"NF1_4763_ENSG00000196712", - 
+	"NOTCH2_4853_ENSG00000134250", **
+	"NRAS_4893_ENSG00000213281", **
+	"PIK3CA_5290_ENSG00000121879", - 
+	"PTEN_5728_ENSG00000171862", - 
+	"RB1_5925_ENSG00000139687", - 
+	"MAP2K4_6416_ENSG00000065559", - 
+	"SMARCA4_6597_ENSG00000127616", **
+	"STK11_6794_ENSG00000118046", **
+	"TP53_7157_ENSG00000141510", - 
+	"ARID1A_8289_ENSG00000117713", -
+	"FBXW7_55294_ENSG00000109670" **
+    
+    Not in Colt data:
+    NOTCH2_4853_ENSG00000134250,
+	NRAS_4893_ENSG00000213281,
+	SMARCA4_6597_ENSG00000127616,
+	STK11_6794_ENSG00000118046,
+	FBXW7_55294_ENSG00000109670
+"""
+    
+
+def unmark_drivers_not_in_the_21genes():
+  # SJB - list copied from the "run_intercell_analysis.R" downloaded from github GeneFunctionTeam repo on 12 March 2016
+  # Define the set of 21 genes with good represention (≥ 7 mutants).
+  # This list can be used to filter the complete set of tests
+  # cgc_vogel_genes_with_n7 
+  the21drivers = [
+	"CCND1",   # _595_ENSG00000110092",
+	"CDKN2A",  # _1029_ENSG00000147889",
+	"EGFR",    # _1956_ENSG00000146648",
+	"ERBB2",   # _2064_ENSG00000141736",
+	"GNAS",    # _2778_ENSG00000087460",
+	"KRAS",    # _3845_ENSG00000133703",
+	"SMAD4",   # _4089_ENSG00000141646",
+	"MDM2",    # _4193_ENSG00000135679",
+	"MYC",     # _4609_ENSG00000136997",
+	"NF1",     # _4763_ENSG00000196712",
+	"NOTCH2",  # _4853_ENSG00000134250",
+	"NRAS",    # _4893_ENSG00000213281",
+	"PIK3CA",  # _5290_ENSG00000121879",
+	"PTEN",    # _5728_ENSG00000171862",
+	"RB1",     # _5925_ENSG00000139687",
+	"MAP2K4",  # _6416_ENSG00000065559",
+	"SMARCA4", # _6597_ENSG00000127616",
+	"STK11",   # _6794_ENSG00000118046",
+	"TP53",    # _7157_ENSG00000141510",
+	"ARID1A",  # _8289_ENSG00000117713",
+	"FBXW7",   # _55294_ENSG00000109670"
+	]
+  with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
+    for g in Gene.objects.all().iterator():
+       if g.is_driver:
+          if g.gene_name not in the21drivers:
+            print("Driver not in the 21 list:",g.gene_name)
+            g.is_driver = False
+            g.save()
+
+  print("Finished unmarking drivers that are not in the list of 21 drivers")
+
+
+if __name__ == "__main__":
+# add_tissue_and_study_lists_for_each_driver()
+
+  unmark_drivers_not_in_the_21genes()
+  
   #add_counts_of_driver_tissue_and_target_to_studies()
   #sys.exit()
   #exit()
 
 if __name__ == "__sjb_ignore_these__":  
+  # global static_gendep_boxplot_dir As this isn't a def then don't need global here.
+  if static_gendep_boxplot_dir is None or static_gendep_boxplot_dir == '':
+     print("****** WARNING: static_gendep_boxplot_dir is empty ******")
+     static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
+     # exit()
+     
+  make_AtoZ_subdirs(static_gendep_boxplot_dir)
+  
   load_hgnc_dictionary()
   load_mygene_hgnc_dictionary()
   
@@ -768,12 +893,12 @@ if __name__ == "__sjb_ignore_these__":
     table_name ='S1I'
     Cambell_results_pancan = "univariate_results_v26_pancan_kinome_combmuts_160323_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Cambell_results_pancan)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=False)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
     table_name = 'S1K'
     Cambell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_160323_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Cambell_results_bytissue)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
     # *** NOTE, warnings from R:
     # There were 50 or more warnings (use warnings() to see the first 50)
@@ -800,22 +925,23 @@ if __name__ == "__sjb_ignore_these__":
     table_name = ''
     Achilles_results_pancan ="univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_180312_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=True)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=True, isColt=False)
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
     table_name = ''
     Achilles_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=True)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
 
     #** Maybe my browser memory?
     #https://www.ncbi.nlm.nih.gov/pubmed/
     #Bad Request
 
-#Your browser sent a request that this server could not understand.
-#Size of a request header field exceeds server limit.
-#Cookie
-#/n
+    #Your browser sent a request that this server could not understand.
+    #Size of a request header field exceeds server limit.
+    #Cookie
+    #/n
+
     # ==================================================================================================
     # Colt:  https://neellab.github.io/bfg/   https://www.ncbi.nlm.nih.gov/pubmed/26771497
    
@@ -834,9 +960,10 @@ if __name__ == "__sjb_ignore_these__":
 
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
     table_name = ''
-    Colt_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
+    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_12April2016_witheffectsize.txt"
+    
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
-    ####read_colt .... colt / achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isColt=True)
+    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
 
     
     # I downloaded: https://neellab.github.io/bfg/

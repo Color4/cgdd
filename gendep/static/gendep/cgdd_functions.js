@@ -21,7 +21,7 @@
  // var msg = 'the department';
  // in doc ready:
  // g: $('#txt').html(sprintf('<span>Teamwork in </span> <strong>%s</strong>', msg));
-var sprintf = function(str) {
+function sprintf(str) {
   var args = arguments,
     flag = true,
     i = 1;
@@ -591,13 +591,61 @@ http://stackoverflow.com/questions/28323237/tablesorter-jquery-how-to-get-values
  }
 */
 
-function toggle_show_drugs(obj,drug_names,div) {
+function toggle_show_drugs(obj,drug_names,div,gene) {
   // An alternative could be tooltip that stays when link clicked: http://billauer.co.il/blog/2013/02/jquery-tooltip-click-for-help/
   // or: http://pagenotes.com/pagenotes/tooltipTemplates.htm
   // or: Modal tooltips: http://qtip2.com/
   // or: https://www.quora.com/How-do-I-make-a-tooltip-that-stays-visible-when-hovered-over-with-JavaScript
-  obj.innerHTML = obj.innerHTML.indexOf('[more]') > -1 ? make_drug_links(drug_names,div)+' [less]' : drug_names.substr(0,8)+'...[more]';
-}
+  
+// This works but column width too wide if then select Any from filter menu:
+//  obj.innerHTML = obj.innerHTML.indexOf('[more]') > -1 ? make_drug_links(drug_names,div)+' [less]' : drug_names.substr(0,8)+'...[more]';
+
+
+  //var box_title = '<p align="center" style="margin-top: 0;">Showing high confidence (score&ge;700) string-db interactions between the dependencies associated with driver gene <b>'+global_selected_gene+'</b></p>';
+
+  var mycontent = '<p style="vertical-align:middle;">For gene '+gene+', the following inhibitors were found in DGIdb:<br/>&nbsp;<br/>'+make_drug_links(drug_names,div)+'</p>';
+	
+  $.fancybox.open({
+  //$(".fancybox").open({
+    // href: url_boxplot,
+    preload: 0, // Number of gallary images to preload
+    //minWidth: 900,
+    //mHeight: 750,
+	width: 300,
+	height: 300,
+	minWidth: 250,
+	maxHeight: 300,
+	//width: '100%',
+	//height: '100%',
+	autoSize: false, // true, //false,  // true,  // false, // otherwise it resizes too tall.
+    //padding: 2,  	// is space between image and fancybox, default 15
+    //margin:  2, 	// is space between fancybox and viewport, default 20
+	// width:  boxplot_width+legend_width+8, // default is 800
+	// height: boxplot_height + 8, // default is 600 /// the title is below this again, ie. outside this, so the 25 is just to allow for the margins top and bottom 
+    aspectRatio: true,
+    //fitToView: true,
+	autoCenter: true,
+    arrows: false,
+	closeEffect : 'none',
+    helpers: {
+        title: {
+            type: 'inside'
+        },
+        overlay: {
+            showEarly: false   // false  // as otherwise incorrectly sized box displays before images have arrived.
+        }
+    },
+
+    // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
+    // or $(...).content - Overrides content to be displayed - maybe for inline content
+	type: 'inline', // 'html', // 'iframe', // 'html',
+    //content:
+    // href: href,	
+	content: mycontent,
+    // title: box_title  //,
+   });
+  }
+
 
 //function hide_drugs() {
 //  this.innerHTML='';
@@ -662,7 +710,9 @@ function stringdb_image(protein_count,protein_list) {
 //}
 //==============================================================================	
 // + '" width="'+boxplot_width+'" height"'+boxplot_height
-  var mycontent = '<img src="' + string_url +'" alt="Loading StringDB image...."/>';
+
+  // was: height="100%"  but that made small images too big
+  var mycontent = '<center><img src="' + string_url +'" alt="Loading StringDB image...."/></center>';
   var href = string_url;
     
 //  var box_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
@@ -673,15 +723,18 @@ function stringdb_image(protein_count,protein_list) {
   //$(".fancybox").open({
     // href: url_boxplot,
     preload: 0, // Number of gallary images to preload
-    minWidth: 550,
-    maxHeight: 550,
-	autoSize: false,  // true,  // false, // otherwise it resizes too tall.
+    minWidth: 900,
+    //mHeight: 750,
+	width: '100%',
+	height: '100%',
+	autoSize: false, // true, //false,  // true,  // false, // otherwise it resizes too tall.
     padding: 2,  	// is space between image and fancybox, default 15
     margin:  2, 	// is space between fancybox and viewport, default 20
 	// width:  boxplot_width+legend_width+8, // default is 800
 	// height: boxplot_height + 8, // default is 600 /// the title is below this again, ie. outside this, so the 25 is just to allow for the margins top and bottom 
     aspectRatio: true,
     fitToView: true,
+	autoCenter: true,
     arrows: false,
 	closeEffect : 'none',
     helpers: {
@@ -695,9 +748,9 @@ function stringdb_image(protein_count,protein_list) {
 
     // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
     // or $(...).content - Overrides content to be displayed - maybe for inline content
-	//type: 'html', // 'iframe', // 'html', //'inline',
+	type: 'inline', // 'html', // 'iframe', // 'html', //'inline',
     //content:
-//    href: href,	
+    // href: href,	
 	content: mycontent,
     title: box_title  //,
    });
@@ -847,31 +900,32 @@ function populate_table(data,t0) {
 	  else {
 		  var drug_links = '';
 		  var onclick = '';
-		  if (d[iinhibitors].length <= 12) {drug_links = make_drug_links(d[iinhibitors],',');}
+		  if (d[iinhibitors].length <= 12) {drug_links = make_drug_links(d[iinhibitors],', ');}
 		  else {		  
 		    drug_links = d[iinhibitors].substr(0,8)+'...[more]';
-            var onclick_function = "toggle_show_drugs(this,'"+d[iinhibitors]+"', ',');";
+            var onclick_function = "toggle_show_drugs(this,'"+d[iinhibitors]+"', ', ', '"+d[igene]+"');";
 			onclick = ' onclick="'+onclick_function+'"';
 		  }
 		  // removed the attribute: drug="'+d[iinhibitors]+'"
-          inhibitor_cell = '<td style="background-color: beige;"'+onclick+'>'+drug_links+'</td>';
-		  //make_drug_links(drug_names,',')	// div is comma or semi-colon
+          // WAS: inhibitor_cell = '<td style="background-color: beige;"'+onclick+'>'+drug_links+'</td>';
+		  //make_drug_links(drug_names,', ')	// div is comma+space or semi-colon
+		  inhibitor_cell = '<td style="background-color: beige;"><a href="javascript:void(0);"'+onclick+'>'+drug_links+'</a></td>';
 	  }
 	  
 //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'+
-        '<td gene="'+d[igene]+'" epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
+        '<td data-gene="'+d[igene]+'" epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
          wilcox_p_cell + 
 		 effectsize_cell +
         '<td>' + histotype_display(d[ihistotype]) + '</td>' +
-		'<td study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
+		'<td data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		'<td exptype="'+d[istudy_pmid]+'">' + study[1] + '</td>' + // experiment type. The 'exptype=""' is use by tooltips
+		'<td data-exptype="'+d[istudy_pmid]+'">' + study[1] + '</td>' + // experiment type. The 'data-exptype=""' is use by tooltips
         interaction_cell +  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
 		
 	    inhibitor_cell +  //'<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
@@ -1003,6 +1057,11 @@ function is_form_complete() {
   }
 
 
+// Zoom in on image: http://mark-rolich.github.io/Magnifier.js/
+// or: http://www.elevateweb.co.uk/image-zoom/examples
+//  or more simply: http://stackoverflow.com/questions/16568976/javascript-zoom-image-and-center-viewable-area
+  // Good answer: http://stackoverflow.com/questions/2028557/how-to-zoom-in-an-image-and-center-it
+  
 // Could possibly use $(this).parent() to set background colour for row, then store this in global variable, then in fancybox close event set row color back to normal...eg: http://stackoverflow.com/questions/4253558/how-to-get-the-html-table-particullar-cell-value-using-javascript
 function show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
   // This is a separate function from plot(...) as this can be a called when Ajax succeeds.

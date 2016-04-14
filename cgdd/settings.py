@@ -30,7 +30,7 @@ CACHE_DATA = True
 # SJB - Instead automatically build a secret key - from: https://gist.github.com/airtonix/6204802
 # We can put setting.py into github, but don't put base/settings/key.py into github.
 try:
-    from key.py import *
+    from .key import *
 except ImportError:
     print("Unable to load key into settings.py file")
 #    from base.lib.generate_key import generate_key

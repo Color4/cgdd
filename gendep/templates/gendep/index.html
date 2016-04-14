@@ -78,7 +78,7 @@ var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
 var stringdb_options="network_flavor=confidence&caller_identity=CGDD";  // &additional_network_nodes=0
 
-var stringdb_options_score400 = stringdb_options + "&required_score=400"; // Used for the Driver + Target links (Medium, High, Highest)  
+var stringdb_options_score400 = stringdb_options + "&required_score=400&limit=0"; // Used for the Driver + Target links (Medium, High, Highest); and only want these two proteins displayed so need limit=0.  
 
 var stringdb_options_score700 = stringdb_options + "&required_score=700&limit=0"; // Used for overall view for all the dependencies.
 
@@ -116,7 +116,7 @@ var global_url_for_stringdb_interactive_networkList =
 var global_url_for_stringdb_interactive_one_network = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifier=";
 
-var global_max_stringdb_proteins_ids = int((2000 +2 - global_url_for_stringdb_interactive_networkList.length)/23); // was 350; but too long for internet explorer // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
+var global_max_stringdb_proteins_ids = Math.floor((2000 +2 - global_url_for_stringdb_interactive_networkList.length)/23); // was 350; but too long for internet explorer // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
 //Browser URL limits:  IE 2083 characters, Chrome around 2000 characters, Firefox 2047 characters. So aim < 2000 characters.
 // See: http://stackoverflow.com/questions/812925/what-is-the-maximum-possible-length-of-a-query-string
 // as ensembl protein ids are 20 characters long (eg: "9606.ENSG00000174442" ) plus 3 characters for "%0D", then if max GET string in Internet explorer is 2000 characters (2000-base_url)/23 = 
@@ -315,7 +315,7 @@ $.tablesorter.addParser({
 	})
 	.bind('filterEnd', function(e, filter){
 	   var num_rows = ($('#result_table tbody tr:visible').length-1).toString();
-       $("#string_link").html("for "+num_rows+" rows <font size='-2'>(max: "+global_max_stringdb_proteins_ids+")</font>"); // the -1 is because of the filter widget row
+       $("#string_link").html("for "+num_rows+" rows <span style='font-size: 70%;'>(max: "+global_max_stringdb_proteins_ids+")</span>"); // the -1 is because of the filter widget row
     });
 	
 
@@ -336,7 +336,7 @@ $.tablesorter.addParser({
 	$('#result_table_tbody, #result_table_thead').tooltip({
 	// $('#result_table').tooltip({	
       //items: "img, [title]",
-	  items: "[gene], [study], [exptype], [note]", // , [drug]
+	  items: "[data-gene], [data-study], [data-exptype], [data-note]", // , [drug]
 	  // track:true,
 	  show: false, //{ effect: "", duration: 0, delay: 0},
 	  hide: false, // { effect: "", duration: 0, delay: 0}, // see: http://webduos.com/tooltip-using-jquery-ui-library/#.Vvb48uKLSih
@@ -373,8 +373,8 @@ $.tablesorter.addParser({
 	  
 	  // For tooltip styling, see: https://jqueryui.com/tooltip/#custom-style
         var element = $( this );
-        if ( element.is( "[gene]" ) ) {
-          var gene_name = element.attr("gene");  // was: = element.text();
+        if ( element.is( "[data-gene]" ) ) {
+          var gene_name = element.attr("data-gene");  // was: = element.text();
 		  if (gene_name in gene_info_cache) {
 			var result = format_gene_info_for_tooltip(gene_info_cache[gene_name]);
 			callback(result);
@@ -408,16 +408,16 @@ $.tablesorter.addParser({
 //		  return text;
 //        }
         }
-      else if ( element.is( "[study]" ) ) {
-	      var study = study_info(element.attr("study"));
+      else if ( element.is( "[data-study]" ) ) {
+	      var study = study_info(element.attr("data-study"));
           return '<b>'+study[0]+':</b> '+study[3]; //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
         }		
-      else if ( element.is( "[exptype]" ) ) {
-          var study = study_info(element.attr("exptype"));
+      else if ( element.is( "[data-exptype]" ) ) {
+          var study = study_info(element.attr("data-exptype"));
    	      return '<b>'+study[1]+':</b> '+study[2]; //exptype contains the pmid of this study. [1]is expt type, [2] returns exp summary
         }
-      else if ( element.is( "[note]" ) ) {
-	      return element.attr("note");
+      else if ( element.is( "[data-note]" ) ) {
+	      return element.attr("data-note");
         }
       //else if ( element.is( "[drug]" ) ) {
       //    return element.attr("drug"); // drug contains the list of inhibitors
@@ -609,7 +609,6 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 */	
     // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
 
-
     $("#gene").autocomplete({
         // source: "/api/get_drivers/",   // to use Ajax call.
         source: driver_array,  // using the above array (but is reset to target_array if user selects search_by='target'.
@@ -617,6 +616,9 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
         minLength: 2,  // number of letters need to type for drop-down menu to appear.
         delay: 1,  // 1 millisecond delay.
         autoFocus: true,
+		//focus: set_tissue_and_study_options,
+		select: set_tissue_and_study_options,
+		change: set_tissue_and_study_options
     }).autocomplete( "instance" )._renderItem = function( ul, item ) {
 	    // Add the item's value as a data attribute on the <li>
 		// see: https://api.jqueryui.com/autocomplete/#method-_renderItem
@@ -625,48 +627,18 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
             .appendTo( ul );
     };  // .val('SMAD4').data('autocomplete')._trigger('change');
 	
-	// alternatibvely this change can be within the above as: change: function(..)
+	$( "#gene").blur(function() { // ie. when lose focus due to typing value rather than selecting from dropdown menu
+	   $("#gene").data("ui-autocomplete")._trigger("select"); 
+    //var inputValue = $( "##gene" ).val();
+    //var idx = jQuery.inArray(inputValue, availableTags);
+    //if (idx == -1) {
+    //    $( "#tags" ).val("");           
+    });
+	
+	// alternatively this change can be within the above as: change: function(..)
 	// see: https://api.jqueryui.com/autocomplete/#event-change
-    $("#gene").on("autocompletechange", function( event, ui ) {
-
-        var item = ui.item;   // alternatively first test: if (ui.hasOwnProperty("item")) {..... but maybe less browser support and slower
-		// item is "The item selected from the menu, if any. Otherwise the property is null."
-		console.log("Change .....");
-        if (typeof item  === 'undefined') {
-		  // As this change is called because directly value was set by URL eg: "/genedep/driver/SMAD2/"
-		  // Otherwise get error about: "Uncaught TypeError: Cannot read property 'tissue_list' of undefined"
-          var val = $(this).val(); // should be same as: $("#gene").val(); whereas 'this.value' maybe is only the text when ititialised.
-	      for (var i=0; i<driver_array.length; i++) {
-	        if (driver_array[i].value == val) {
-	        item = driver_array[i];
-		    break;
-		    }
-	      }
-        }
-		
-        var tissue_list = item['tissue_list'];  // 'ui.item' is the row object from the driver_array.        
-		var available = tissue_list=='' ? [] : tissue_list.split(';');
-		var selected = ($.inArray('PANCAN', available) > -1) ? ' selected="selected"' : '';
-        // An alternative way is using the "new Option(...)"  see: http://www.javascriptkit.com/javatutors/selectcontent.shtml
-		var options_html = '<option value="ALL_HISTOTYPES">'+histotype_display('ALL_HISTOTYPES')+'</option>';
-		for (var i=0; i<available.length; i++) {
-		   var selected = available[i]=='PANCAN' ? ' selected="selected"' : '';
-  	       options_html += '<option value="'+available[i]+'"'+selected+'>'+histotype_display(available[i])+'</option>';
-		}
-        $("#histotype").empty().append(options_html);
-		//console.log("Tissue menu:",options_html);
-		
-        var study_list = item['study_list'];  // 'ui.item' is the row object from the driver_array.
-		var available = study_list=='' ? [] : study_list.split(';');
-		//console.log(available);
-		var options_html = '<option value="ALL_STUDIES">'+study_info('ALL_STUDIES')[0]+'</option>';
-		for (var i=0; i<available.length; i++) {
-  	       options_html += '<option value="'+available[i]+'">'+study_info(available[i])[0]+'</option>';
-		}
-        $("#study").empty().append(options_html);
-		//console.log("Study menu:",options_html);		
-	});
-
+    // WAS: $("#gene").on("autocompletechange", function( event, ui ) {
+    // WAS: $("#gene").on( "autocompleteselect", ....
 	
 	//  or try: http://stackoverflow.com/questions/6406786/jquery-ui-autocomplete-how-to-get-change-event-to-fire-earlier
 	//this.value=ui.item.value; 
@@ -675,7 +647,7 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 	// When the index page is loaded with "/gendep/driver/SMAD2/" so already has a driver selected, so need to set Tissue and Study menus to suit that driver:
 	if ($("#gene").val()!='') {
 	//$( "#gene" ).autocomplete({/* do whatever */}).val('Banana').data('autocomplete')._trigger('select');
-	  $("#gene").data("ui-autocomplete")._trigger("change"); // alternatively.
+	  $("#gene").data("ui-autocomplete")._trigger("select"); // _trigger("change"); // alternatively.
 	  //$("#gene").trigger("autocompletechange");
 	  }	
 	
@@ -696,6 +668,50 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 	
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
+
+function set_tissue_and_study_options(event, ui) {
+	  // $(this).val(b.item.value);
+        var item = ui.item;   // alternatively first test: if (ui.hasOwnProperty("item")) {..... but maybe less browser support and slower
+		// item is "The item selected from the menu, if any. Otherwise the property is null."
+		console.log("Change .....");
+        if (typeof item  === 'undefined') {
+		  // As this change is called because directly value was set by URL eg: "/genedep/driver/SMAD2/"
+		  // Otherwise get error about: "Uncaught TypeError: Cannot read property 'tissue_list' of undefined"
+          var val = $(this).val(); // should be same as: $("#gene").val(); whereas 'this.value' maybe is only the text when ititialised.
+		  //var item_array = $("#gene").data("ui-autocomplete").source; // $(this).source;  // could be the driver_array or the target_array
+		  item_array = driver_array; // but could be the target_array if search_by = target
+	      for (var i=0; i<item_array.length; i++) {
+	        if (item_array[i].value == val) {
+	        item = item_array[i];
+		    break;
+		    }
+	      }
+        }
+		if (typeof item  === 'undefined') {return false;} // as not found in list
+		
+        var tissue_list = item['tissue_list'];  // 'ui.item' is the row object from the driver_array.        
+		var available = tissue_list=='' ? [] : tissue_list.split(';');
+		var selected = ($.inArray('PANCAN', available) > -1) ? ' selected="selected"' : '';
+        // An alternative way is using the "new Option(...)"  see: http://www.javascriptkit.com/javatutors/selectcontent.shtml
+		//var options_html = '<option value="ALL_HISTOTYPES">'+histotype_display('ALL_HISTOTYPES')+'</option>';
+		var options_html = ''; // removed 'All Tissues' as slow table display and filtering.
+		for (var i=0; i<available.length; i++) {
+		   var selected = available[i]=='PANCAN' ? ' selected="selected"' : '';
+  	       options_html += '<option value="'+available[i]+'"'+selected+'>'+histotype_display(available[i])+'</option>';
+		}
+        $("#histotype").empty().append(options_html);
+		//console.log("Tissue menu:",options_html);
+		
+        var study_list = item['study_list'];  // 'ui.item' is the row object from the driver_array.
+		var available = study_list=='' ? [] : study_list.split(';');
+		//console.log(available);
+		var options_html = '<option value="ALL_STUDIES">'+study_info('ALL_STUDIES')[0]+'</option>';
+		for (var i=0; i<available.length; i++) {
+  	       options_html += '<option value="'+available[i]+'">'+study_info(available[i])[0]+'</option>';
+		}
+        $("#study").empty().append(options_html);
+		//console.log("Study menu:",options_html);		
+	};
 
 {% comment %}
 // ===== AJAX test start ===
@@ -758,20 +774,24 @@ $.ajax({
 <tr>
 <td>Search filter:</td>
 <td>
-  <!-- label for="driver">Driver gene:</label-->
+  <input name="search_by" id="search_by" value="driver" type="hidden"/>
+{% comment %}
   <select name="search_by" id="search_by" class="searchbox_dropdown">
     <option value="driver" {% if search_by != "target" %}selected="selected"{% endif %}>Driver gene:</option>
     <option value="target" {% if search_by == "target" %}selected="selected"{% endif %}>Target/Dependency gene:</option> <!-- If select target need to retreive target gene list, and set result table header to 'Driver' instead of 'Dependency'-->
-  </select>	
+  </select>
+{% endcomment %}
+  
+  <label for="gene">Driver gene:</label>
   <input name="gene" id="gene" placeholder="Gene name (eg. ERBB2)"  value="{{ gene_name }}"/>   {# value= ... is when directed to this page by link from the Drivers or Targets page #}
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td>
 
 <td><label for="histotype">Tissue type:</label>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
-   <select name="histotype" id="histotype">
-      <option value="ALL_HISTOTYPES">All tissues</option>
+   <select name="histotype" id="histotype" style="width: 140px;" >
 {% comment %}
+      <option value="ALL_HISTOTYPES">All tissues</option>
 	{ % for histotype in histotype_list % }
 	  <option value="{ { histotype.0 } }"{ % if histotype.0 == "PANCAN" % } selected="selected"{ % endif % }>{ { histotype.1 } }</option>
 	{ % endfor % }
@@ -779,11 +799,10 @@ $.ajax({
    </select>
 </td>
 
-
 <td><label for="study">Study:</label>
-   <select name="study" id="study">
-      <option value="ALL_STUDIES" selected="selected">All studies</option>
+   <select name="study" id="study" style="width: 120px;">
 {% comment %}
+      <option value="ALL_STUDIES" selected="selected">All studies</option>
     { % for study in study_list % }
 	  <option value="{ { study.pmid } }">{ { study.short_name } }</option>  {# Maybe add: study.title #}
 	{ % endfor % }
@@ -807,12 +826,12 @@ $.ajax({
 
 <p><b><span id="gene_search_by"></span> gene: <span id="gene_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="gene_synonyms"></span></p>
 <p><u>Gene Descripion:</u> <span id="gene_full_name"></span></p>
-<p><u>External links:</u> <font size="-1"><span id="gene_weblinks"></span></font></p>
+<p><u>External links:</u> <span id="gene_weblinks" style="font-size: 70%;"></span></p>
 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
 
-<form id="download_csv_form" method="get" action="">
+<form id="download_csv_form" method="get">
 <p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
 <button id="download_csv_button" type="submit">Download as CSV file</button>
 <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->
@@ -834,14 +853,14 @@ $.ajax({
 <!-- data-placeholder=">= 65.0" -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead id="result_table_thead"><tr>
-  <th data-placeholder="Search by name" id="dependency_col_name" note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
-  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" note="Wilcox p-value"> P-value </th>
-  <th data-placeholder=">= 65.0" note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
+  <th data-placeholder="Search by name" id="dependency_col_name" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
+  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" data-note="Wilcox p-value"> P-value </th>
+  <th data-placeholder=">= 65.0" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
   <th class="filter-select filter-onlyAvail">Tissue</th>
   <th class="filter-select filter-onlyAvail">Study</th>  
   <th class="filter-select filter-onlyAvail">Experiment Type</th>
-  <th class="filter-select" note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String Interaction</th>
-  <th class="filter-select" note="Inhibitors from DGIdb">Inhibitors</th>
+  <th class="filter-select" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String Interaction</th>
+  <th class="filter-select" data-note="Inhibitors from DGIdb">Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>
