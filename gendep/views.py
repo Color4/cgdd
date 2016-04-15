@@ -660,7 +660,12 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
 
     search_by_driver = is_search_by_driver(search_by) # Checks is valid and returns true if search_by='driver'
     
-    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, select_related=[search_by,'study'], order_by='wilcox_p' ) # select_related (set to 'driver' or 'target') will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
+    if search_by_driver:
+        select_related = [ 'target__inhibitors', search_by, 'study' ]  #  'target__ensembl_protein_id',
+    else:
+        select_related = [ 'driver__inhibitors', search_by, 'study' ]  # 'driver__ensembl_protein_id'
+    
+    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, select_related=select_related, order_by='wilcox_p' ) # select_related (set to 'driver' or 'target') will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
     
     if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
 
@@ -725,7 +730,10 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
 
     writer.writerow(search_by_driver_column_headings_for_download if search_by_driver
                else search_by_target_column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. 
-           
+
+    # inhibitors =  if search_by_driver else  ....
+    #    if inhibitors is None: inhibitors = ''
+               
     # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:
 
     if search_by_driver: # search_by='driver'
@@ -736,7 +744,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
             d.target.prev_names_and_synonyms_spaced(), # <-- Merge this into one field in future
             d.wilcox_p, d.effect_size,   # wilcox_p was stringformat:".0E",  		    
             d.get_histotype_display(),
-            '', # d.inhibitors,
+            d.target.inhibitors,  #'', # d.inhibitors,  if search_by_driver else ...
             'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
             d.study.short_name,  d.study.pmid,  d.study.experiment_type,
             # ADD THE FULL STATIC PATH TO THE url = .... BELOW, this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
@@ -751,7 +759,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
             d.driver.prev_names_and_synonyms_spaced(), # <-- Merge this into one 'prevname_synonyms' field in future
             d.wilcox_p, d.effect_size,  		    
             d.get_histotype_display(),
-            '', # d.inhibitors,
+            d.driver.inhibitors,   # '', # d.inhibitors,  if search_by_driver else ....
             'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
             d.study.short_name,  d.study.pmid,  d.study.experiment_type,
             # ADD THE FULL STATIC PATH TO THE url = .... BELOW, this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )

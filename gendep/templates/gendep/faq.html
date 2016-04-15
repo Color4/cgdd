@@ -7,6 +7,7 @@
 <li><a href="#effectsize">How should I interpret the effect size?</a></li>
 <li><a href="#boxplots">How should I interpret the box plots?</a></li>
 <li><a href="#dependencies">What dependencies are included?</a></li>
+<li><a href="#gene_altered">When is a driver gene considered 'altered'?</a></li>
 <li><a href="#json">How can I access this data from scripts, as JSON web service</a></li>
 </ul>
 
@@ -28,6 +29,11 @@
 
 <p>Each <a href="https://en.wikipedia.org/wiki/Box_plot" title="Box plot">box plot</a> shows the sensitivity of cell lines partitioned according to the status of a particular <a href="{% url 'gendep:drivers' %}">driver gene</a> to RNAi reagents targeting a particular gene. For instance above we show the box plot indicating a dependency between <i>ERBB2</i> amplification and sensitivity to <i>MAP2K3</i> siRNA. The cell lines featuring the alteration in question are displayed on the right and the cell lines without the alteration are on the left.  Each coloured circle represents a cell line and the position along the y-axis indicates how sensitive that cell line is to the RNAi reagents targeting the gene indicated. The colours indicate the tissue of origin for each cell line, as indicated in the legend. The boxes themselves are <a href="https://en.wikipedia.org/wiki/Box_plot#Types_of_box_plots" title="Box plot">Tukey box plots</a> – the bold line indicates the median of each group, the edges of the box indicates the interquartile range, and the whiskers indicate 1.5 times the interquartile range.</p>
 <br/>
+
+
+<a name="gene_altered"><h2>When is a driver gene considered 'altered'?</h2></a>
+
+<p>We attempt to identify likely 'functional' alterations in driver genes using the same approach as in <a href="http://www.cell.com/cell-reports/fulltext/S2211-1247(16)30126-7">Campbell, Ryan <i>et al</i>, Cell Reports, 2016</a>. Briefly, for oncogenes we consider a functional alteration to be either a focal amplification or a mutation in a recurrently mutated site. For tumour suppressor genes we consider a functional alteration to be a homozygous gene deletion, a likely loss-of-function mutation (frameshift, nonsense or splice site alteration), or a mutation to a recurrently mutated site. For a site within a gene to be considered 'recurrently mutated' it must be mutated in ~3% of all samples that feature a mutation in that gene. For example, if there are 1,000 reported mutations to the KRAS gene in our database and 300 of them alter residue 13 then residue 13 is considered recurrently mutated (300/1,000 = 30%). In contrast if residue 27 is mutated two times then it is not considered recurrently mutated (2/1,000 = 0.2%). Our source database for detecting recurrence is <a href="http://www.ncbi.nlm.nih.gov/pubmed/24183448">Davoli <i>et al</i>, Cell, 2013</a>.</p>
 
 
 <a name="json"><h2>How can I access this data from scripts as a JSON web service?</h2></a>

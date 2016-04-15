@@ -76,10 +76,12 @@ var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 
 // &targetmode=proteins (does this work for genes?) - from the gene_cards link
 
+// The string interactive URL is now moved to the 'string_interactive_form', so need to set any options in that form's action:
 var stringdb_options="network_flavor=confidence&caller_identity=CGDD";  // &additional_network_nodes=0
 
 var stringdb_options_score400 = stringdb_options + "&required_score=400&limit=0"; // Used for the Driver + Target links (Medium, High, Highest); and only want these two proteins displayed so need limit=0.  
 
+// The string interactive URL is now moved to the 'string_interactive_form', so need to set any options in that form's action
 var stringdb_options_score700 = stringdb_options + "&required_score=700&limit=0"; // Used for overall view for all the dependencies.
 
 var global_url_for_stringdb_interactionsList = "{% url 'gendep:get_stringdb_interactions' required_score='700' protein_list='myproteins' %}";
@@ -110,6 +112,7 @@ var global_url_for_stringdb_one_network = "http://string-db.org/api/image/networ
 var global_url_for_stringdb_interactive_networkList_score400 = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score400+"&advanced_menu=yes&identifiers=";
 
+// The following URL is now moved to the 'string_interactive_form', so need to set any options in that form's action
 var global_url_for_stringdb_interactive_networkList = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifiers=";
 
@@ -154,10 +157,10 @@ var gene_info_cache = {}; // To cache gene_info retrieved by AJAX call for the t
 function study_info(pmid) {
   switch (pmid) {
    {% for s in study_list %}
-   case "{{s.pmid}}": return([ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ]); // 'break;' not needed as return
+   case "{{s.pmid}}": return [ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ]; // 'break;' not needed as return
    {% endfor %}
-   case "ALL_STUDIES": return([ "All studies", "All studies", "All studies", "<b>All studies</b>" ]);
-   default: return([ "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found" ]);
+   case "ALL_STUDIES": return [ "All studies", "All studies", "All studies", "<b>All studies</b>" ];
+   default: return [ "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found" ];
   }
 }  
 
@@ -168,7 +171,7 @@ function histotype_display(histotype) {
     case "{{ histotype.0 }}": return "{{ histotype.1 }}";// break;
 	{% endfor %}
     case "ALL_HISTOTYPES": return "All tissues";// break;
-    default: return('Error: Histotype "'+histotype+'" Not Found');
+    default: return 'Error: Histotype "'+histotype+'" Not Found';
   }
 }
 
@@ -841,13 +844,31 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a>
 
+
 {# <input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" /> #}
 <span id="string_link"></span>
 </p>
 </form>
 {# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}
-
 {# <a id="download_csv" href="">[Download tabbed file]</a> #}
+
+
+
+{# full string interactive URL is: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&caller_identity=CGDD&required_score=700&limit=0&advanced_menu=yes&identifiers=..... "> #}
+{% comment %}
+<form id="string_interactive_form" method="post" action="http://string-db.org/newstring_cgi/show_network_section.pl" target="_blank">
+   <input type="hidden" name="identifiers" id="string_protein_identifiers" value=""/>
+   <!-- input name="identifier" id="string_protein_identifier" value="" type="hidden"/--> <!-- maybe single interaction isn't needed ?-->
+   <input type="hidden" name="network_flavor" value="confidence"/>
+   <input type="hidden" name="required_score" value="700"/>
+   <input type="hidden" name="limit" value="0"/>
+   <input type="hidden" name="advanced_menu" value="yes"/>
+   <input type="hidden" name="caller_identity" value="CGDD"/>
+   <button id="string_interactive_submit_button" type="submit" onclick="set_string_form_identifiers();">interactive</button> <!-- or new HTML5 button tag: formtarget="_blank" -->
+</form>   
+{% endcomment %}
+
+
 
 
 {# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}

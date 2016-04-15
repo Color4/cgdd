@@ -863,6 +863,9 @@ def unmark_drivers_not_in_the_21genes():
 
   print("Finished unmarking drivers that are not in the list of 21 drivers")
 
+  
+
+
 
 if __name__ == "__main__":
 # add_tissue_and_study_lists_for_each_driver()
@@ -886,7 +889,7 @@ if __name__ == "__sjb_ignore_these__":
   load_mygene_hgnc_dictionary()
   
   # ============================================================================================
-  study_pmid     = "26947069"
+  Campbell_study_pmid = "26947069"
   study_old_pmid = "nnnnnnnn" # This is  the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
   study_old_pmid = "26947069"
   study_code = "B" # 'B' for campBell
@@ -904,7 +907,7 @@ if __name__ == "__sjb_ignore_these__":
     print("\nEmptying database tables")
     for table in (Dependency, Study, Gene, Drug): table.objects.all().delete()  # removed: Histotype,
 
-    study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
+    study=add_study( Campbell_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
   
     #for table_name in ('S1I', 'S1K'):
     #  csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
@@ -922,6 +925,7 @@ if __name__ == "__sjb_ignore_these__":
     csv_filepathname=os.path.join(analysis_dir, Cambell_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
+    Campbell_study_num_tissues = 
     # *** NOTE, warnings from R:
     # There were 50 or more warnings (use warnings() to see the first 50)
 
@@ -930,7 +934,7 @@ if __name__ == "__sjb_ignore_these__":
 
     # ============================================================================================
     # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
-    study_pmid     = "25984343"
+    Achilles_study_pmid     = "25984343"
     study_old_pmid = "25984343"
     study_code = "A" # 'A' for Achilles
     study_short_name = "Cowley(2014)"
@@ -941,7 +945,7 @@ if __name__ == "__sjb_ignore_these__":
     study_experiment_type = "genome shRNA"
     study_journal = "Scientific Data"
     study_pub_date = "2014, 30 Sep"
-    study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    study=add_study( Achilles_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
 
     #Achilles_results_pancan = "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt"
     table_name = ''
@@ -955,6 +959,8 @@ if __name__ == "__sjb_ignore_these__":
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
 
+    Achilles_study_num_tissues = 
+    
     #** Maybe my browser memory?
     #https://www.ncbi.nlm.nih.gov/pubmed/
     #Bad Request
@@ -967,7 +973,7 @@ if __name__ == "__sjb_ignore_these__":
     # ==================================================================================================
     # Colt:  https://neellab.github.io/bfg/   https://www.ncbi.nlm.nih.gov/pubmed/26771497
    
-    study_pmid     = "26771497"
+    Colt_study_pmid     = "26771497"
     study_old_pmid = "26771497"
     study_code = "C"  # 'C' for Colt
     study_short_name = "Marcotte(2016)"
@@ -978,7 +984,7 @@ if __name__ == "__sjb_ignore_these__":
     study_experiment_type = "genome shRNA"
     study_journal = "Cell"
     study_pub_date = "2016, 14 Jan"
-    study=add_study( study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    study=add_study( Colt_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
 
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
     table_name = ''
@@ -987,7 +993,7 @@ if __name__ == "__sjb_ignore_these__":
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
 
-    colt_study_num_tissues = 15697 # The actual number of tisses tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirtement.
+    Colt_study_num_tissues = 15697 # The actual number of tisses tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirtement.
     
     # I downloaded: https://neellab.github.io/bfg/
     # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
@@ -995,6 +1001,6 @@ if __name__ == "__sjb_ignore_these__":
     # ============================================================================================
     add_counts_of_study_tissue_and_target_to_drivers()
     #### ***** and add counts of num_drivers 
-    add_counts_of_driver_tissue_and_target_to_studies(colt_pmid=study_pmid, colt_num_tissues=colt_study_num_tissues)
+    add_counts_of_driver_tissue_and_target_to_studies(colt_pmid=Colt_study_pmid, colt_num_tissues=Colt_study_num_tissues)
     
     add_tissue_and_study_lists_for_each_driver()

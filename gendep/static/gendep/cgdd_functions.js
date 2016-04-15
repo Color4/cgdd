@@ -350,7 +350,29 @@ function setup_qtips() {
 }
 
 
-function get_protein_id_list_for_depenedencies() {
+function dict_to_string(dict,div) {
+	var str = '';
+	var count = 0;
+	for (key in dict)
+	{
+		if (str != '') {str += div;}
+		str += key
+		count++;
+	}
+	console.log("dict_to_string_and_count",count,str)
+	return str;
+}
+
+function count_char(s,c) {
+	var count = 0;
+    for(var i=0; i < s.length; i++){
+        if (s.charAt(i) == c) {count++;}
+		}
+	return count;
+}
+
+function get_protein_id_list_for_depenedencies(div) {
+	// returns string with proteins separated by div, and the count of number of proteins in the string
 	
 	// could add a parameter in future: max_number_to_get
 	
@@ -396,38 +418,25 @@ function get_protein_id_list_for_depenedencies() {
             }
 		}
     });
-
-	return protein_dict;
+    console.log("get_protein_id_list_for_depenedencies:", protein_dict, protein_count)
+	return [dict_to_string(protein_dict,div), protein_count];
 }
 
-function dict_to_string(dict,div) {
-	var str = '';
-	for (key in dict)
-	{
-		if (str != '') {str += div;}
-		str += key
-	}
-	return str;
-}
-
-function count_char(s,c) {
-	var count = 0;
-    for(var i=0; i < s.length; i++){
-        if (s.charAt(i) == c) {count++;}
-		}
-	return count;
-}
 
 function show_cytoscape() {
 	$("#result_progress_div").html("<b><font color='red'>Fetching Cytoscape protein list for cytoscape image....</font></b>");
-	var protein_dict = get_protein_id_list_for_depenedencies();
+
+	var protein_list_and_count = get_protein_id_list_for_depenedencies(';');
+
+    var protein_list = protein_list_and_count[0];
+    var protein_count = protein_list_and_count[1];
 	
 	// Try to remove unconnected proteins for the list before displaying the string network image.
 	
 	//var url = global_url_for_stringdb_interactionsList + dict_to_string(protein_dict,'%0D'); // Need a function to do this? eg. jQuery.makeArray() or in EM 5.1: Object.keys(protein_dict);
 	
-	var protein_list = dict_to_string(protein_dict,';');
-	console.log("Cytoscape original protein count:",count_char(protein_list,';')+1, "Protein list:",protein_list);
+	//var protein_list = dict_to_string(protein_dict,';');
+	console.log("Cytoscape original protein count:",protein_count, "Protein list:",protein_list);
 	var url = global_url_for_cytoscape.replace('myproteins', protein_list);  // Using semi-colon instead of return character '%0D'
 	window.open(url);  // should open a new tab in browser.
 	return false; // or maybe return true?	
@@ -435,16 +444,43 @@ function show_cytoscape() {
 
 
 
+
+function set_string_form_identifiers() {
+	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+
+	var protein_list_and_count = get_protein_id_list_for_depenedencies("\n");
+	console.log("protein_list_and_count",protein_list_and_count);	
+    var protein_list = protein_list_and_count[0];
+    var protein_count = protein_list_and_count[1];
+
+	
+	// protein_count = protein_dict.keys().length; // but not working in IE pre v 9 browser
+	// var protein_list = dict_to_string(protein_dict, "\n");  // The form submit should do the coding of newlines into '%0D'
+	
+	console.log("Original protein count:",protein_count, "Protein list:",protein_list);
+
+	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
+	var field_id = (protein_count == 1) ? 'string_protein_identifier' : 'string_protein_identifiers';
+	
+    document.getElementById(field_id).value = protein_list; // or $('#'+field_id).val(protein_list);
+//	window.open(string_url);  // should open a new tab in browser.
+    alert(document.getElementById(field_id).value);   // Note: onclick events are not triggered when submitting by other means than pressing the button itself.
+    return true; // To allow opening the form.   
+    // called by the string_interactive_form
+    }
+
+
 function show_stringdb_interactive() {
 	// NOW keeping the unconnected proteins in the interactive image as interactive alows users to do enrichment so means more if keep all proteins. 
     //	
 	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
-	var protein_dict = get_protein_id_list_for_depenedencies();
-
-	protein_count = len(protein_dict)	
-	var protein_list = dict_to_string(protein_dict, '%0D');
+	var protein_list_and_count = get_protein_id_list_for_depenedencies('%0D');
+	console.log("protein_list_and_count",protein_list_and_count);	
+    var protein_list = protein_list_and_count[0];
+    var protein_count = protein_list_and_count[1];
+	// protein_count = protein_dict.keys().length; // but not working in IE pre v 9 browser
 	
-	console.log("Original protein count:",count_char(protein_count,';')+1, "Protein list:",protein_list);
+	console.log("Original protein count:",protein_count, "Protein list:",protein_list);
 
 	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
 	var string_url = (protein_count == 1) ? global_url_for_stringdb_interactive_one_network : global_url_for_stringdb_interactive_networkList;
@@ -456,15 +492,18 @@ function show_stringdb_interactive() {
 
 
 function show_stringdb(display_callback_function) {
-	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
-	var protein_dict = get_protein_id_list_for_depenedencies();
+	// This to calls server to remove unconnected proteins for the list before displaying the string network image.
 	
-	// Try to remove unconnected proteins for the list before displaying the string network image.
+	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+
+	var protein_list_and_count = get_protein_id_list_for_depenedencies(';');
+	console.log("protein_list_and_count",protein_list_and_count);	
+    var protein_list = protein_list_and_count[0];
+    var protein_count = protein_list_and_count[1];
 	
 	//var url = global_url_for_stringdb_interactionsList + dict_to_string(protein_dict,'%0D'); // Need a function to do this? eg. jQuery.makeArray() or in EM 5.1: Object.keys(protein_dict);
 	
-	var protein_list = dict_to_string(protein_dict,';');
-	console.log("Original protein count:",count_char(protein_list,';')+1, "Protein list:",protein_list);
+	console.log("Original protein count:",protein_count, "Protein list:",protein_list);
 	var url = global_url_for_stringdb_interactionsList.replace('myproteins', protein_list);  // Using semi-colon instead of return character '%0D'
 
 	// Because of AJAX same origin policy (ie. no cross-site requests) so need to use pythonanywhere server as a proxy to get the string interaction list.
@@ -507,7 +546,7 @@ function show_stringdb(display_callback_function) {
 		 protein_count = protein_list.length;
 		 protein_list = protein_list.join('%0D');  // as javascript's replace(';', '%0D') only replaces the first instance.
 		 console.log("Count after removing unconnected proteins:",protein_count, "Protein list:",protein_list);
-	  	 display_callback_function(protein_count, protein_list);
+	  	 display_callback_function(protein_list, protein_count);
 	     });
 		 
     return false; // Return false to the caller so won't move on the page as is called from a href="...		 
@@ -520,7 +559,7 @@ function show_stringdb(display_callback_function) {
 //		        else {list_of_proteins += '%0D'+protein_id;} // The return character is the separator between names.
 				
 
-//	return (protein_count,list_of_proteins)
+//	return [protein_count,list_of_proteins];
 //}
 //	return false; 
 /*
@@ -665,8 +704,8 @@ function make_drug_links(drug_names,div) {
   return links;
 }
 
-function stringdb_interactive(protein_count,protein_list) {
-	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
+function stringdb_interactive(protein_list, protein_count) {
+	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (list_of_proteins, protein_count)
 	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
 	var string_url = (protein_count == 1) ? global_url_for_stringdb_interactive_one_network : global_url_for_stringdb_interactive_networkList;
     string_url += protein_list
@@ -695,9 +734,9 @@ network_flavor
 */
 
 
-function stringdb_image(protein_count,protein_list) {
+function stringdb_image(protein_list,protein_count) {
     // An alternativbe to string-db is to use the stringdb links to build own cyctoscape display: http://thebiogrid.org/113894/summary/homo-sapiens/arid1a.html
-	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_count,list_of_proteins)
+	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_list, protein_count)
   if (protein_count == 0) {alert("No rows that have ensembl protein ids"); return false;}
   var string_url = (protein_count == 1) ? global_url_for_stringdb_one_network : global_url_for_stringdb_networkList;
   string_url += protein_list;
