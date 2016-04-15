@@ -13,7 +13,6 @@
 # or django-adapters: http://stackoverflow.com/questions/14504585/good-ways-to-import-data-into-django
 #                     http://django-adaptors.readthedocs.org/en/latest/
 
-
 import sys, os, csv, re
 from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
@@ -505,7 +504,7 @@ def add_counts_of_study_tissue_and_target_to_drivers():
       print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(row['driver']))
   print("Finished adding study, tissue and target counts to the drivers in the dependency table")
 
-def add_counts_of_driver_tissue_and_target_to_studies():
+def add_counts_of_driver_tissue_and_target_to_studies(colt_pmid, colt_num_tissues):
   print("Adding driver, tissue and target counts to studies")
   # select study, count(distinct driver), count(distinct histotype), count(distinct target) from gendep_dependency group by study;
   counts = Dependency.objects.values('study').annotate( num_drivers=Count('driver', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
@@ -513,15 +512,21 @@ def add_counts_of_driver_tissue_and_target_to_studies():
   for row in counts:
     try:
       print("study: %s %d %d %d" %(row['study'], row['num_drivers'], row['num_histotypes'], row['num_targets']))
-      s = Study.objects.get(pmid=row['study'])  # .study_pmid
       
+      s = Study.objects.get(pmid=row['study'])  # .study_pmid
+            
       # Double-check that name is same:
       if s.pmid != row['study']:
         print("*** ERROR: count study mismatch for '%s' and '%s'" %(s.pmid,row['study']))
       else:
+        if s.pmid == colt_pmid:
+           s.num_targets = colt_study_num_tissues
+           print("But setting num_studies=%d (instead of %d) for Colt study (pmid=%s) as that is actual number tested in the study" %(colt_study_num_tissues,row['num_targets'],colt_pmid))
+        else:
+           s.num_targets = row['num_targets']
         s.num_drivers = row['num_drivers']
         s.num_histotypes = row['num_histotypes']
-        s.num_targets = row['num_targets']
+
         s.save()
     except ObjectDoesNotExist: # Not found by the objects.get()
       print("*** ERROR: study pmid % NOT found in the Study table: '%s'" %(row['study']))
@@ -563,6 +568,11 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
   ieffect_size = header_dict['CLES'] # CLES = 'common language effect size'
   itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.      
 
+
+ADD:
+zA     zB    ZDiff
+    
+  
   for row in dataReader:      
     # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
     
@@ -571,6 +581,9 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
     # print(row[idriver], row[itarget], row[iwilcox], row[ieffect_size])    
     row[iwilcox] = float(row[iwilcox])
     row[ieffect_size] = float(row[ieffect_size])
+ADD:
+zA     zB    ZDiff
+
     
     if row[iwilcox] > 0.05 or row[ieffect_size] < 0.65:
       count_skipped += 1
@@ -615,12 +628,19 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
                 print("d.mutation_type(%s) != mutation_type(%s)" %(d.mutation_type, mutation_type))
             d.wilcox_p = row[iwilcox]
             d.effect_size = row[ieffect_size]
+            
+            ADD:
+zA     zB    ZDiff
+
             if d.target_variant == target_variant: print("** ERRROR: target_variant already in database for target_variant '%s' and key: '%s'" %(target_variant,key))
             d.target_variant = target_variant # Need to update the target_variant, as it is needed to retrieve the correct boxplot from the R boxplots, where image file is: driver_gene_target_gene+target_variant_histotype_Pmid.png
             count_replaced += 1
         else:
             count_not_replaced += 1        
     else:
+ADD:
+zA     zB    ZDiff
+
         d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], histotype=histotype, mutation_type=mutation_type, study=study)
         # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
         # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
@@ -830,6 +850,8 @@ def unmark_drivers_not_in_the_21genes():
 	"TP53",    # _7157_ENSG00000141510",
 	"ARID1A",  # _8289_ENSG00000117713",
 	"FBXW7",   # _55294_ENSG00000109670"
+    "BRAF",    # _673_ENSG00000157764",  # Added BRAF on 14 April 2016 for future runs
+	"CDH1",    # _999_ENSG00000039068"   # Added CDH1 on 15 April 2016 for future runs
 	]
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
     for g in Gene.objects.all().iterator():
@@ -965,6 +987,7 @@ if __name__ == "__sjb_ignore_these__":
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
 
+    colt_study_num_tissues = 15697 # The actual number of tisses tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirtement.
     
     # I downloaded: https://neellab.github.io/bfg/
     # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
@@ -972,6 +995,6 @@ if __name__ == "__sjb_ignore_these__":
     # ============================================================================================
     add_counts_of_study_tissue_and_target_to_drivers()
     #### ***** and add counts of num_drivers 
-    add_counts_of_driver_tissue_and_target_to_studies()
+    add_counts_of_driver_tissue_and_target_to_studies(colt_pmid=study_pmid, colt_num_tissues=colt_study_num_tissues)
     
     add_tissue_and_study_lists_for_each_driver()

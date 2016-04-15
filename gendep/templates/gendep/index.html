@@ -309,18 +309,15 @@ $.tablesorter.addParser({
 		sortRestart: true, // so sort always restarts from the specified sortInitialOrder.
 		sortStable: true,
 		ignoreCase: true,  // so sorting ignores case
-		filter_ignoreCase: true //, // so filtering ignores case
-		// "sorter-pvalue" added as a class name in the HTML or uncomment the option below:
-		// headers: { 1: { sorter: 'pvalue' } }
+		filter_ignoreCase: true, //, // so filtering ignores case
+		// headers: { 0: { sorter: false} }  // If wish to disable sorting on a column.
+		// headers: { 1: { sorter: 'pvalue' } } // "sorter-pvalue" added as a class name in the HTML, alternatively could uncomment this header option.
 	})
 	.bind('filterEnd', function(e, filter){
 	   var num_rows = ($('#result_table tbody tr:visible').length-1).toString();
        $("#string_link").html("for "+num_rows+" rows <span style='font-size: 70%;'>(max: "+global_max_stringdb_proteins_ids+")</span>"); // the -1 is because of the filter widget row
     });
 	
-
-	
-	;
 	
    // From: https://jqueryui.com/tooltip/#custom-content
 /*
@@ -678,6 +675,7 @@ function set_tissue_and_study_options(event, ui) {
 		  // As this change is called because directly value was set by URL eg: "/genedep/driver/SMAD2/"
 		  // Otherwise get error about: "Uncaught TypeError: Cannot read property 'tissue_list' of undefined"
           var val = $(this).val(); // should be same as: $("#gene").val(); whereas 'this.value' maybe is only the text when ititialised.
+		  // val.toUpperCase(); // in case entered in lower case, but some gene_names are partly lower case.
 		  //var item_array = $("#gene").data("ui-autocomplete").source; // $(this).source;  // could be the driver_array or the target_array
 		  item_array = driver_array; // but could be the target_array if search_by = target
 	      for (var i=0; i<item_array.length; i++) {
@@ -768,7 +766,9 @@ $.ajax({
 <div id="welcome_div" {% if gene_name %}style="display:none"{% endif %} >
 <p>Welcome to the cancer genetic dependencies database, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
 
-<p>Enter your search criteria below. (Select search type ("Driver gene" or "Target gene"). Then in the driver/target search box, typing two letters of a gene name will display a menu of matching gene names. The Tissue and Study menu options will be updated depending on gene selected.)</p>
+<p>Enter your search criteria below. 
+{# (Select search type ("Driver gene" or "Target gene"). Then in the driver/target search box, #}
+In the 'Driver gene' search box, typing two letters of a gene name will display a menu of matching gene names. The 'Tissue' and 'Study' menu options will be updated depending on gene selected.)</p>
 </div>
 <table align="center" id="searchbox_table">
 <tr>
@@ -837,7 +837,10 @@ $.ajax({
 <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->
 &nbsp String-DB:
 <input type="button" id="string_image" value="image" onclick="show_stringdb(stringdb_image);" />
-<input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" />
+<!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
+
+<a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a>
+
 {# <input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" /> #}
 <span id="string_link"></span>
 </p>

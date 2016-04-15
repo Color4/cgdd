@@ -182,7 +182,9 @@ cgc_vogel_genes_with_n7 <- c(
 	"STK11_6794_ENSG00000118046",
 	"TP53_7157_ENSG00000141510",
 	"ARID1A_8289_ENSG00000117713",
-	"FBXW7_55294_ENSG00000109670"
+	"FBXW7_55294_ENSG00000109670",
+	"BRAF_673_ENSG00000157764",  # Added BRAF on 14 April 2016 for future runs
+	"CDH1_999_ENSG00000039068"   # Added CDH1 on 15 April 2016 for future runs
 	)
 	
 	
@@ -344,8 +346,119 @@ read_rnai_mutations <- function(
 		)
 }
 
-# This is the revised code from Colm (17 Mar 2016) which include the effect size test, and without spearman, etc:
+
+# This is the further revised code from Colm (14 April 2016) which includes the Delta-Score (and effect size test, and without spearman, etc):
 run_univariate_tests <- function(
+	zscores,
+	mutations,
+	all_variants,
+	sensitivity_thresholds=NULL,
+	nperms=1000000,
+	alt="less"
+	){
+	
+	
+	zscores <- as.matrix(zscores)
+	mutations <- as.matrix(mutations)
+	all_variants <- as.matrix(all_variants)
+	
+	
+	results <- NULL
+	i <- NULL
+	for(i in seq(1:length(colnames(mutations)))){
+
+#       Skip if driver mutation is NOT in the above list of 21 genes for the Achilles and the Colt data	
+#       Added by SJB to speed up initialy analysis of Achilles data by focusing in the 21 genes.
+#	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
+#       or change to Skip if driver mutation IS in the above list of 21 genes - as they are already processed.
+	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
+			print(paste(toString(i),"skipping:", colnames(mutations)[i]))
+			next
+		}
+
+		print(paste(toString(i),"WORKING ON:", colnames(mutations)[i]))
+		
+		grpA <- which(mutations[,i] > 0)
+		
+		#gene <- strsplit(
+		#	colnames(mutations)[i],
+		#	"_"
+		#	)[[1]][1]
+		gene <- colnames(mutations)[i]
+		
+		
+		# grpB includes cell lines with no reported mutations at all
+		# in gene...
+		grpB <- which(all_variants[,gene] == 0)
+		
+		# skip if nA < 3 as we are never going to
+		# consider anything based on n=2
+		if(length(grpA) < 3 | length(grpB) < 3){
+			next
+		}
+		
+		j <- NULL
+		for(j in seq(1:length(colnames(zscores)))){
+			ascores <- na.omit(zscores[grpA,j])
+            bscores <- na.omit(zscores[grpB,j])
+			nA <- length(ascores)
+			nB <- length(bscores)
+			if(nA < 3){
+				next
+			}
+			if(nB < 3){
+				next
+			}
+		    wilcox.p <- NA
+			try(
+				test <- wilcox.test(
+					ascores,
+					bscores,
+					alternative=alt
+				)
+			)
+			wilcox.p <- test$p.value
+			cles <- 1-(test$statistic/(nA*nB))
+			
+			marker <- colnames(mutations)[i]
+			target <- colnames(zscores)[j]
+            nMin <- min(nA,nB)
+			# Output the result if min sample size is 2 or more
+			if(nMin > 2){
+				results <- rbind(
+					results,
+					c(
+						marker,
+						target,
+						nA,
+						nB,
+						wilcox.p,
+                        cles
+					)
+				)
+			}
+		}
+	}
+	
+	if(is.null(nrow(results))){
+		return(NULL)
+	}
+	
+	colnames(results) <- c(
+		"marker",
+		"target",
+		"nA",
+		"nB",
+		"wilcox.p",
+		"CLES"
+	)
+	
+	return(results)	
+}
+
+
+# This is the revised code from Colm (17 Mar 2016) which include the effect size test, and without spearman, etc:
+run_univariate_tests_17March2016 <- function(
 	zscores,
 	mutations,
 	all_variants,

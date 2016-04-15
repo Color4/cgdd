@@ -158,6 +158,10 @@ class Dependency(models.Model):
     wilcox_p    = models.FloatField('Wilcox P-value', db_index=True)     # WAS: DecimalField('Wilcox P-value', max_digits=12, decimal_places=9). Index on wilcox_p because this is the order_by clause for the dependency result query.
     effect_size = models.FloatField('Effect size', db_index=True) # or should this be an integer or float? If use float and is part of query then could index this field.
     
+    # See Colm's email from 14-April-2016:
+    zA =  = models.FloatField('zA', db_index=True)
+    zB =  = models.FloatField('zB', db_index=True)
+    ZDiff =  = models.FloatField('Delta Score', db_index=True)
     
     # Change this later to a Character when next rebuild table, as can't alter table columns in SQLite
     # interaction = models.NullBooleanField('Functional interaction', db_index=True, ) # True if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values
