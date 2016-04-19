@@ -66,8 +66,17 @@ if input("\nContinue (y/n)?").lower() != 'y':
 #TRUNCATE TABLE is faster: https://dev.mysql.com/doc/refman/5.0/en/truncate-table.html
 #delete the dependency table first as it has foreign keys.
 
-print(mysql_cursor.execute("TRUNCATE TABLE 'gendep_dependency'; TRUNCATE TABLE 'gendep_study'; TRUNCATE TABLE  'gendep_gene';"))
-print(mysql_cursor.execute("ALTER TABLE 'gendep_dependency' AUTO_INCREMENT=1")) # Only in MySQL
+if connection.vendor == 'mysql':
+    print("Deleting data from the MySQL database %s ..." %(DB['NAME']))
+    print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1; SET FOREIGN_KEY_CHECKS=1;"))
+elif connection.vendor == 'postgres':
+    print("Deleting data from the Postgres database %s ..." %(DB['NAME']))
+    # Need to test if this Postgres works, maybe need to disable foreign key trigger on other tables too:
+    print(mysql_cursor.execute("ALTER ALTER TABLE 'gendep_dependency' DISABLE TRIGGER ALL; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency` TRUNCATE TABLE tablename RESTART IDENTITY; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; ALTER ALTER TABLE 'gendep_dependency' ENABLE TRIGGER ALL;"))
+else:
+    print("Unexpected database type: ",connection.vendor)
+    sys.exit()
+
 # In Postgres use: TRUNCATE TABLE tablename RESTART IDENTITY;
 #              or: TRUNCATE TABLE tablename; ALTER SEQUENCE seq_name START 1;
 #              or: TRUNCATE TABLE tablename; ALTER SEQUENCE seq_name RESTART WITH 1;
@@ -95,8 +104,16 @@ for table in ( 'study', 'gene', 'dependency'):   # Not used: 'drug',
     # or: https://dev.mysql.com/doc/connector-python/en/connector-python-api-mysqlcursorprepared.html
     
     # Using Django custom SQL. Note: Django expects the "%s" placeholder, (not the "?" placeholder, which is used by the SQLite Python bindings).   
-    with transaction.atomic():       
-        mysql_cursor.execute(insert_statement, values) # using parameters will safely escape the strings.
+    with transaction.atomic():
+        for row in rows:
+            # These double omim_id's (eg. ....|.....) are now fixed in load_data.py
+            #if table == 'gendep_gene' and len(row[10])>9:
+            #    pos = row[10].find('|')
+            #    if pos > -1:
+            #        row = list(row) # As cannot change elements with a tuple
+            #        row[10] = row[10][:pos]
+#                print(row[10])
+            mysql_cursor.execute(insert_statement, row) # using parameters will safely escape the strings.
     
 #       printf( "INSERT INTO '%s' VALUES( %s );\n", $table,  ','.join(values) )
 
@@ -105,6 +122,7 @@ for table in ( 'study', 'gene', 'dependency'):   # Not used: 'drug',
 # transaction.commit()
 
 conn.close()
+print("Finished loading data from sqlite to mysql")
 
 # Alternatively could use: https://github.com/motherapp/sqlite_sql_parser
 

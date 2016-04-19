@@ -154,6 +154,12 @@ else:  # on PythonAnywhere production server, to cache the templates (need to 'R
                 'django.template.loaders.app_directories.Loader',
               ]),
             ],
+            'context_processors': [
+               # 'django.template.context_processors.debug',
+               # 'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+               # 'django.contrib.messages.context_processors.messages',
+            ],            
             'debug': DEBUG, 
         },
     },]  
@@ -205,16 +211,16 @@ elif DB == 'POSTGRES':
   # For HOST, An empty string means localhost.
     DATABASES = {
       'default': {
-         'ENGINE': 'django.db.backends.postgresql',
-          'NAME': USERNAME+'$gendep', # Maybe.
-          'USER': USERNAME,
+        'ENGINE': 'django.db.backends.postgresql', # or: 'django.db.backends.postgresql_psycopg2',
+        'NAME': USERNAME+'$gendep', # Maybe.
+        'USER': USERNAME,
   # Can include test db name:
   #        'TEST': {
   #            'NAME': USERNAME+'$test_gendep',
   #        },
-          'PASSWORD': 'drivers0',
-          'HOST': '127.0.0.1',  # Maybe: USERNAME+'.postgres.pythonanywhere-services.com',
-          'PORT': '5432',
+        'PASSWORD': 'drivers0',
+        'HOST': '127.0.0.1',  # Maybe: USERNAME+'.postgres.pythonanywhere-services.com',
+        'PORT': '5432',
       }
   }
 else:

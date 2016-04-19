@@ -319,14 +319,19 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
       # or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
 #      if info_source == 'HGNC':
       prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
-
+      
+      # In HGNC some genes have two or three OMIM IDs, eg: gene "ATRX" has omim_id: "300032|300504" (length=13, but column width is 10, and simpler to just store first name)
+      if len(this_hgnc[iomim_id]) >= 9:
+          pos = this_hgnc[iomim_id].find('|')
+          if pos > -1: this_hgnc[iomim_id] = this_hgnc[iomim_id][:pos]
+          
       g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
                original_name = original_gene_name,
                is_driver  = is_driver,
                is_target  = is_target,
                full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
-               synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
-               prev_names = this_hgnc[iprev_names],      # eg: NGL  # was: hgnc[name][iprevsymbol],
+               # synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
+               # prev_names = this_hgnc[iprev_names],      # eg: NGL  # was: hgnc[name][iprevsymbol],
                prevname_synonyms = prevname_synonyms,
                entrez_id  = this_hgnc[ientrez_id],       # eg: 2064
                ensembl_id = this_hgnc[iensembl_id],      # eg: ENSG00000141736
