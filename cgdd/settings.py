@@ -15,33 +15,58 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DEVELOPMENT = ('Django_projects' in BASE_DIR) # To indicate that is running on my local Windows computer, then set settings below accordingly:
+DEVELOPMENT = ('Django_projects' in BASE_DIR) # This willl be True when running on my local Windows computer.
+
+# ===============================================================================================================
+# Then change the settings below accordingly:
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True # DEVELOPMENT  # DEBUG = True
-DATABASE_SQLITE = True  # was:  = DEVELOPMENT
-CACHE_DATA = True
+DEBUG = True # or: DEBUG = True  ## Set to True for DEVELOPMENT, or set to False for production server.
+
+DB = 'SQLITE'  # for development server
+# DB = 'MYSQL' # on PythonAnywhere free or paid accounts.
+# DB = 'POSTGRES' # on PythonAnywhere paid account, not tested.
+
+USERNAME = 'cgenetics' # Needed for secret_key, amd MySQL database, not needed for Sqlite. was: USERNAME = 'sbridgett'
+
+PROJECT = 'cgdd'
+
+CACHE_DATA = True # Set to True to cache recent queries in the database 'gendep_cache_table' table.
+
+ADMINS = (
+        ('Stephen', 'sbridgett@gmail.com'),  # For logging HTTP 500 errors by email (see logging at end of this file.
+    )
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 #SECRET_KEY = 'hi0b%owp27jefp==#xz34=3d5x4f3-)0ezh0%o+4ba=8#&apju'
-# SJB - Instead automatically build a secret key - from: https://gist.github.com/airtonix/6204802
+# SJB - Instead could automatically build a secret key (eg: https://gist.github.com/airtonix/6204802 )
 # We can put setting.py into github, but don't put base/settings/key.py into github.
-try:
-    from .key import *
-except ImportError:
-    print("Unable to load key into settings.py file")
+
+# SECRET_KEY_FILE = '/home/'+USERNAME+'/'+PROJECT+'_key.txt'
+SECRET_KEY_FILE = 'cgdd/key.txt'
+
+# When DEBUG is False, need to specify the allowed hosts:
+ALLOWED_HOSTS = [ USERNAME+'.pythonanywhere.com' ]  # If you are using your own domain name, put that in this list instead.
+
+# ===============================================================================================================
+
+
+with open(SECRET_KEY_FILE) as f:
+    SECRET_KEY = f.read().strip()
+# OR:
+# try:
+#    from .key import *
+# except ImportError:
+#    print("Unable to load key into settings.py file")
 #    from base.lib.generate_key import generate_key
 #    secret_key_file = open(os.path.join(HERE_DIR, "key.py"), "w")
 #    secret_key_file.write("""SECRET_KEY = "{0}" """.format(generate_key(40, 128)))
 #    secret_key_file.close()
 #    from .key import *
 
-
-
-ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -82,16 +107,29 @@ if DEVELOPMENT:
     # Slow and doesn't seem to monitor Ajax: INSTALLED_APPS.append('debug_toolbar') # For monitoring SQL etc. Needs: DEBUG = True, and staticfiles setup correctly.  See: http://django-debug-toolbar.readthedocs.org/en/1.4/installation.html#quick-setup
     # LIVERELOAD_PORT = 
     # RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
-
-ROOT_URLCONF = 'cgdd.urls'
+# else:
+    
+ROOT_URLCONF = PROJECT+'.urls'
 
 #CORS_ORIGIN_WHITELIST = (  # SJB added CORS, but would need enabled on string-db.org
 #        'string-db.org',
 #    )
 
 
-TEMPLATES = [
-    {
+
+# Can also cache the templates: https://docs.djangoproject.com/en/1.9/ref/templates/api/#django.template.loaders.cached.Loader
+
+# if not DEVELOPMENT:
+# Cached templates on production server: http://www.revsys.com/blog/2015/may/06/django-performance-simple-things/
+#TEMPLATE_LOADERS = (
+#    ('django.template.loaders.cached.Loader', (
+#        'django.template.loaders.filesystem.Loader',
+#        'django.template.loaders.app_directories.Loader',
+#    )),
+#)
+
+if DEVELOPMENT:
+  TEMPLATES = [{
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
         'APP_DIRS': True,
@@ -104,21 +142,38 @@ TEMPLATES = [
             ],
             'debug': DEBUG,
         },
-    },
-]
-
+    },]
+else:  # on PythonAnywhere production server, to cache the templates (need to 'Reload' app if template is edited:
+  TEMPLATES = [{
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(BASE_DIR, 'templates')],    # Used by fileSystem loaders below
+        'OPTIONS': {
+            'loaders': [
+              ('django.template.loaders.cached.Loader', [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+              ]),
+            ],
+            'debug': DEBUG, 
+        },
+    },]  
+    # NOTE: "All of the built-in Django template tags are safe to use with the cached loader, but if you’re using custom template tags that come from third party packages, or that you wrote yourself, you should ensure that the Node implementation for each tag is thread-safe. For more information, see template tag thread safety considerations."
+    # https://docs.djangoproject.com/en/1.9/ref/templates/api/#django.template.loaders.cached.Loader
+    # And: http://www.revsys.com/blog/2015/may/06/django-performance-simple-things/
+    
+    
 # The following debug line is depreciated since Django 1.8 so is replaced with the above option 'debug': DEBUG
 # TEMPLATE_DEBUG = True
 
 
-WSGI_APPLICATION = 'cgdd.wsgi.application'
+WSGI_APPLICATION = PROJECT+'.wsgi.application'
 
 
 # Database
 # https://docs.djangoproject.com/en/1.9/ref/settings/#databases
 
 
-if DATABASE_SQLITE:
+if DB == 'SQLITE':
    # Using sqlite3 on my windows computer:
     DATABASES = {
       'default': {
@@ -126,43 +181,45 @@ if DATABASE_SQLITE:
         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
       }
     }
-else:
+elif DB == 'MYSQL':
     # Using MySQL on production PythonAnywhere server: https://help.pythonanywhere.com/pages/UsingMySQL/
     # MySQL notes: https://docs.djangoproject.com/en/1.9/ref/databases/#mysql-notes
     # On pythonanywhere, using the 'mysqlclient' library.
     DATABASES = {
       'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'sbridgett$gendep',
-        'TEST_NAME': 'sbridgett$test_gendep',
-        'USER': 'sbridgett',
+        'NAME': USERNAME+'$gendep',
+        'TEST_NAME': USERNAME+'$test_gendep',
+        'USER': USERNAME,
         'PASSWORD': 'drivers0',
-        'HOST': 'sbridgett.mysql.pythonanywhere-services.com',
+        'HOST': USERNAME+'.mysql.pythonanywhere-services.com',
       }
     }
-
-  # For webserver I should change ENGINE to: 'django.db.backends.postgresql' OR 'django.db.backends.mysql'
+elif DB == 'POSTGRES':
+  # I haven't tested CGDD with Postgresql yet:  
   # And set a database name.
   # And add:  USER, PASSWORD, and HOST
   # For PostgreSQL or MySQL, make sure youve created a database by this point. Do that with CREATE DATABASE database_name; within your databases interactive prompt.
   # See: https://docs.djangoproject.com/en/1.9/ref/settings/#std:setting-DATABASES
 
   # For HOST, An empty string means localhost.
-  # eg:
-  # DATABASES = {
-  #    'default': {
-  #        'ENGINE': 'django.db.backends.postgresql',
-  #        'NAME': 'mydatabase',
-  #        'USER': 'mydatabaseuser',
-  #        'PASSWORD': 'mypassword',
-  #        'HOST': '127.0.0.1',
-  #        'PORT': '5432',
-  #    }
-  # }
-  # Also can include test db name:
+    DATABASES = {
+      'default': {
+         'ENGINE': 'django.db.backends.postgresql',
+          'NAME': USERNAME+'$gendep', # Maybe.
+          'USER': USERNAME,
+  # Can include test db name:
   #        'TEST': {
-  #            'NAME': 'mytestdatabase',
+  #            'NAME': USERNAME+'$test_gendep',
   #        },
+          'PASSWORD': 'drivers0',
+          'HOST': '127.0.0.1',  # Maybe: USERNAME+'.postgres.pythonanywhere-services.com',
+          'PORT': '5432',
+      }
+  }
+else:
+    print("*** ERROR: No database selected in 'settings.py' ***")
+
 
 if CACHE_DATA:
     # Or could use the local memory cacahe - which is per process. In Local Memory caching "each process will have its own private cache instance, which means no cross-process caching is possible. This obviously also means the local memory cache isn't particularly memory-efficient, so it's probably not a good choice for production environments. It's nice for development."
@@ -196,7 +253,6 @@ else: # Use dummy cache, so can test speed of SQL query repeatidly:
         }
     }
   
-# Can also cache the templates: https://docs.djangoproject.com/en/1.9/ref/templates/api/#django.template.loaders.cached.Loader
 
 
 # Password validation
@@ -240,6 +296,32 @@ STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 STATIC_URL = '/static/'
 # STATIC_URL = '/static/' if DEVELOPMENT else 'http://sbridgett.pythonanywhere.com/static/'
+
+
+
+# From: https://github.com/pythonanywhere/pythonanywhere_tutorials/blob/master/server/settings.py
+# A sample logging configuration. The only tangible logging
+# performed by this configuration is to send an email to
+# the site admins on every HTTP 500 error.
+# See http://docs.djangoproject.com/en/dev/topics/logging for
+# more details on how to customize your logging configuration.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'mail_admins': {
+            'level': 'ERROR',
+            'class': 'django.utils.log.AdminEmailHandler'
+        }
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['mail_admins'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    }
+}
 
 """
 if DEVELOPMENT:

@@ -11,6 +11,7 @@
 <li><a href="#json">How can I access this data from scripts, as JSON web service</a></li>
 </ul>
 
+
 <a name="effectsize"></a><h2>How should I interpret the effect size?</h2>
 
 <p>The effect size presented in the database is the <i>Common Language Effect Size</i>, equivalent to the <i>Probability of Superiority</i> and the <i>Area Under the ROC Curve</i>. It indicates the probability that a cell line with an alteration in a particular <a href="{% url 'gendep:drivers' %}">driver gene</a> will be more sensitive to a given RNAi reagent than a cell line without that alteration. For instance, the effect size in Campbell <i>et al</i> for the dependency of <i>ERBB2</i> amplified cell lines upon <i>MAP2K3</i> siRNA is 81%. This indicates that if two cell lines are chosen at random, one with <i>ERBB2</i> amplification and one without, 83% of the time the cell line with the <i>ERBB2</i> amplification will be more sensitive to the <i>MAP2K3</i> siRNA.</p>
