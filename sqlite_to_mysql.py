@@ -66,7 +66,7 @@ if input("\nContinue (y/n)?").lower() != 'y':
 #TRUNCATE TABLE is faster: https://dev.mysql.com/doc/refman/5.0/en/truncate-table.html
 #delete the dependency table first as it has foreign keys.
 
-print(mysql_cursor.execute("TRUNCATE TABLE 'gendep_dependency', 'gendep_study', 'gendep_gene'"))
+print(mysql_cursor.execute("TRUNCATE TABLE 'gendep_dependency'; TRUNCATE TABLE 'gendep_study'; TRUNCATE TABLE  'gendep_gene';"))
 print(mysql_cursor.execute("ALTER TABLE 'gendep_dependency' AUTO_INCREMENT=1")) # Only in MySQL
 # In Postgres use: TRUNCATE TABLE tablename RESTART IDENTITY;
 #              or: TRUNCATE TABLE tablename; ALTER SEQUENCE seq_name START 1;
