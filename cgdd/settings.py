@@ -54,11 +54,11 @@ else:
 # We can put setting.py into github, but don't put base/settings/key.py into github.
 
 # SECRET_KEY_FILE = '/home/'+USERNAME+'/'+PROJECT+'_key.txt'
-SECRET_KEY_FILE = 'cgdd/key.txt'
+SECRET_KEY_FILE = BASE_DIR+'/'+PROJECT+'/key.txt'
 
 # When DEBUG is False, need to specify the allowed hosts:
 ALLOWED_HOSTS = [ USERNAME+'.pythonanywhere.com' ]  # If you are using your own domain name, put that in this list instead.
-ALLOWED_HOSTS = []
+#ALLOWED_HOSTS = []
 
 # ===============================================================================================================
 
