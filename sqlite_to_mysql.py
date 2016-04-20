@@ -70,6 +70,9 @@ if connection.vendor == 'mysql':
     print("Deleting data from the MySQL database %s ..." %(DB['NAME']))    
     print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1; SET FOREIGN_KEY_CHECKS=1;")) # maybe add "IF EXISTS", eg: "TRUNCATE `gendep_gene` IF EXISTS;"
 
+    django.db.utils.ProgrammingError: (2014, "Commands out of sync; you can't run this command now")
+    
+    
 elif connection.vendor == 'postgres':
     print("Deleting data from the Postgres database %s ..." %(DB['NAME']))
     # Need to test if this Postgres works, maybe need to disable foreign key trigger on other tables too:
@@ -93,7 +96,7 @@ for table in ( 'study', 'gene', 'dependency'):   # Not used: 'drug',
 
     colnames = [c[0] for c in rows.description] # eg: (('gene_name', None, None, None, None, None, None),...
     
-    insert_statement = "INSERT INTO '%s' (%s) VALUES (%s)" %(table, ','.join(colnames), ','.join(["%s"]*len(colnames)))
+    insert_statement = "INSERT INTO `%s` (%s) VALUES (%s)" %(table, ','.join(colnames), ','.join(["%s"]*len(colnames)))
     
     print(insert_statement)    
 
