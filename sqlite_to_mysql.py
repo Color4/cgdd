@@ -67,8 +67,9 @@ if input("\nContinue (y/n)?").lower() != 'y':
 #delete the dependency table first as it has foreign keys.
 
 if connection.vendor == 'mysql':
-    print("Deleting data from the MySQL database %s ..." %(DB['NAME']))
-    print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1; SET FOREIGN_KEY_CHECKS=1;"))
+    print("Deleting data from the MySQL database %s ..." %(DB['NAME']))    
+    print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1; SET FOREIGN_KEY_CHECKS=1;")) # maybe add "IF EXISTS", eg: "TRUNCATE `gendep_gene` IF EXISTS;"
+
 elif connection.vendor == 'postgres':
     print("Deleting data from the Postgres database %s ..." %(DB['NAME']))
     # Need to test if this Postgres works, maybe need to disable foreign key trigger on other tables too:
