@@ -24,10 +24,10 @@ urlpatterns = [
 
     url(r'^get_drivers/', views.get_drivers, name='get_drivers'),    
     
-    url(r'^get_dependencies/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.ajax_results_fast_minimal_data_version, name='get_dependencies'), 
+    url(r'^get_dependencies/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_dependencies, name='get_dependencies'), 
     # '\_' is needed to match ALL_STUDIES and ALL_HISTOTYPES
 
-    url(r'^ajax_results/', views.ajax_results_slow_full_detail_version, name='ajax_results_post'),
+    # url(r'^ajax_results/', views.ajax_results_slow_full_detail_version, name='ajax_results_post'),
     
     url(r'^download_csv/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
     

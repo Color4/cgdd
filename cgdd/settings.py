@@ -33,10 +33,18 @@ PROJECT = 'cgdd'
 
 CACHE_DATA = True # Set to True to cache recent queries in the database 'gendep_cache_table' table.
 
-ADMINS = (
-        ('Stephen', 'sbridgett@gmail.com'),  # For logging HTTP 500 errors by email (see logging at end of this file.
-    )
 
+if DEVELOPMENT:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    ADMINS = (('Stephen', 'sbridgett@gmail.com'),)  # For logging HTTP 500 errors by email (see logging at end of this file.
+    # EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend' # For sending email via SMTP.
+
+# Email settings:
+# https://docs.djangoproject.com/en/1.9/topics/email/
+# http://stackoverflow.com/questions/6782732/no-connection-could-be-made-because-the-target-machine-actively-refused-it-djan
+
+ 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
@@ -50,6 +58,7 @@ SECRET_KEY_FILE = 'cgdd/key.txt'
 
 # When DEBUG is False, need to specify the allowed hosts:
 ALLOWED_HOSTS = [ USERNAME+'.pythonanywhere.com' ]  # If you are using your own domain name, put that in this list instead.
+ALLOWED_HOSTS = []
 
 # ===============================================================================================================
 

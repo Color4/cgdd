@@ -119,7 +119,7 @@ var global_url_for_stringdb_interactive_networkList =
 var global_url_for_stringdb_interactive_one_network = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifier=";
 
-var global_max_stringdb_proteins_ids = 300; // As using POST not instead of GET
+var global_max_stringdb_proteins_ids = 300; // As using POST now instead of GET
 // var global_max_stringdb_proteins_ids = Math.floor((2000 +2 - global_url_for_stringdb_interactive_networkList.length)/23); // was 350; but too long for internet explorer // Max number of ensembl_protein_ids that fit into the GET query. (if set species=9606 and don't use the "9606." prefixes then would allow a few more - but stringdb then displays confirm dialog) (can actually sent 353 if paste into the url)
 //Browser URL limits:  IE 2083 characters, Chrome around 2000 characters, Firefox 2047 characters. So aim < 2000 characters.
 // See: http://stackoverflow.com/questions/812925/what-is-the-maximum-possible-length-of-a-query-string
@@ -135,12 +135,12 @@ var experimenttype_array = [
 ];
   
 var driver_array = [
-   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ driver.prev_names_and_synonyms_spaced }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" },
+   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prevname_synonyms }}", synonyms_spaced: "{{ driver.prevname_synonyms }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" },
    {% endfor %}
 ];
 
 var target_array = [
-   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prev_names_and_synonyms_spaced }}", synonyms_spaced: "{{ target.prev_names_and_synonyms_spaced }}", full_name: "{{target.full_name}}"},
+   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prevname_synonyms }}", synonyms_spaced: "{{ target.prevname_synonyms }}", full_name: "{{target.full_name}}"},
    {% endfor %}
 ]; // Only populated by AJAX if user selects sets the 'search_by' to 'target'
 
@@ -584,12 +584,12 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 
         return false; // keeps the page from not refreshing 
     });
+{% comment %}	
 /*
        $.get(url, 
 		      function(response, status, xhr) {if(status == "success") {}
 */
- 
-/*	
+/*
 		 // If a "complete" callback is provided, it is executed after post-processing and HTML insertion has been performed.
 		 // so load suits if data returned is HTML, but for other data 
         $("#result_div").load("{% url 'gendep:ajax_results_post' %}", 
@@ -607,9 +607,9 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 	    ); // Appends the returned html data to this id.
 	   // see: http://www.w3schools.com/jquery/ajax_load.asp and  https://api.jquery.com/load/	   
     });
-*/	
+*/
     // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
-
+{% endcomment %} 
     $("#gene").autocomplete({
         // source: "/api/get_drivers/",   // to use Ajax call.
         source: driver_array,  // using the above array (but is reset to target_array if user selects search_by='target'.
@@ -835,37 +835,42 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <p id="result_info"></p>
 <p style="font-size: 70%;">( Use scrollbar at right of this table to scroll down. Click column header to sort by that column. Click on the gene name in the depenency column to view the box-plot. Enter text into the search box at top of column to optionally filter these results. In the 'Effect size' column search box you can enter eg: ">75" to filter results.)</p>
 
-<p style="text-align:right; margin-top: 0; margin-bottom: 0;" >
-<form id="download_csv_form" method="get">
-<button id="download_csv_button" type="submit">Download as CSV file</button>
-<!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->
-&nbsp String-DB:
-<input type="button" id="string_image" value="image" onclick="show_stringdb(stringdb_image);" />
-<!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
-
-{# <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a> #}
-
-
-{# <input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" /> #}
-<span id="string_link"></span>
-</form>
-</p>
 {# <button type="button" name="Download" id="download_csv_button">Download as CSV file</button> #}
 {# <a id="download_csv" href="">[Download tabbed file]</a> #}
 
 
-{# full string interactive URL is: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&caller_identity=CGDD&required_score=700&limit=0&advanced_menu=yes&identifiers=..... "> #}
+{# <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a> #}
+{# <input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" /> #}
 
-<form id="string_interactive_form" method="post" action="http://string-db.org/newstring_cgi/show_network_section.pl" target="_blank">
-   <input type="hidden" name="identifiers" id="string_protein_identifiers" value=""/>
-   <!-- input name="identifier" id="string_protein_identifier" value="" type="hidden"/--> <!-- maybe single interaction isn't needed ?-->
-   <input type="hidden" name="network_flavor" value="confidence"/>
-   <input type="hidden" name="required_score" value="700"/>
-   <input type="hidden" name="limit" value="0"/>
-   <input type="hidden" name="advanced_menu" value="yes"/>
-   <input type="hidden" name="caller_identity" value="CGDD"/>
-   <button id="string_interactive_submit_button" type="submit" onclick="set_string_form_identifiers();">interactive</button> <!-- or new HTML5 button tag: formtarget="_blank" -->
-</form>   
+<!--  http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css -->
+<table style="padding: 10px;  border-spacing: 0; border-collapse: collapse; margin-top: 0; margin-bottom: 0; margin-right: 0; margin-left: auto;"><tr>
+<td>
+  <form id="download_csv_form" method="get">
+    <button id="download_csv_button" type="submit">Download as CSV file</button>
+    <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->
+    &nbsp String-DB:
+    <input type="button" id="string_image" value="image" onclick="show_stringdb(stringdb_image);" />
+<!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
+  </form>
+</td>
+<td>
+  <form id="string_interactive_form" method="post" action="http://string-db.org/newstring_cgi/show_network_section.pl" target="_blank">
+    <input type="hidden" name="identifiers" id="string_protein_identifiers" value=""/>
+    <!-- input name="identifier" id="string_protein_identifier" value="" type="hidden"/--> <!-- maybe single interaction isn't needed ?-->
+    <input type="hidden" name="network_flavor" value="confidence"/>
+    <input type="hidden" name="required_score" value="700"/>
+    <input type="hidden" name="limit" value="0"/>
+    <input type="hidden" name="advanced_menu" value="yes"/>
+    <input type="hidden" name="caller_identity" value="CGDD"/>
+    <button id="string_interactive_submit_button" type="submit" onclick="set_string_form_identifiers();">interactive2</button> <!-- or new HTML5 button tag: formtarget="_blank" -->
+  </form>
+<td>
+<td>
+<span id="string_link"></span>
+</td>
+</tr></table>
+
+{# full string interactive URL is: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&caller_identity=CGDD&required_score=700&limit=0&advanced_menu=yes&identifiers=..... "> #}
 
 
 

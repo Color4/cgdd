@@ -42,11 +42,11 @@ def get_timing(start_time, name, time_array=None):
 
 def index(request, search_by = 'driver', gene_name=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
     
-    driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+    driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prevname_synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
 
     target_list = []
     if not is_search_by_driver(search_by):
-        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "is_target", "prev_names", "synonyms").order_by('gene_name')  # Needs: (is_target=True), not just: (is_target)
+        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "is_target", "prevname_synonyms").order_by('gene_name')  # Needs: (is_target=True), not just: (is_target)
 
     # histotype_list = Histotype.objects.order_by('full_name')
     histotype_list = Dependency.HISTOTYPE_CHOICES
@@ -86,7 +86,7 @@ def get_drivers(request):
         d_json = {}
         d_json['id'] = d.gene_name  # But maybe this needs to be an integer? 
         d_json['label'] = d.gene_name
-        d_json['value'] = d.gene_name + ' : ' + d.full_name + ' : ' + d.prev_names_and_synonyms_spaced()
+        d_json['value'] = d.gene_name + ' : ' + d.full_name + ' : ' + d.prevname_synonyms
         results.append(d_json)
     data = json.dumps(results)
         # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
@@ -207,10 +207,10 @@ histotype_json = None
 
 
     
-def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histotype_name, study_pmid):
-    # View for the dependency search result table.
-    # Ajax sends four fields: search_by, gene_name, histotype, pmid, [start(row for pagination):
-    # returns json - should also return the error message as json format?
+def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
+    # Results JSON formatted data for the dependency search result table.
+    # Ajax on from "Search" button on the "index.html" page sends four fields: search_by, gene_name, histotype, pmid, [start(row for pagination):
+    # returns json - should also return the error message as json format.
     # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
     # mimetype = 'text/html' # for error messages. was: 'application/json'
 
@@ -253,7 +253,7 @@ def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histot
     else:
         select_related = [ 'driver__inhibitors', 'driver__ensembl_protein_id' ]
  
-    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # can add select related if needed, eg: for target gene synonyms.
+    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # can add select related if needed, eg: for target gene prevname_synonyms.
     if error_msg != '': return json_error("Error: "+error_msg)
 
     # gene_weblinks = gene.external_links('|') # Now in javascript
@@ -312,7 +312,7 @@ def ajax_results_fast_minimal_data_version(request, search_by, gene_name, histot
         # But maybe I need to call field the default name of 'study_id'
         #    study    = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
             
-        # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
+        # + ' ' + d.full_name + ' ' + d.prevname_synonyms
             
         d_json['h'] = d.histotype   # was 'histotype' get_histotype_display()  # or could use 'd.histotype' shortened names, with a hash in javascript in the index.html file.
         d_json['i'] = '' # d.inhibitors  was 'inhibitors' - but empty for now.
@@ -384,7 +384,7 @@ CDK11A
         # To add join to the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
         # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
                         
-        # + ' ' + d.full_name + ' ' + d.synonyms + ' ' + d.prev_names
+        # + ' ' + d.full_name + ' ' + d.prevname_synonyms
                     
     start = get_timing(start, 'Dependency results', timing_array)
     
@@ -395,7 +395,7 @@ CDK11A
     query_info = {'search_by': search_by,
                   'gene_name': gene_name,
                   'gene_full_name': gene.full_name,
-                  'gene_synonyms': gene.prev_names_and_synonyms_spaced(),
+                  'gene_synonyms': gene.prevname_synonyms,
                   # 'gene_weblinks': gene.external_links('|'), # now passing the 'gene_ids' as a dictionary to format in webbrowser.
                   'histotype_name': histotype_name,
                   'histotype_full_name': histotype_full_name, # Not read
@@ -584,7 +584,7 @@ def qtip(tip):
 def gene_info(request, gene_name):
     try:
         gene = Gene.objects.get(gene_name=gene_name)
-        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prev_names_and_synonyms_spaced(), 'ids': gene_ids_as_dictionary(gene) }  # 
+        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene) }  # 
     except ObjectDoesNotExist: # Not found by the objects.get()
         data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
     return HttpResponse(json.dumps(data, separators=[',',':']), json_mimetype)
@@ -741,7 +741,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
          writer.writerow([
             d.target.gene_name, # or d.target_id
             d.target.full_name, d.target.entrez_id, d.target.ensembl_id, d.target.ensembl_protein_id,
-            d.target.prev_names_and_synonyms_spaced(), # <-- Merge this into one field in future
+            d.target.prevname_synonyms, 
             d.wilcox_p, d.effect_size,   # wilcox_p was stringformat:".0E",  		    
             d.get_histotype_display(),
             d.target.inhibitors,  #'', # d.inhibitors,  if search_by_driver else ...
@@ -756,7 +756,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
          writer.writerow([
             d.driver.gene_name,  # or d.driver_id
             d.driver.full_name, d.driver.entrez_id, d.driver.ensembl_id, d.driver.ensembl_protein_id,
-            d.driver.prev_names_and_synonyms_spaced(), # <-- Merge this into one 'prevname_synonyms' field in future
+            d.driver.prevname_synonyms, 
             d.wilcox_p, d.effect_size,  		    
             d.get_histotype_display(),
             d.driver.inhibitors,   # '', # d.inhibitors,  if search_by_driver else ....
@@ -914,7 +914,7 @@ def your_view(request):
         ws.write_string(row,  1, d.target.full_name)
         ws.write_string(row,  2, d.target.entrez_id)
         ws.write_string(row,  3, d.target.ensembl_id)
-        ws.write_string(row,  4, d.target.prev_names_and_synonyms_spaced)
+        ws.write_string(row,  4, d.target.prevname_synonyms)
         ws.write_number(row,  5, d.wilcox_p, exponent_format)  # |stringformat:".0E",  # was, d.wilcox_p_power10_format  but <sup>-4</sup> not that meaningful in excel
   	    ws.write_number(row,  6, d.effect_size)
         ws.write_string(row,  7, d.get_histotype_display)
