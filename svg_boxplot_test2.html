@@ -7,13 +7,18 @@
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
 
   <link rel="stylesheet" type="text/css" href="gendep/static/gendep/style.css" />
+
+  <script src="gendep/static/gendep/saveSvgAsPng.js"></script>
+  
   <!-- link rel="stylesheet" type="text/css" href="style.css" /-->
+   
   
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
   
 
+  
   <style type="text/css">
   #legend_table {
    border: 1px solid black;
@@ -200,7 +205,7 @@ var tissue_colours = {
 // was: "range,-8,2;wt_box,-2.57,-1.15,-0.58,-0.09,1.28;mu_box,-3.01,-3.01,-2.15,-0.62,-0.52;
 //var boxplot_csv = "80,-8,2,-2.57,-1.15,-0.58,-0.09,1.28,-3.01,-3.01,-2.15,-0.62,-0.52;BONE,143B,1.25,-1.04,0;BONE,CAL72,1.26,-0.23,0;BONE,HOS,0.95,-1.84,0;BONE,HUO3N1,1.19,-1.2,0;BONE,HUO9,1.11,-0.39,0;BONE,MG63,1.15,-1.13,0;BONE,NOS1,0.79,-0.35,0;BONE,NY,1.01,-0.13,0;BONE,SAOS2,1.09,-1.04,0;BONE,SJSA1,0.94,-0.1,0;BONE,U2OS,0.7,-0.3,0;BONE,G292,2.07,-0.52,1;BREAST,BT20,0.79,-0.39,0;BREAST,BT549,0.86,0.47,0;BREAST,CAL120,0.81,-2.79,0;BREAST,CAL51,0.69,0.24,0;BREAST,CAMA1,0.98,-1.01,0;BREAST,DU4475,0.68,0.53,0;BREAST,HCC1954,0.79,-0.44,0;BREAST,HCC202,1.28,0.18,0;BREAST,HCC38,1.13,0.79,0;BREAST,HCC70,1.17,-0.5,0;BREAST,HS578T,1.07,0.19,0;BREAST,MCF7,1.2,0.47,0;BREAST,MDAMB157,0.88,0.44,0;BREAST,MDAMB231,1.27,-1.71,0;BREAST,MDAMB436,1.25,0.49,0;BREAST,MDAMB453,0.92,-2.02,0;BREAST,MFM223,0.94,-0.6,0;BREAST,T47D,1.32,-0.63,0;BREAST,ZR7530,0.68,-0.03,0;BREAST,BT474,1.98,-2.15,1;BREAST,JIMT1,1.92,-7.38,1;LUNG,A427,1.25,-2.93,0;LUNG,A549,1.19,-3.52,0;LUNG,BEN,0.7,-0.72,0;LUNG,H1299,0.68,-1.67,0;LUNG,H1650,1.26,-1.14,0;LUNG,H1838,1.31,-0.26,0;LUNG,H1975,1.22,-0.22,0;LUNG,H2228,1.11,0.34,0;LUNG,H23,1.14,-0.25,0;LUNG,H2342,1.07,-1.99,0;LUNG,H292,1.28,-1.18,0;LUNG,H358,0.99,-0.87,0;LUNG,H460,1.22,-0.42,0;LUNG,H727,1.22,-1.9,0;LUNG,H1793,1.75,-3.01,1;HEADNECK,PCI30,1.16,-0.58,0;PANCREAS,ASPC1,0.92,-0.47,0;PANCREAS,BXPC3,1.17,-0.62,0;PANCREAS,MIAPACA2,1.02,-3.54,0;CERVICAL,C33A,1.33,-1.83,0;CERVICAL,CASKI,0.78,-0.6,0;CERVICAL,HELA,0.94,-0.83,0;CERVICAL,SIHA,0.79,-1.16,0;OVARY,CAOV3,1.25,1.28,0;OVARY,ES2,1.33,-0.08,0;OVARY,OAW42,1.11,-0.15,0;OVARY,OV90,0.76,-0.83,0;OVARY,OVISE,1.14,-2.46,0;OVARY,OVMANA,1.24,0.9,0;OVARY,OVTOKO,1.2,-0.76,0;OVARY,RMGI,1.24,-0.14,0;OVARY,SKOV3,1.31,-0.38,0;OVARY,TOV112D,1.07,-1.3,0;OVARY,TOV21G,0.8,-1.43,0;OESOPHAGUS,ESO26,1.06,0.78,0;OESOPHAGUS,FLO1,1.32,-1.12,0;OESOPHAGUS,OE19,0.92,-0.38,0;OESOPHAGUS,OE33,1.31,-1.09,0;OESOPHAGUS,SKGT4,1.21,0.9,0;OESOPHAGUS,TE1,0.72,0.02,0;OESOPHAGUS,TE10,1.3,-0.67,0;OESOPHAGUS,TE11,0.81,0.68,0;OESOPHAGUS,TE6,0.99,0.68,0;OESOPHAGUS,TE9,0.68,-5.88,0;OESOPHAGUS,TE8,1.7,-0.62,1;ENDOMETRIUM,MFE296,1.3,-2.57,0;CENTRAL_NERVOUS_SYSTEM,KNS42,1.08,-0.84,0";
 
-var driver = "ERBB2", target="MAP2K3", wilcox_p = "4 x 10<sup>-4</sup>", effect_size = "81%", histotype="Pan cancer", study="Campbell(2016)";
+var driver = "ERBB2", target="MAP2K3", wilcox_p = "4 x 10<sup>-4</sup>", effect_size = "81%", delta_score="-999.99", histotype="Pan cancer", study="Campbell(2016)";
 var boxplot_csv ="79,-5,2,-2.66,-1.28,-0.62,0.04,1.26,-4.61,-3.555,-1.765,-0.91,-0.62;BONE,143B,1.14,-0.21,0;BONE,CAL72,1.1,-0.61,0;BONE,G292,1.01,-1.85,0;BONE,HOS,1.13,-2.15,0;BONE,HUO3N1,0.86,-1.12,0;BONE,HUO9,0.82,-0.91,0;BONE,MG63,0.71,-1.48,0;BONE,NOS1,1.12,-0.99,0;BONE,NY,0.97,0.18,0;BONE,SAOS2,1.16,-0.91,0;BONE,SJSA1,1.11,0.88,0;BONE,U2OS,1.3,0.36,0;BREAST,BT20,1.3,-2.29,0;BREAST,BT549,0.76,-1.67,0;BREAST,CAL120,0.81,1.26,0;BREAST,CAL51,0.69,-0.67,0;BREAST,CAMA1,0.73,1.04,0;BREAST,DU4475,0.9,0.22,0;BREAST,HCC38,0.93,-0.23,0;BREAST,HCC70,0.73,-0.91,0;BREAST,HS578T,0.91,-2.03,0;BREAST,MCF7,1.3,-0.42,0;BREAST,MDAMB157,1.12,-1.54,0;BREAST,MDAMB231,1,-0.1,0;BREAST,MDAMB436,0.74,-0.1,0;BREAST,MFM223,1.09,-1.94,0;BREAST,T47D,1.29,-2.31,0;BREAST,BT474,2.05,-3.45,1;BREAST,HCC1954,1.88,-0.62,1;BREAST,HCC202,1.91,-4.61,1;BREAST,JIMT1,2.17,-1.09,1;BREAST,MDAMB453,1.88,-0.71,1;BREAST,ZR7530,2.27,-3.66,1;LUNG,A427,0.96,-0.31,0;LUNG,A549,0.74,-0.85,0;LUNG,BEN,0.77,-1.27,0;LUNG,H1299,1.29,0.19,0;LUNG,H1650,0.76,0.4,0;LUNG,H1838,0.92,-0.34,0;LUNG,H1975,1.27,-0.52,0;LUNG,H2228,1.29,-0.65,0;LUNG,H23,1.26,-0.55,0;LUNG,H2342,0.8,-2.66,0;LUNG,H292,1.28,-0.54,0;LUNG,H358,0.9,0.46,0;LUNG,H460,1.17,0.19,0;LUNG,H727,1.28,-0.75,0;HEADNECK,PCI30,0.69,-0.08,0;PANCREAS,ASPC1,0.69,-0.4,0;PANCREAS,BXPC3,0.93,-1.26,0;PANCREAS,MIAPACA2,0.82,-0.22,0;CERVICAL,C33A,0.87,-1.29,0;CERVICAL,CASKI,1.08,-1.52,0;CERVICAL,HELA,1.23,-1.02,0;CERVICAL,SIHA,0.86,-1.49,0;OVARY,CAOV3,0.92,0.36,0;OVARY,ES2,1.21,-1.13,0;OVARY,OAW42,1.16,-2.26,0;OVARY,OV90,0.78,-0.3,0;OVARY,OVISE,1.26,-1.67,0;OVARY,OVMANA,0.7,-1.58,0;OVARY,OVTOKO,1.23,-1.32,0;OVARY,TOV112D,1.11,0.53,0;OVARY,TOV21G,1.05,0.23,0;OVARY,RMGI,2.11,-1.55,1;OVARY,SKOV3,1.79,-2.49,1;OESOPHAGUS,FLO1,0.9,-1,0;OESOPHAGUS,SKGT4,0.95,0.61,0;OESOPHAGUS,TE1,1.16,-0.81,0;OESOPHAGUS,TE10,0.85,-0.82,0;OESOPHAGUS,TE11,1.03,0.08,0;OESOPHAGUS,TE8,0.68,-0.62,0;OESOPHAGUS,TE9,1.13,0,0;OESOPHAGUS,ESO26,2.33,-4.29,1;OESOPHAGUS,OE19,1.77,-0.83,1;OESOPHAGUS,OE33,1.7,-1.98,1;OESOPHAGUS,TE6,1.77,-0.99,1;ENDOMETRIUM,MFE296,1.06,0.6,0;CENTRAL_NERVOUS_SYSTEM,KNS42,1.08,0.37,0"
 
 var irange=0, iwtbox=3, imubox=8;
@@ -242,7 +247,7 @@ var tissue_lists;
 	
   beeswarm(lines, wtxc-1*boxwidth, muxc-2*boxwidth, boxwidth); // The -1 and -2 are because that is the position set in R for the jitter.
   
-  $("#boxplot_title").html("<b>"+target+"</b> altered cell lines have an increased dependency upon <b>"+driver+"</b><br/>(p="+wilcox_p+" | effect size="+effect_size+" | Tissues="+histotype + " | Source="+study + ")");
+  $("#boxplot_title").html("<b>"+target+"</b> altered cell lines have an increased dependency upon <b>"+driver+"</b><br/>(p="+wilcox_p+" | effect size="+effect_size+" | &Delta;Score="+delta_score+" | Tissues="+histotype + " | Source="+study + ")<br/>WebLinks ......");
 
     // $('#title').tooltip({
   $( document ).tooltip({
@@ -272,7 +277,7 @@ function axes(wtxc,muxc, ymin,ymax) {
     text(wtxc-0.1,ymin+23/yscale,18,false,"wt");
     text(muxc-0.3,ymin+23/yscale,18,false,"mutant");
 
-    text(wtxc+0.1,ymin+45/yscale,20,false,driver+"  status");
+    text(wtxc+0.5,ymin+45/yscale,20,false,driver+"  status");
 	
 	line(XscreenMin/xscale, ymin, XscreenMin/xscale, ymax, "1px", false, "black"); // y-axis
 	for (var y=ymin; y<=ymax; y++) {
@@ -281,7 +286,7 @@ function axes(wtxc,muxc, ymin,ymax) {
 	  text(x,y+8/yscale,18,false, y.toString());
 	  }
 		
-	text(15/xscale,ymin+3,20,true,target+" Z-score");
+	text(15/xscale,ymin+2,20,true,target+" Z-score");
     }
 
 function mouseOver(e) {
@@ -492,6 +497,13 @@ function toggle_tissue_checkboxes(e) {
       }
     }
    
+function save_svg_as_png() {
+   // Uses the "saveSvgAsPng.js" from: https://github.com/exupero/saveSvgAsPng
+   var study_without_brackets = study.replace('(','').replace(')','');
+   var png_filename = driver+"_"+target+"_"+study_without_brackets+".png";
+   saveSvgAsPng(svg, png_filename);
+   }
+   
   </script>
 
 </head>
@@ -536,6 +548,11 @@ function toggle_tissue_checkboxes(e) {
       /* fill: blue; */
 	  /* r: 10; */
     }
+	/* As 'r' is not a style, an alternative way is to make the stroke-width bigger on hoover. http://stackoverflow.com/questions/14255631/style-svg-circle-with-css 
+
+	stroke-width:10px;	
+	*/
+	
 	text {
 	  font-family: sans-serif;
 	}
@@ -547,7 +564,7 @@ function toggle_tissue_checkboxes(e) {
 </svg>
 </td><td valign="middle">
   <table id="legend_table" cellpadding="1" cellspacing="0" style="font-size: 75%;"></table>
-  <p style="font-size:90%">Download boxplot as:<br/><input type="button" id="download_SVG_boxplot" value="SVG image"/> <input type="button" id="download_PNG_boxplot" value="PNG image"/> <input type="button" id="download_CSV_boxplot" value="CSV data"/>
+  <p style="font-size:90%">Download boxplot as:<br/><input type="button" id="download_SVG_boxplot" value="SVG image"/> <input type="button" id="download_PNG_boxplot" value="PNG image"onclick="save_svg_as_png();"/> <input type="button" id="download_CSV_boxplot" value="CSV data"/>
 </td></tr>
 <tr><td id="boxplot_title" colspan="2" style="text-align:center"></td></tr>
 </table>
