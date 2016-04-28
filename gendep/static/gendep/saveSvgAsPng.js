@@ -201,6 +201,7 @@
 
     out$.svgAsDataUri(el, options, function(uri) {
       var image = new Image();
+	  image.setAttribute('crossOrigin', 'anonymous'); // added by SJB to try to fix IE 11 issue.
       image.onload = function() {
         var canvas = document.createElement('canvas');
         canvas.width = image.width;
@@ -210,13 +211,34 @@
           context.fillStyle = options.backgroundColor;
           context.fillRect(0, 0, canvas.width, canvas.height);
         }
-        context.drawImage(image, 0, 0);
+        try {		
+          context.drawImage(image, 0, 0);
+		// Throws error in IE 11 (and other IEs): http://stackoverflow.com/questions/24346090/drawimage-raises-script65535-on-ie11
+// and: https://connect.microsoft.com/IE/feedback/details/809823/draw-svg-image-on-canvas-context		
+        }
+        catch (err) {
+		   // So will try again:
+           setTimeout(function() {context.drawImage(image, 0, 0)}, 1);  // setTimeout(function() {drawPiece(ctx,x,y,type,color)}, 1);
+		   alert("Error: Internet explorer has issues converting SVG to PNG images. Try using another webbrowser, such as Firefox, Opera, Chrome or Safari")
+        }
+/* A fix given was:
+image.onload = function() {
+  try {
+    ctx.drawImage(image,x,y,40,40);
+  }
+  catch (err)
+  {
+    setTimeout(function() {drawPiece(ctx,x,y,type,color)}, 1);
+  }
+};
+*/		
         var a = document.createElement('a'), png;
         try {
           png = canvas.toDataURL('image/png');
         } catch (e) {
           if ((typeof SecurityError !== 'undefined' && e instanceof SecurityError) || e.name == "SecurityError") {
             console.error("Rendered SVG images cannot be downloaded in this browser.");
+			alert("Rendered SVG images cannot be downloaded in this browser. If you are using Internet Explorer, then try Firefox, Opera, Chrome or Safari browsers.");
             return;
           } else {
             throw e;
