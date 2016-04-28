@@ -40,7 +40,9 @@
         }
         var canvas = document.createElement('canvas');
         var ctx = canvas.getContext('2d');
-        var img = new Image();
+        var img = new Image();  // img.setAttribute('crossOrigin', 'anonymous'); SJB from: http://stackoverflow.com/questions/20424279/canvas-todataurl-securityerror
+		// or this problem in IE 11: https://connect.microsoft.com/IE/feedback/details/1013555/ie-11-wrongly-throws-securityerror-on-canvas-todataurl-image-png
+		// and: https://developer.microsoft.com/en-us/microsoft-edge/platform/issues/110935/
         href = href || image.getAttribute('href');
         if (href) {
           img.src = href;
