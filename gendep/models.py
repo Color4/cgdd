@@ -167,7 +167,7 @@ class Dependency(models.Model):
     # See Colm's email from 14-April-2016. use lower case field names:
     za = models.FloatField('zA', db_index=True, default=-999.99)
     zb = models.FloatField('zB', db_index=True, default=-999.99)
-    zdiff = models.FloatField('Delta Score', db_index=True, default=-999.99)
+    zdiff = models.FloatField('zDelta Score', db_index=True, default=-999.99)
     
     # Change this later to a Character when next rebuild table, as can't alter table columns in SQLite
     # interaction = models.NullBooleanField('Functional interaction', db_index=True, ) # True if there is a known functional interaction between driver and target (from string-db.org interaction database). Allows null (ie. for unknown) values

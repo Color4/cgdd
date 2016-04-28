@@ -362,6 +362,7 @@ CDK11A
                     d.target_id if search_by_driver else d.driver_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
                     format(d.wilcox_p, ".0E").replace("E-0", "e-"),  # Scientific format, remove leading zero from the exponent
                     format(d.effect_size*100, ".1f"),  # As a percentage
+                    format(d.zdiff,".2f"), # Usually negative
                     d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
                     d.study_id, # returns the underlying pmid number rather than the Study object
                     interaction,

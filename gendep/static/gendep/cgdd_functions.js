@@ -858,13 +858,15 @@ function populate_table(data,t0) {
 	
 	results = data['results']
 	//console.log(results);
+
+	// result array indexes:
+	// igene can be either driver or target depending on 'search_by'.
+	var igene=0, iwilcox_p=1, ieffect_size=2, izdelta=3, ihistotype=4, istudy_pmid=5, iinteraction=6, iinhibitors=7, itarget_variant=8; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
+	// In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
 	
 	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list	  
 	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
-	  // result array indexes:
-	  // igene can be either driver or target depending on 'search_by'.
-	  var igene=0, iwilcox_p=1, ieffect_size=2, ihistotype=3, istudy_pmid=4, iinteraction=5, iinhibitors=6, itarget_variant=7; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
-	  // In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
+
 	  var study = study_info(d[istudy_pmid]); // name,type,summary,details for 'study_pmid'
 	  // perhaps 'map ......join' might be more efficient?
 	  var comma = "', '";  // ie. is:  ', '
@@ -953,8 +955,9 @@ function populate_table(data,t0) {
         '<td data-gene="'+d[igene]+'" epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
-         wilcox_p_cell + 
-		 effectsize_cell +
+        wilcox_p_cell + 
+		effectsize_cell +
+		'<td>' + d[izdelta] + '</td>' +
         '<td>' + histotype_display(d[ihistotype]) + '</td>' +
 		'<td data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.

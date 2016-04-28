@@ -72,13 +72,13 @@ if (isAchilles) {
 } else {
   # For Colm/Cambell (2016)
   # ORIGINAL: uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_150202.txt"
-  uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_160323_witheffectsize.txt"
+  uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize.txt"
 
   # Just one result to test boxplot printing:
   # uv_results_kinome_combmuts_file <- "one_boxplot_SEMG2_CAMK1_extracted_from_univariate_results_v26_pancan_kinome_combmuts_150202.txt"
 
   # ORIGINAL: uv_results_kinome_combmuts_bytissue_file <- "univariate_results_v26_bytissue_kinome_combmuts_150202.txt"
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_v26_bytissue_kinome_combmuts_160323_witheffectsize.txt"
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize.txt"
   combined_histotypes_boxplot_dir <- "combined_histotypes_medium/"
   separate_histotypes_boxplot_dir <- "separate_histotypes_medium/"
 }

@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
 
   <link rel="stylesheet" type="text/css" href="gendep/static/gendep/style.css" />
+  <!-- link rel="stylesheet" type="text/css" href="style.css" /-->
   
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
@@ -17,9 +18,13 @@
   #legend_table {
    border: 1px solid black;
    border-collapse: collapse;
+   /* padding: 15px; */
    }
-  /* #legend_table th td {border: 1px solid black;}*/
+   /* #legend_table th td {border: 1px solid black;}*/
  
+  #legend_table tr:hover {background-color: #f5f5f5}	
+
+
   .ui-tooltip {
     padding: 4px 4px;
     background: #ffff70;
@@ -29,12 +34,114 @@
   }
   </style>
   
-  
-  </style>
-
-  
   <script type="text/javascript">
 
+// SVG javascript libraries:
+// http://svgjs.com/ for manipulating and annimations (15 kb gzipped)
+// Raphael - 20kb when gzipped:
+// http://dmitrybaranovskiy.github.io/raphael/
+// https://github.com/DmitryBaranovskiy/raphael supports older browsers via VML (eg. IE<=8 and early Safari)
+
+// Older plotting library for IE7, IE8: http://www.jqplot.com/index.php
+
+
+// Box plot libraries: https://plot.ly/javascript/box-plots/
+//   http://forum.highcharts.com/highcharts-usage/bee-swarm-t34154/
+
+
+// D3 many good graphs: https://github.com/mbostock/d3/wiki/Gallery
+
+// D3: http/ 3: Dchristophermanning.org/projects/building-cubic-hamiltonian-graphs-from-lcf-notation
+
+// D3: Scatter plot matrix: http://bl.ocks.org/mbostock/3213173
+
+// D3:Fisheye:  https://bost.ocks.org/mike/fisheye/
+
+// Hive network plot:   https://bost.ocks.org/mike/hive/
+
+
+// gene expression: http://sulab.org/2013/02/data-chart-plugin-beta/
+
+// d3: Dependency wheel: http://www.redotheweb.com/DependencyWheel/
+
+// Gene portal wiki:
+// https://en.wikipedia.org/wiki/HER2/neu
+
+
+// BioGPS:  http://biogps.org/#goto=genereport&id=2064
+// and its plugins.
+
+
+// Lots of different ToolTip libraries:  http://www.bypeople.com/jquery-tooltip/
+// eg: SimpleTips: http://craigsworks.com/projects/simpletip/#
+// TinyTips: https://github.com/Sweefty/tinytip
+
+
+// Lightboxes: http://js-tutorial.com/category/lightbox-7
+//    eg: Simple LightBox: http://js-tutorial.com/simple-lightbox-1502
+
+
+
+/*
+// example of beeswarm jitter for high charts:
+$(function () {
+
+      var jspace = 50;
+      
+    var data = [83.2,85.2,93.2,79.2,82.2,91.2,81.0,81.0,85.5,85.2,84.8,87.2,91.1,78.0,81.5,82.2,84.3,95];
+    data = data.sort();
+    var xydata = [];
+    var l = undefined;
+    var c = 1;
+    for (var i = 0; i < data.length; i++) {
+       d = data[i];
+       if (Math.floor(d) !== l){
+         l = Math.floor(d);
+        c = 1;
+      } else {
+         c += 1;
+      }
+      m = (c % 2 == 0) ? 1 : -1;
+      j = (Math.floor(c/2) * m)/jspace;
+      // Don't let jitter get too big
+      while(j > 1 || j < -1){
+         var n = Math.floor(Math.abs(j)) + 1;
+         j = (Math.floor(c/2) * m)/(jspace*n);
+      }
+      xydata.push([j,d]);
+    }
+   
+    $('#container').highcharts({
+
+            title: {text: 'Example Beeswarm Plot' },
+        xAxis: {
+            categories: ['% Aligned']
+        },
+        yAxis: {title: {text: null}},
+            legend: { enabled: false },
+        series: [{
+            name: 'Alignment',
+            type: 'scatter',
+            data: xydata
+        }]
+
+    });
+});
+*/
+
+  
+/*
+// Dynamically creating the SVG:
+var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+// svg.setAttribute('style', 'border: 1px solid black');
+svg.setAttribute('width', '600');
+svg.setAttribute('height', '250');
+svg.setAttributeNS("http://www.w3.org/2000/xmlns/", "xmlns:xlink", "http://www.w3.org/1999/xlink");
+document.body.appendChild(svg);
+*/  
+// For hyperlinks from SVG elements: http://stackoverflow.com/questions/20539196/creating-svg-elements-dynamically-with-javascript-inside-html
+
+  
 // edge effects: http://www.software-architects.com/devblog/2015/03/22/Shades-of-Gray-in-SVG---How-to-Get-a-Sharp-Black-Line
 
 // A dictionary might be faster:
@@ -274,11 +381,12 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
 	e.setAttribute("y2", Yscreen0 + y2*yscale );
 	e.setAttribute("stroke", colour); // as black is default in the CSS
 	e.setAttribute("stroke-width", strokewidth);
-	if (dashed) {e.setAttribute("stroke-dasharray", "6,3");}
+	if (dashed) {e.setAttribute("stroke-dasharray", "6,3");} // se: http://www.w3schools.com/svg/svg_stroking.asp
     svg.appendChild(e);
 	}
 
 function text(x,y,size,vertical,text) {
+    // Fore attributes, see: http://www.w3schools.com/svg/svg_text.asp
     var e = document.createElementNS(svgNS,"text");
     var xscreen = x*xscale;
 	e.setAttribute("x", xscreen);
@@ -303,17 +411,19 @@ function boxplot(xcenter,width,ystats) {
 
 
 function showhide_cell_clicked(e) {  // elem can be a 'td' or checkbox.
+// When the checkbox is clicked: IE seems to call this checkbox code first then the 'td' click event, whereas Chrome and Firefox seem to call the 'td' event first, then the checkbox event.
     // Not using event as not passed in Firefox when inline onclick="" used
 	e = e || window.event;  // Need: window.event for IE <=8
 	//e.preventDefault(); // should cancel the also click cell event
 //	e.stopPropagation(); // To stop propagation to parent element. ie. stops the event from bubbling up the event chain.
+// see: http://stackoverflow.com/questions/5963669/whats-the-difference-between-event-stoppropagation-and-event-preventdefault
 //e.cancelBubble  // for IE<=8 
 //or maybe use jquery e.stopPropagation...
 
 	var elem = e.target || e.srcElement;
 //console.log('showhide_cell: '+elem.id);
     if (elem.id.substring(0,3)=='cb_') {
-	    // console.log('leaving showhide_cell');
+//	     console.log('leaving showhide_cell');
 	    return true; // Need to return true so will be handled by the checkbox click event (showhide_tissue(e)).
 	}
 	var tissue = elem.id; /// the checkbox name is the tissue.
@@ -347,6 +457,11 @@ function showhide_tissue(e) {
 //	e.stopPropagation(); // To stop propagation to parent element. ie. stops the event from bubbling up the event chain.
 //e.cancelBubble  // for IE<=8 
 //or maybe use jquery e.stopPropagation...
+
+//if (!e) e = window.event;
+//    e.cancelBubble = true;
+//    if (e.stopPropagation) e.stopPropagation();
+//}
 
 	var checkbox = e.target || e.srcElement;
 //console.log('checkbox '+checkbox.id);
@@ -384,8 +499,10 @@ function toggle_tissue_checkboxes(e) {
 <body>
 <br/>
 <table align="center"><tr><td>
-<svg id="mysvg" version="1.1"
-     xmlns="http://www.w3.org/2000/svg"
+<!-- the tag: version="1.1" isn't used by any browsers -->
+<svg id="mysvg" 
+	 xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink" 
      width="500" height="500">
   <style>
     line{

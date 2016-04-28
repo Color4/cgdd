@@ -571,12 +571,11 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
   itarget = header_dict['target']
   iwilcox = header_dict['wilcox.p'] # should be 16 if zero based
   ieffect_size = header_dict['CLES'] # CLES = 'common language effect size'
-  itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.      
-
-
-ADD:
-zA     zB    ZDiff
-    
+  # Added: zA     zB    ZDiff
+  iza = header_dict['za']
+  izb = header_dict['zb']
+  izdiff = header_dict['zdiff']
+  itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.        
   
   for row in dataReader:      
     # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
@@ -586,14 +585,16 @@ zA     zB    ZDiff
     # print(row[idriver], row[itarget], row[iwilcox], row[ieffect_size])    
     row[iwilcox] = float(row[iwilcox])
     row[ieffect_size] = float(row[ieffect_size])
-ADD:
-zA     zB    ZDiff
-
     
     if row[iwilcox] > 0.05 or row[ieffect_size] < 0.65:
       count_skipped += 1
       continue  # Skip as either the wilcox_p value or effect_size isn't significant
 
+    # Added: zA     zB    ZDiff
+    row[iza] = float(row[iza])
+    row[izb] = float(row[izb])
+    row[izdiff] = float(row[izdiff])    
+      
     names = split_driver_gene_name(row[idriver])
     # driver_variant = names[0][-1:] # Seems we can ignore the driver variant as is trimming MYC to MY
     # if driver_variant not in ['1','2','3','4','5']: print("Unexpected driver_variant %s for %s" %(driver_variant,names[0])) 
@@ -633,20 +634,18 @@ zA     zB    ZDiff
                 print("d.mutation_type(%s) != mutation_type(%s)" %(d.mutation_type, mutation_type))
             d.wilcox_p = row[iwilcox]
             d.effect_size = row[ieffect_size]
-            
-            ADD:
-zA     zB    ZDiff
-
+            # Added: zA     zB    ZDiff
+            d.za = row[iza]
+            d.zb = row[izb]
+            d.zdiff = row[izdiff]
             if d.target_variant == target_variant: print("** ERRROR: target_variant already in database for target_variant '%s' and key: '%s'" %(target_variant,key))
             d.target_variant = target_variant # Need to update the target_variant, as it is needed to retrieve the correct boxplot from the R boxplots, where image file is: driver_gene_target_gene+target_variant_histotype_Pmid.png
             count_replaced += 1
         else:
             count_not_replaced += 1        
     else:
-ADD:
-zA     zB    ZDiff
-
-        d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], histotype=histotype, mutation_type=mutation_type, study=study)
+        # Added: zA     zB    ZDiff
+        d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], za = row[iza], zb = row[izb], zdiff = row[izdiff], histotype=histotype, mutation_type=mutation_type, study=study)
         # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
         # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
         dependencies.append( d )
@@ -921,12 +920,12 @@ if __name__ == "__sjb_ignore_these__":
 
     # BUT NEED to FIX THE
     table_name ='S1I'
-    Cambell_results_pancan = "univariate_results_v26_pancan_kinome_combmuts_160323_witheffectsize.txt"
+    Cambell_results_pancan = "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Cambell_results_pancan)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
     table_name = 'S1K'
-    Cambell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_160323_witheffectsize.txt"
+    Cambell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize.txt"
     csv_filepathname=os.path.join(analysis_dir, Cambell_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
