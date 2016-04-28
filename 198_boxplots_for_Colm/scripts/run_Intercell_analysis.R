@@ -178,6 +178,7 @@ uv_results_kinome_combmuts_bytissue <- read.table(
 # select associations where wilcox.p ≤ 0.05
 
 source("../scripts/Intercell_analysis_functions.R")
+debug(make_mini_box_dot_plots)
 make_mini_box_dot_plots(
 	results=as.data.frame(
 		uv_results_kinome_combmuts[which(
@@ -198,6 +199,26 @@ make_mini_box_dot_plots(
 	tissue_cols=legend_col
 	)
 
+
+source("../scripts/Intercell_analysis_functions.R")
+debug(write_box_dot_plot_data)
+write_box_dot_plot_data(
+	results=as.data.frame(
+		uv_results_kinome_combmuts[which(
+			uv_results_kinome_combmuts[,"wilcox.p"] <= 0.05 &
+			uv_results_kinome_combmuts[,"CLES"] >= 0.65 # SJB Added this effect_size test
+			),]
+		),
+	zscores=kinome_combmuts$rnai,
+	mutation.classes=kinome_combmuts$mut_classes,
+	mutations=kinome_combmuts$func_muts,
+	exclusions=kinome_combmuts$all_muts,
+	tissues=kinome_combmuts$tissues,
+	suffix_for_filename="PANCAN", # SJB WAS: "allhistotypes",
+	tissue_actual_names=legend_actual_tissues
+	)
+	
+	
 # Plot combmuts results for separate histotypes
 # select associations where wilcox.p ≤ 0.05
 tissues <- levels(as.factor(uv_results_kinome_combmuts_bytissue$tissue))

@@ -68,10 +68,9 @@ if input("\nContinue (y/n)?").lower() != 'y':
 
 if connection.vendor == 'mysql':
     print("Deleting data from the MySQL database %s ..." %(DB['NAME']))    
-    print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1; SET FOREIGN_KEY_CHECKS=1;")) # maybe add "IF EXISTS", eg: "TRUNCATE `gendep_gene` IF EXISTS;"
-
-    django.db.utils.ProgrammingError: (2014, "Commands out of sync; you can't run this command now")
-    
+    print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency_inhibitors`; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; SET FOREIGN_KEY_CHECKS=1;")) # maybe add "IF EXISTS", eg: "TRUNCATE `gendep_gene` IF EXISTS;"    
+    # The following AUTO_INCREMENT=1 reset needs to be in a separate mysql execute statrement, otherwise get error about: #        django.db.utils.ProgrammingError: (2014, "Commands out of sync; you can't run this command now")
+    print(mysql_cursor.execute("ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1;"))     
     
 elif connection.vendor == 'postgres':
     print("Deleting data from the Postgres database %s ..." %(DB['NAME']))

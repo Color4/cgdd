@@ -129,12 +129,14 @@ class Dependency(models.Model):
     HISTOTYPE_CHOICES = (
       ("BREAST",                             "Breast"),#        "Br"),
       ("LUNG",                               "Lung"),#          "Lu"),
+      ("HEADNECK",                           "Head & Neck"),#   "HN"), # In Campbell, Not in Achilles
       ("OESOPHAGUS",                         "Esophagus"),#     "Es"),  # or "Oesophagus"
-      ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),
+      ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R
       ("OVARY",                              "Ovary"),#         "Ov"),
       # More added below for Achilles data - may need to add these to the index template
-	  # ("ENDOMETRIUM",                      "Endometrium"),#   "En"),  only 2 cell lines so not analysed by R
+	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
 	  ("PANCREAS", 	                         "Pancreas"),#      "Pa"),
+      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
       ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
 	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
 	  ("INTESTINE",                          "Intestine"),#     "In"),
@@ -142,7 +144,7 @@ class Dependency(models.Model):
       # ("LIVER",                            "Liver"),#         "Li"), only 1 cell line so not analysed by R
 	  ("PROSTATE",                           "Prostate"),#      "Pr"),
 	  ("SKIN",                               "Skin"),#          "Sk"),
-	  # ("SOFT_TISSUE",                      "Soft tissue"),#    "So"), only 2 celllines so not analysed by R
+	  ("SOFT_TISSUE",                        "Soft tissue"),#   "So"), only 2 celllines so not analysed by R ?
 	  ("STOMACH",                            "Stomach"),#       "St"),
 	  ("URINARY_TRACT",                      "Urinary tract"),# "Ur"),
       ("PANCAN",                             "Pan cancer"),#    "PC"),

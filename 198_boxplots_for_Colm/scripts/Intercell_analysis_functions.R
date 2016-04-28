@@ -4,10 +4,15 @@
 # jamesc@icr.ac.uk, 11th March 2014
 # ====================================== #
 
+# Added the jsonlite package:
+#   install.packages("jsonlite", repos="http://cran.r-project.org")
+
 
 require("preprocessCore")
 require(gplots)
 require(mixtools)
+
+require(jsonlite) # Added by SJB
 
 # Define colours used for plotting
 # "#C9DD03" green
@@ -710,31 +715,34 @@ make_mini_box_dot_plots <- function(
 			
 			# set the non-recurrent mutations
 			wt_mut_grps_strings[which(exclusions[,results$marker[i]] == 1)] <- "non-rec. mut."
-			
+#print(wt_mut_grps_strings)
 			# set the recurrent/functional mutations
 			wt_mut_grps_strings[which(mutations[,results$marker[i]] == 1)] <- "rec. mut."
-			
+#print(wt_mut_grps_strings)
 			wt_grp_rows <- which(wt_mut_grps_strings == "wt")
 			nonfunc_mut_grp_rows <- which(wt_mut_grps_strings == "non-rec. mut.")
 			func_mut_grp_rows <- which(wt_mut_grps_strings == "rec. mut.")
-#print("A")
-			png(filename=paste(
-				prefix_for_filename,
-				marker_gene,
-				"_",
-				target_gene,
-				"_",
-				suffix_for_filename,
-				"_",
-				"_PMID", pubmed_id_for_filename, ".png",
-				sep=""
-				),
+#print(wt_grp_rows)
+#print(nonfunc_mut_grp_rows)
+#print(func_mut_grp_rows)
+
+##			png(filename=paste(
+##				prefix_for_filename,
+##				marker_gene,
+##				"_",
+##				target_gene,
+##				"_",
+##				suffix_for_filename,
+##				"_",
+##				"_PMID", pubmed_id_for_filename, ".png",
+##				sep=""
+##				),
 				# width=5.3, height=4.5, units="in", res=96)
 				# width=4.0, height=4.5, units="in", res=96)
-				width=4.0, height=4.0, units="in", res=96)
+##				width=4.0, height=4.0, units="in", res=96)
 				# width=400, height=400) # default is pixils: , units="in"
 				#  res = .... defaults to 72. The smaller this number, the larger the plot area in inches, and the smaller the text relative to the graph itself.
-			par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 0.1) ) # SJB: was: width=2.5, height=3, units="in", res=96
+##			par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 0.1) ) # SJB: was: width=2.5, height=3, units="in", res=96
 			#par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 1.4)) # <-- for legend at right.  SJB: original was: width=2.5, height=3
 		
 			# boxplot based on all data (wt and mut groups)
@@ -756,7 +764,7 @@ make_mini_box_dot_plots <- function(
 				-2,0,col="red",lty=2
 				)
 			# Draw the absline while xpdf=FALSE (changed to TRUE for legend), otherwise line draw accross whole image, instead of just accross the plots area.
-			
+
 			# Trim the target_variant last character from the gene names for Achilles data:
 			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 #print("C")
@@ -765,7 +773,8 @@ make_mini_box_dot_plots <- function(
 			# line	= on which MARgin line, starting at 0 counting outwards.
 			# cex= character expansion factor. NULL and NA are equivalent to 1.0. This is an absolute measure, not scaled by par("cex") or by setting par("mfrow") or par("mfcol"). Can be a vector.
 			# SJB, changed line=2 to line=2.2 for horizontal axis text:
-			
+print(sprintf("driver:%s,target:%s",marker_gene,target_gene))
+
 			mtext(paste(marker_gene, "status"), 1, line=2.3, cex=1.5)  # is horizontal axis text
 			mtext(paste(target_gene, response_type), 2, line=2.3, cex=1.5)
 
@@ -792,7 +801,7 @@ make_mini_box_dot_plots <- function(
 			# points for each tissue type
 			j <- NULL
 			for(j in 1:length(tissue_actual_names)){
-				tissue <- tissue_actual_names[j]				
+				tissue <- tissue_actual_names[j]
 				wt_rows_by_tissue <- which(
 					wt_mut_grps_strings == "wt" &
 					tissues[,tissue] == 1
@@ -802,13 +811,16 @@ make_mini_box_dot_plots <- function(
 					tissues[,tissue] == 1
 					)
 				
-				
+			    ### SJB: To get row names, use: print(row.names(tissues)[wt_rows_by_tissue])				
 				if(length(wt_rows_by_tissue) > 0){
 					# plot at 1
 					# jitter(): https://stat.ethz.ch/R-manual/R-devel/library/base/html/jitter.html
 					x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
 					y <- zscores[wt_rows_by_tissue,results$target[i]]
-					###print(c(x,y,tissue_cols[j])) # Added by SJB
+					cell_lines = row.names(tissues)[wt_rows_by_tissue] # Added by SJB
+					print(c(round(x,2),y,cell_lines)) # tissue_cols[j])) # Added by SJB
+					for(k in 1:length(wt_rows_by_tissue)) {print(sprintf("x:%.2f,y:%.2f,c:%s",x[k],y[k],cell_lines[k]))}
+					# or use: sprintf("%.3f", pi)
 					points(
 						x,
 						y,
@@ -821,7 +833,9 @@ make_mini_box_dot_plots <- function(
 					# plot at 2
 					x <- jitter(rep(2,times=length(mutant_rows_by_tissue)), amount=0.33)
 					y <- zscores[mutant_rows_by_tissue,results$target[i]]
-					####print(c(x,y,tissue_cols[j])) # Added by SJB
+					cell_lines = row.names(tissues)[wt_rows_by_tissue] # Added by SJB
+					print(c(round(x,2),y,cell_lines,tissue_cols[j])) # Added by SJB
+					for(k in 1:length(mutant_rows_by_tissue)) {print(sprintf("x:%.2f,y:%.2f,c:%s",x[k],y[k],cell_lines[k]))}
 					points(
 						x,
 						y,
@@ -831,13 +845,360 @@ make_mini_box_dot_plots <- function(
 						)
 				}
 			}	
-			dev.off()
+####			dev.off()
 		}
 	}
 }
 
 
+write_box_dot_plot_data <- function(
+	results,
+	zscores,
+	mutation.classes,
+	mutations,
+	exclusions,
+	tissues,
+	suffix_for_filename,  # PANCAN or this_tissue (eg. BONE)
+	tissue_actual_names,
+	response_type="Z-score"
+	){
 
+fileConn<-file("boxplot_dataA_test.txt", open="w") # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
+
+cat(names(results), "boxplot_json\n", file=fileConn, sep="\t")
+# The by_tissue results will have extra 'tissue' column.
+
+	
+	i <- NULL	
+	for(i in 1:nrow(results)){
+# SJB commented out the following test, as the new effect_size (CLES) function does not output this "med.grpA.med.grpB" result:
+#		if(is.na(results$med.grpA.med.grpB[i])){
+#			next
+#		}
+
+# Substitutions for removing the tissue name from the cell_line, and checking it is valid.
+# test="AAA_JJJ_UUUU_OOPPO"
+# sub("_.*$","",test)
+# [1] "AAA"
+# sub("^(.*?)_","",test) # "?" for non-greedy
+# [1] "JJJ_UUUU_OOPPO"
+
+#if (i>10){ # For testing.
+  #cat("}\n",  file=fileConn, append=TRUE)
+  #close(fileConn)
+  #stop("Finished")
+  #}
+
+		if(results$nA[i] > 2){
+			marker_gene <- strsplit(results$marker[i], "_")[[1]][1]
+			target_gene <- strsplit(results$target[i], "_")[[1]][1]
+			
+			# make a factor with three levels:
+			# 		wt,
+			#		non-recurrent mutant
+			# 		recurrent mutant
+			# use for boxplot and  stripchart x-axis
+			
+			# start by setting all cell lines to wt
+			wt_mut_grps_strings <- rep(
+				"wt",
+				times=length(mutations[,results$marker[i]])
+				)
+			
+			# set the non-recurrent mutations
+			wt_mut_grps_strings[which(exclusions[,results$marker[i]] == 1)] <- "non-rec. mut."
+#print(wt_mut_grps_strings)
+			# set the recurrent/functional mutations
+			wt_mut_grps_strings[which(mutations[,results$marker[i]] == 1)] <- "rec. mut."
+#print(wt_mut_grps_strings)
+			wt_grp_rows <- which(wt_mut_grps_strings == "wt")
+			nonfunc_mut_grp_rows <- which(wt_mut_grps_strings == "non-rec. mut.")
+			func_mut_grp_rows <- which(wt_mut_grps_strings == "rec. mut.")
+#print(wt_grp_rows)
+#print(nonfunc_mut_grp_rows)
+#print(func_mut_grp_rows)
+
+##			png(filename=paste(
+##				prefix_for_filename,
+##				marker_gene,
+##				"_",
+##				target_gene,
+##				"_",
+##				suffix_for_filename,
+##				"_",
+##				"_PMID", pubmed_id_for_filename, ".png",
+##				sep=""
+##				),
+				# width=5.3, height=4.5, units="in", res=96)
+				# width=4.0, height=4.5, units="in", res=96)
+##				width=4.0, height=4.0, units="in", res=96)
+				# width=400, height=400) # default is pixils: , units="in"
+				#  res = .... defaults to 72. The smaller this number, the larger the plot area in inches, and the smaller the text relative to the graph itself.
+##			par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 0.1) ) # SJB: was: width=2.5, height=3, units="in", res=96
+			#par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 1.4)) # <-- for legend at right.  SJB: original was: width=2.5, height=3
+
+			# Trim the target_variant last character from the gene names for Achilles data:
+			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
+#print(sprintf("driver:%s,target:%s",marker_gene,target_gene), quote = FALSE)
+
+
+
+
+			
+			# boxplot based on all data (wt and mut groups)
+			# This print(...) just writes to the console - want to write to file - so maybe add to table then write.table(..
+            #print(i)
+            #print(zscores[wt_grp_rows,results$target[i]])
+            #print(zscores[func_mut_grp_rows,results$target[i]])
+#print("B")			
+# SJB: "In a box and whisker plot, a box is drawn around the quartile values, and the whiskers extend from each quartile to the extreme data points.
+# http://intermath.coe.uga.edu/dictnary/descript.asp?termID=57
+
+#Box Plots: http://sphweb.bumc.bu.edu/otlt/MPH-Modules/BS/R/R2_SummaryStats-Graphs/R2_SummaryStats-Graphs_print.html
+# A "boxplot", or "box-and-whiskers plot" is a graphical summary of a distribution; the box in the middle indicates "hinges" (close to the first and third quartiles) and median. The lines ("whiskers") show the largest or smallest observation that falls within a distance of 1.5 times the box size from the nearest hinge. If any observations fall farther away, the additional points are considered "extreme" values and are shown separately. A boxplot can often give a good idea of the data distribution, and is often more useful to compare distributions side-by-side, as it is more compact than a histogram. We will see an example soon.
+
+# From: https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/boxplot.stats.html
+#  boxplot.stats(x, coef = 1.5, do.conf = TRUE, do.out = TRUE)
+
+#print("wt:")
+#				print(zscores[wt_grp_rows,results$target[i]])
+#wt_quart = quantile(zscores[wt_grp_rows,results$target[i]]) # Gives: Min, 1st Quartile, Median, 3rd Quartile, Max
+#print(wt_quart)
+
+wt_boxplot = boxplot.stats( zscores[wt_grp_rows,results$target[i]], do.conf = FALSE, do.out = TRUE )
+wt_boxplot_stats = wt_boxplot$stats
+#wt_boxplot_outliers = wt_boxplot$out # ie. points outside the 1.5 of the boxplot limits
+
+#print(wt_boxplot)
+#print("mutant:")
+#				print(zscores[func_mut_grp_rows,results$target[i]])
+#mutant_quart = quantile(zscores[func_mut_grp_rows,results$target[i]])
+#print(mutant_quart)
+
+# http://r.789695.n4.nabble.com/Whiskers-on-the-default-boxplot-graphics-td2195503.html
+# http://stackoverflow.com/questions/8844845/how-do-i-turn-the-numeric-output-of-boxplot-with-plot-false-into-something-usa
+# http://rstudio-pubs-static.s3.amazonaws.com/21508_35a770dc38fa4658accef1acc4fb2fbe.html
+# *** GOOD: http://www.sr.bham.ac.uk/~ajrs/R/r-show_data.html
+# boxplot.stats: https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/boxplot.stats.html
+mutant_boxplot = boxplot.stats( zscores[func_mut_grp_rows,results$target[i]], do.conf = FALSE, do.out = TRUE )
+mutant_boxplot_stats = mutant_boxplot$stats
+#mutant_boxplot_outliers = mutant_boxplot$out
+
+# add min and max ...... floor and ceiling integers for graph Y axis size.....
+
+#boxplot_min <- min(wt_boxplot_outliers, mutant_boxplot_outliers, mutant_boxplot_stats[1], wt_boxplot_stats[1])
+#boxplot_max <- max(wt_boxplot_outliers, mutant_boxplot_outliers, mutant_boxplot_stats[5], wt_boxplot_stats[5])
+
+# or simpler to just do: 
+#boxplot_min <- min()
+# boxplot_range <- range(zscores[wt_grp_rows,results$target[i]], zscores[func_mut_grp_rows,results$target[i]])
+boxplot_range <- range(wt_boxplot_stats, wt_boxplot$out, mutant_boxplot_stats, mutant_boxplot$out)
+boxplot_range <- c( floor(boxplot_range[1]), ceiling(boxplot_range[2]) ) # Round lower down and upper up to integers.
+#also:
+#write.csv(sales.data, "SalesData.csv", row.names = FALSE)
+#and
+#write.table(.....)
+
+#write(): https://stat.ethz.ch/R-manual/R-devel/library/base/html/write.html
+#and:
+#writeLines() http://stackoverflow.com/questions/2470248/write-lines-of-text-to-a-file-in-r
+#sink() https://stat.ethz.ch/R-manual/R-devel/library/base/html/sink.html
+
+
+#* Breakpoints in RStudio: http://stackoverflow.com/questions/7486386/how-to-step-through-an-r-script-from-the-begining
+
+#print(mutant_boxplot)
+
+#			boxplot(
+#				zscores[wt_grp_rows,results$target[i]],
+#				zscores[func_mut_grp_rows,results$target[i]],
+#				pch="",
+#				sub=paste(marker_gene, "status"),
+#				ylab=paste(target_gene, "z-score"),
+#				names=c("wt", "mutant")
+#				cex.axis=1.5   # was 1.5
+#				)
+#			abline(
+#				-2,0,col="red",lty=2
+#				)
+#for (l in 1:length(wt_boxplot_stats)){abline(wt_boxplot_stats[l],0,col="green",lty=2)}
+#for (l in 1:length(mutant_boxplot_stats)){abline(mutant_boxplot_stats[l],0,col="blue",lty=2)}
+
+
+			# Draw the absline while xpdf=FALSE (changed to TRUE for legend), otherwise line draw accross whole image, instead of just accross the plots area.
+
+#print("C")
+			# mtext() - write text onto the margins of a plot:
+			# where: side is (1=bottom, 2=left, 3=top, 4=right).
+			# line	= on which MARgin line, starting at 0 counting outwards.
+			# cex= character expansion factor. NULL and NA are equivalent to 1.0. This is an absolute measure, not scaled by par("cex") or by setting par("mfrow") or par("mfcol"). Can be a vector.
+			# SJB, changed line=2 to line=2.2 for horizontal axis text:
+
+##			mtext(paste(marker_gene, "status"), 1, line=2.3, cex=1.5)  # is horizontal axis text
+##			mtext(paste(target_gene, response_type), 2, line=2.3, cex=1.5)
+
+			### remove last character .....substr(t, 1, nchar(t)-1)
+			# or regexp: gsub(".$", "", c("01asap05a", "02ee04b")) 
+#print("D")			
+#			print(summary(wt_mut_grps))
+
+			# Draw legend first, so plot points can be drawn over it x=0.45,y=-4.2
+			# How to put legend outside plot area (setting xpd=TRUE to plot outside plot area, and using a negative inset): http://stackoverflow.com/questions/3932038/plot-a-legend-outside-of-the-plotting-area-in-base-graphics
+			# (There are better methods on that webpage, eg:
+			# Expand right side of clipping rect to make room for the legend:
+            # oldpar <- par(xpd=T, mar=par()$mar+c(0,0,0,6)) # BUT using mai=....
+            # Plot graph normally
+            # plot(1:3, rnorm(3), pch = 1, lty = 1, type = "o", ylim=c(-2,2)) lines(1:3, rnorm(3), pch = 2, lty = 2, type="o")
+            # Plot legend where you want
+            # legend(3.2,1,c("group A", "group B"), pch = c(1,2), lty = c(1,2))
+            # Restore default clipping rect
+            # par(oldpar)
+			# Not plotting legend as part of boxplot image now.
+			# legend(xpd=TRUE, "topright", inset=c(-0.41,0), legend=tissue_pretty_names, fill=tissue_cols, cex=0.75 )  # was: x=1, y=1
+			# legend("topleft", legend=c("Line 1", "Line 2"), col=c("red", "blue"), lty=1:2, cex=0.8)
+			
+			# points for each tissue type
+#writeLines(c(paste(marker_gene,target_gene)), fileConn)
+
+cat(unname(unlist(results[i,])),file=fileConn,sep="\t") # Write the full results. As is a connection don't neeed "append=TRUE"
+
+# As JSON:
+# cat("\t{",'"range":',toJSON(boxplot_range), ',"wt_box":',toJSON(wt_boxplot_stats), ',"mu_box":',toJSON(mutant_boxplot_stats), file=fileConn, sep = "", append=TRUE)
+
+# or as CSV:
+#cat("\t",boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = "", append=TRUE)
+cat("\t", file=fileConn)
+cat("range",boxplot_range, file=fileConn, sep = ",")
+cat(";", file=fileConn)
+cat("wt_box",wt_boxplot_stats, file=fileConn, sep = ",")
+cat(";", file=fileConn)
+cat("mu_box",mutant_boxplot_stats, file=fileConn, sep = ",")
+cat(";", file=fileConn)
+
+
+cell_line_count <- 0
+# fill = FALSE, labels = NULL,
+#    append = FALSE)
+							
+			j <- NULL
+			for(j in 1:length(tissue_actual_names)){
+				tissue <- tissue_actual_names[j]
+#print(tissue)				
+				wt_rows_by_tissue <- which(
+					wt_mut_grps_strings == "wt" &
+					tissues[,tissue] == 1
+					)
+				mutant_rows_by_tissue <- which(
+					wt_mut_grps_strings == "rec. mut." &
+					tissues[,tissue] == 1
+					)
+
+				# count to check that the full number of cell_lines is sent by the AJAX call:
+                cell_line_count <- cell_line_count + length(wt_rows_by_tissue) + length(mutant_rows_by_tissue)
+				
+			    ### SJB: To get row names, use: print(row.names(tissues)[wt_rows_by_tissue])				
+				if(length(wt_rows_by_tissue) > 0){
+					# plot at 1
+					# jitter(): https://stat.ethz.ch/R-manual/R-devel/library/base/html/jitter.html
+					x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
+					y <- zscores[wt_rows_by_tissue,results$target[i]]
+					cell_lines <- row.names(tissues)[wt_rows_by_tissue] # Added by SJB
+					
+					cell_line_tissues <- sub("^(.*?)_","",cell_lines) # the part after the first "_"
+#					print(cell_line_tissues)
+					if(length(which(cell_line_tissues != tissue)) > 0){
+					   stop(paste("ERROR:",cell_line_tissues, "!=", tissue))
+					}
+					
+					# for JSON:
+					cell_line_names <- sub("_.*$","",cell_lines) # the part before the first "_"
+					
+					# eg: length(which(cle!="BONE")) >0 
+
+# sub("_.*$","",test)
+# [1] "AAA"
+# sub("^(.*?)_","",test) # "?" for non-greedy
+# [1] "JJJ_UUUU_OOPPO"
+					
+					#print(c(round(x,2),y,cell_line_names)) # tissue_cols[j])) # Added by SJB
+					#for(k in 1:length(wt_rows_by_tissue)) {print(sprintf("x:%.2f,y:%.2f,c:%s",x[k],y[k],cell_line_names[k]), quote = FALSE)}
+#writeLines(c(paste(marker_gene,target_gene)), fileConn)
+
+# As JSON:
+#cat(',"wt_',tissue,'":{', '"x":',toJSON(round(x,2)), ',"y":', toJSON(y), ',"c":',toJSON(cell_line_names),'}', file=fileConn, sep = "", append=TRUE)
+
+# or as CSV:
+for (k in 1:length(wt_rows_by_tissue)) {
+  cat(tissue,cell_line_names[k],round(x[k],2),y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  }
+  
+# fill = FALSE, labels = NULL,
+#    append = FALSE)
+				
+					
+					# or use: sprintf("%.3f", pi)
+##					points(
+##						x,
+##						y,
+##						col=tissue_cols[j],
+##						pch=19,
+##						cex=1.5
+##						)
+				}
+				if(length(mutant_rows_by_tissue) > 0){
+					# plot at 2
+					x <- jitter(rep(2,times=length(mutant_rows_by_tissue)), amount=0.33)
+					y <- zscores[mutant_rows_by_tissue,results$target[i]]
+					cell_lines <- row.names(tissues)[mutant_rows_by_tissue] # Added by SJB
+					#print(c(round(x,2),y,cell_lines)) # ,tissue_cols[j] # Added by SJB
+					#for(k in 1:length(mutant_rows_by_tissue)) {print(sprintf("x:%.2f,y:%.2f,c:%s",x[k],y[k],cell_lines[k]), quote = FALSE)}
+					cell_line_tissues <- sub("^(.*?)_","",cell_lines) # the part after the first "_"
+#					print(cell_line_tissues)
+					if(length(which(cell_line_tissues != tissue)) > 0){
+					   stop(paste("ERROR:",cell_line_tissues, "!=", tissue))
+					}
+					# for JSON:
+					cell_line_names <- sub("_.*$","",cell_lines) # the part before the first "_"					
+#cat("mutant",tissue,round(x,2),y,cell_line_names, file=fileConn, sep = "\t", append=TRUE)
+
+#cat('"',tissue,'":{', file=fileConn, sep = "", append=TRUE)
+#if(need_comma){cat(",", file=fileConn, sep = "", append=TRUE); need_comma<-FALSE}
+#cat(',"mu":{', '"x":',toJSON(round(x,2)), ',"y":', toJSON(y), ',"c":',toJSON(cell_line_names),'}', file=fileConn, sep = "", append=TRUE)
+
+
+# As JSON:
+#cat(',"mu_',tissue,'":{', '"x":',toJSON(round(x,2)), ',"y":', toJSON(y), ',"c":',toJSON(cell_line_names),'}', file=fileConn, sep = "", append=TRUE)
+# or could output cell_lines more compactly as list one string, instead of array: 
+# "c":["143B","CAL72","HOS","HUO3N1","HUO9","MG63","NOS1","NY","SAOS2","SJSA1","U2OS"]
+# "c":"143B,CAL72,HOS,HUO3N1,HUO9,MG63,NOS1,NY,SAOS2,SJSA1,U2OS"
+	
+# or as CSV:
+for (k in 1:length(mutant_rows_by_tissue)) {
+  cat(tissue,cell_line_names[k],round(x[k],2),y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  }
+  
+
+##					points(
+##						x,
+##						y,
+##						col=tissue_cols[j],
+##						pch=19,
+##						cex=1.5
+##						)
+				}
+			}	
+####			dev.off()
+# as JSON:
+# cat("}\n",  file=fileConn, append=TRUE)
+# as CSV:
+#cat("count",cell_line_count, file=fileConn, sep = ",")
+cat("count", cell_line_count, file=fileConn, sep = ",")
+cat("\n", file=fileConn) 
+
+		}
+	}
+	close(fileConn)
+}
 
 
 

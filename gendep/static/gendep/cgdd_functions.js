@@ -61,7 +61,7 @@ function study_weblink(study_pmid, study) {
 		return sprintf('<a href="%s" target="_blank">%s</a>', study_url(study_pmid),study[0]);
 		// not displaying this now: study = study_info(study_pmid); 	// returns: short_name, experiment_type, summary, "title, authors, journal, s.pub_date"
 //        }
-//    return sprintf('<a class="tipright" href="%s" target="_blank">%s<span>%s</span></a>', study_url(study_pmid), study[0], study[3] );
+//    return sprintf('<a class="tipright" href="%s" target="_blank">%s<span>%s</span></a>', study_url(click()), study[0], study[3] );
 }	
 
 function gene_external_links(id, div, all) {
@@ -72,20 +72,20 @@ function gene_external_links(id, div, all) {
   // Note the above sprinf() returns empty string if variable is undefined.
   //console.log("external_links ids=",id)
   links  = '<a class="tip" href="http://www.genecards.org/cgi-bin/carddisp.pl?gene='+id['gene_name']+'" target="_blank">GeneCards<span>Genecards: '+id['gene_name']+'</span></a> ';
-  if (id['entrez_id']) {links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+id['entrez_id']+'" target="_blank">Entrez<span>Entrez Gene at NCBI: '+id['entrez_id']+'</span></a> ';}
+  if (id['entrez_id'] != '') {links += div+' <a class="tip" href="http://www.ncbi.nlm.nih.gov/gene/'+id['entrez_id']+'" target="_blank">Entrez<span>Entrez Gene at NCBI: '+id['entrez_id']+'</span></a> ';}
   if (id['ensembl_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Ensembl<span>Ensembl Gene: %s</span></a> ', id['ensembl_id'], id['ensembl_id']);}
-  // Ensembl_protein not needed now: if (all && (id['ensembl_protein_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/protview?peptide=%s" target="_blank">Ensembl_protein<span>Ensembl Protein: %s</span></a> ', id['ensembl_protein_id'],id['ensembl_protein_id']);}
+    // Ensembl_protein not needed now: if (all && (id['ensembl_protein_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.ensembl.org/Homo_sapiens/protview?peptide=%s" target="_blank">Ensembl_protein<span>Ensembl Protein: %s</span></a> ', id['ensembl_protein_id'],id['ensembl_protein_id']);}
   if (id['hgnc_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id=%s" target="_blank">HGNC<span>HUGO Gene Nomenclature Committee: %s</span></a> ', id['hgnc_id'], id['hgnc_id']);}
   if (all) {
-    if (id['vega_id'] != '') {links += div + sprintf(' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation: %s</span></a> ', id['vega_id'], id['vega_id']);}
+    // No loner showing VEGA: if (id['vega_id'] != '') {links += div + sprintf(' <a class="tip" href="http://vega.sanger.ac.uk/Homo_sapiens/Gene/Summary?g=%s" target="_blank">Vega<span>Vertebrate Genome Annotation: %s</span></a> ', id['vega_id'], id['vega_id']);}
     if (id['omim_id'] != '') {links += div + sprintf(' <a class="tip" href="http://www.omim.org/entry/%s" target="_blank">OMIM<span>Online Mendelian Inheritance in Man: %s</span></a> ', id['omim_id'], id['omim_id']);}
     links += div + sprintf(' <a class="tip" href="http://www.cancerrxgene.org/translation/Search?query=%s" target="_blank">CancerRxGene<span>CancerRxGene search: %s</span></a> ', id['gene_name'],id['gene_name']);
 	}
   links += div + sprintf(' <a class="tip" href="http://www.cbioportal.org/ln?q=%s" target="_blank">cBioPortal<span>cBioPortal for Cancer Genomics: %s</span></a> ', id['gene_name'],id['gene_name']);
   if (id['cosmic_id'] != '') {links += div + sprintf(' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer: %s</span></a> ', id['cosmic_id'],id['cosmic_id']);}
-  if (id['uniprot_id'] != '') {links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}  // CanSAR uses UniProt ids
-  if (all && (id['uniprot_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.uniprot.org/uniprot/%s" target="_blank">UniProtKB<span>UniProtKB: %s</span></a>', id['uniprot_id'],id['uniprot_id']);}
-  if (all) {links += div + ' <a class="tip" href=" http://www.genomernai.org/v15/gene' + ( id['entrez_id']=='' ?  'Search/'+id['gene_name'] : 'details/'+id['entrez_id'] ) + '" target="_blank">GenomeRNAi<span>GenomeRNAi - phenotypes from RNA interference</span></a>';}  // as links are eg:  http://www.genomernai.org/v15/geneSearch/ERBB2 and http://www.genomernai.org/v15/genedetails/2064 
+  if (id['uniprot_id'] != '') {links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR: %s</span></a> ', id['uniprot_id'],id['uniprot_id']);}  // CanSAR uses UniProt ids
+  if (all && (id['uniprot_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.uniprot.org/uniprot/%s" target="_blank">UniProtKB<span>UniProtKB: %s</span></a> ', id['uniprot_id'],id['uniprot_id']);}
+  if (all && (id['entrez_id'] != '')) {links += div + ' <a class="tip" href=" http://www.genomernai.org/v15/gene' + ( id['entrez_id']=='' ?  'Search/'+id['gene_name'] : 'details/'+id['entrez_id'] ) + '" target="_blank">GenomeRNAi<span>GenomeRNAi - phenotypes from RNA interference</span></a>';}  // as links are eg:  http://www.genomernai.org/v15/geneSearch/ERBB2 and http://www.genomernai.org/v15/genedetails/2064 
    
   return links;
 }
@@ -464,7 +464,7 @@ function set_string_form_identifiers() {
 	
     document.getElementById(field_id).value = protein_list; // or $('#'+field_id).val(protein_list);
 //	window.open(string_url);  // should open a new tab in browser.
-    alert(document.getElementById(field_id).value);   // Note: onclick events are not triggered when submitting by other means than pressing the button itself.
+    // alert(document.getElementById(field_id).value);   // Note: onclick events are not triggered when submitting by other means than pressing the button itself.
     return true; // To allow opening the form.   
     // called by the string_interactive_form
     }
@@ -639,11 +639,8 @@ function toggle_show_drugs(obj,drug_names,div,gene) {
 // This works but column width too wide if then select Any from filter menu:
 //  obj.innerHTML = obj.innerHTML.indexOf('[more]') > -1 ? make_drug_links(drug_names,div)+' [less]' : drug_names.substr(0,8)+'...[more]';
 
-
-  //var box_title = '<p align="center" style="margin-top: 0;">Showing high confidence (score&ge;700) string-db interactions between the dependencies associated with driver gene <b>'+global_selected_gene+'</b></p>';
-
   var mycontent = '<p style="vertical-align:middle;">For gene '+gene+', the following inhibitors were found in DGIdb:<br/>&nbsp;<br/>'+make_drug_links(drug_names,div)+'</p>';
-	
+  	
   $.fancybox.open({
   //$(".fancybox").open({
     // href: url_boxplot,
@@ -671,7 +668,7 @@ function toggle_show_drugs(obj,drug_names,div,gene) {
             type: 'inside'
         },
         overlay: {
-            showEarly: false   // false  // as otherwise incorrectly sized box displays before images have arrived.
+            showEarly: true  // false  // Show as otherwise incorrectly sized box displays before images have arrived.
         }
     },
 
@@ -756,8 +753,8 @@ function stringdb_image(protein_list,protein_count) {
     
 //  var box_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
 
-  var box_title = '<p align="center" style="margin-top: 0;">Showing high confidence (score&ge;700) string-db interactions between the dependencies associated with driver gene <b>'+global_selected_gene+'</b></p>';
-    
+  var box_title = '<p align="center" style="margin-top: 0;">Showing high confidence (score&ge;700) string-db interactions between the dependencies associated with driver gene <b>'+global_selected_gene+'</b><br/><a href="javascript:void(0);" title="String-db interactive view" onclick="$(\'#string_interactive_submit_button\').click();">Click here to go to interactive String-db view</a></p>';
+  //  or: document.getElementById("string_interactive_submit_button").click();
   $.fancybox.open({
   //$(".fancybox").open({
     // href: url_boxplot,
@@ -781,7 +778,7 @@ function stringdb_image(protein_list,protein_count) {
             type: 'inside'
         },
         overlay: {
-            showEarly: false   // false  // as otherwise incorrectly sized box displays before images have arrived.
+            showEarly: false   // false  // or true, as otherwise incorrectly sized box displays before images have arrived.
         }
     },
 
