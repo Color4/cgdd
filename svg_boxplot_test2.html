@@ -213,8 +213,8 @@ var boxplot_csv ="79,-5,2,-2.66,-1.28,-0.62,0.04,1.26,-4.61,-3.555,-1.765,-0.91,
 var irange=0, iwtbox=3, imubox=8;
 var itissue=0, icelline=1, ix=2, iy=3, imutant=4;
 var svgNS="http://www.w3.org/2000/svg"; // Name space needed for SVG.
-var YscreenMin=450, YscreenMax=10; // To allow a margin a bottom, and small margin at top
-var XscreenMin=50,  XscreenMax=490; // To allow for a margin at left
+var YscreenMin=550, YscreenMax=10; // To allow a margin a bottom, and small margin at top
+var XscreenMin=50,  XscreenMax=590; // To allow for a margin at left
 var wtxc=1.6, muxc=3.8, boxwidth=1.8;
 var svg, xscale, yscale, Yscreen0, lines;
 var tissue_lists;
@@ -264,7 +264,7 @@ var tissue_lists;
 	    var id = element.attr("id");
         var i = parseInt(id.substring(1)); // remove the starting 'c'
 	    var col = lines[i].split(",");  // or could encode the tissue and celline in the ID.
-        return '<b>'+col[icelline]+'</b><br/>'+histotype_display(col[itissue]); //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
+        return '<b>'+col[icelline]+'</b><br/>'+histotype_display(col[itissue])+'<br/>Z-score: '+col[iy];
 	    }
 	}
   });
@@ -312,7 +312,8 @@ function mouseOut(e) {
 
 
 function beeswarm(lines,wtx,mux,boxwidth) {
-  tissue_lists = {}; // a global variable as used by toggle_tissue_checkboxes(e)
+  tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
+  var wt_tissue_counts = {}, mu_tissue_counts = {};
   for (var i=1; i<lines.length-1; i++) {
     var e = document.createElementNS(svgNS,"circle");
     var col = lines[i].split(",");
@@ -333,7 +334,13 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 	e.setAttribute("id", id); // 'c' for circle or cell_line
 
     if (tissue in tissue_lists) {tissue_lists[tissue].push(e);}
-	else {tissue_lists[tissue]=[e];}
+	else {
+	  tissue_lists[tissue]=[e];
+	  wt_tissue_counts[tissue]=0;
+	  mu_tissue_counts[tissue]=0;
+	  }
+	if (col[imutant]==0) {wt_tissue_counts[tissue]++}  // This is correctly outside the above
+	else {mu_tissue_counts[tissue]++}
 	
 	//e.setAttribute("onmouseover", "mouseOver();");
     //e.setAttribute("onmouseout", "mouseOut();"); // ="evt.target.setAttribute('opacity','1)');"/>
@@ -347,11 +354,15 @@ function beeswarm(lines,wtx,mux,boxwidth) {
     }
 	
     var toggle_button = '<input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="toggle_tissue_checkboxes();">';
-	var legend = "<tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Num<br/>Cellines</th></tr>";
+	var legend = "<tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Total<br/>cellines</th><th>WildType<br/>cellines</th><th>Mutant<br/>cellines</th></tr>";
     for (tissue in tissue_lists) {
 	  var colour = tissue_colours[tissue];
 //	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'" onclick="showhide_cell_clicked(this);"><input type="checkbox" id="cb_'+tissue+'" checked onchange="showhide_tissue(this);" /></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td></tr>';
-	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'"><input type="checkbox" id="cb_'+tissue+'" checked/></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td></tr>';
+      if (tissue_lists[tissue].length != wt_tissue_counts[tissue]+mu_tissue_counts[tissue]) {alert("ERROR: Tissue count mismatch for tissue: '"+tissue+"'")} // Just to check my script is working correctly
+	  
+	  if (wt_tissue_counts[tissue]==0) {wt_tissue_counts[tissue]='<i>'+wt_tissue_counts[tissue].toString()+'</i>'} // To put italics on the zeros
+	  if (mu_tissue_counts[tissue]==0) {mu_tissue_counts[tissue]='<i>'+mu_tissue_counts[tissue].toString()+'</i>'}
+	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'"><input type="checkbox" id="cb_'+tissue+'" checked/></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td><td style="text-align:center">'+wt_tissue_counts[tissue]+'</td><td style="text-align:center">'+mu_tissue_counts[tissue]+'</td></tr>';
 	  	  
 	  // The onchange event should also work with keyboard input, whereas onclick is only mouse clicks I think.
 	  }
@@ -392,6 +403,47 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
     svg.appendChild(e);
 	}
 
+function cline(xcenter,width,ystats) {
+// <canvas id="myCanvas" width="200" height="100"></canvas>  // Optionally: style="border:1px solid #000000;"
+// can translate the 0,0 position, eg: ctx.translate(radius, radius);
+//var c = document.getElementById("myCanvas");
+//var ctx = c.getContext("2d");
+    // ctx.fillStyle = "#FF0000";
+    ctx.fillRect(0,0,150,75);
+    }
+	
+function cline(x1,y1,x2,y2) {
+// Drawing on HTML 5 Canvas:
+// var c = document.getElementById("myCanvas");
+// var ctx = c.getContext("2d");
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke(); // This actually draws the line.
+	}
+	
+function circle() {	
+	ctx.beginPath();
+ctx.arc(95,50,40,0, 2*Math.PI); // arc(x,y,r,startangle,endangle) - creates an arc/curve. To create a circle with arc(): Set start angle to 0 and end angle to 2*Math.PI. The x and y parameters define the x- and y-coordinates of the center of the circle. The r parameter defines the radius of the circle.
+ctx.stroke();
+or for filled circle:
+ctx.fillStyle = "white";
+ctx.fill();
+	}
+	
+function ctext() {
+	ctx.font = "30px Arial";
+ctx.fillText("Hello World",10,50);
+// or:
+ctx.font = "30px Comic Sans MS";
+ctx.fillStyle = "red";
+ctx.textAlign = "center";
+ctx.fillText("Hello World", canvas.width/2, canvas.height/2); 
+or:
+ctx.font = radius*0.15 + "px arial";
+ctx.textBaseline="middle";
+ctx.textAlign="center";
+	}
+	
 function text(x,y,size,vertical,text) {
     // Fore attributes, see: http://www.w3schools.com/svg/svg_text.asp
     var e = document.createElementNS(svgNS,"text");
@@ -517,7 +569,7 @@ function save_svg_as_png() {
 <svg id="mysvg" 
 	 xmlns="http://www.w3.org/2000/svg"
      xmlns:xlink="http://www.w3.org/1999/xlink" 
-     width="500" height="500">
+     width="600" height="600">
   <style>
     line{
       /* stroke: black; */

@@ -221,6 +221,7 @@
            setTimeout(function() {context.drawImage(image, 0, 0)}, 1);  // setTimeout(function() {drawPiece(ctx,x,y,type,color)}, 1);
 		   alert("Error: Internet explorer has issues converting SVG to PNG images. Try using another webbrowser, such as Firefox, Opera, Chrome or Safari")
         }
+/* Will see if the IE update fixes this: https://www.microsoft.com/en-us/download/details.aspx?id=51031 */		
 /* A fix given was:
 image.onload = function() {
   try {
@@ -238,7 +239,7 @@ image.onload = function() {
         } catch (e) {
           if ((typeof SecurityError !== 'undefined' && e instanceof SecurityError) || e.name == "SecurityError") {
             console.error("Rendered SVG images cannot be downloaded in this browser.");
-			alert("Rendered SVG images cannot be downloaded in this browser. If you are using Internet Explorer, then try Firefox, Opera, Chrome or Safari browsers.");
+			alert("Rendered SVG to PNG images cannot be downloaded in this browser, due to an issue with the browsewr's 'canvas.toDataURL()' function. If you are using Internet Explorer, then try Firefox, Opera, Chrome or Safari browsers.");
             return;
           } else {
             throw e;

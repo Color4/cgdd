@@ -352,7 +352,7 @@ read_rnai_mutations <- function(
 }
 
 
-# This is the further revised code from Colm (14 April 2016) which includes the Delta-Score (and effect size test, and without spearman, etc):
+# This is the further revised code from Colm (28 April 2016) which includes the Delta-Score (and effect size test, and without spearman, etc):
 run_univariate_tests <- function(
 	zscores,
 	mutations,
@@ -360,8 +360,7 @@ run_univariate_tests <- function(
 	sensitivity_thresholds=NULL,
 	nperms=1000000,
 	alt="less"
-	){
-	
+	){	
 	
 	zscores <- as.matrix(zscores)
 	mutations <- as.matrix(mutations)
@@ -382,7 +381,7 @@ run_univariate_tests <- function(
 		}
 
 		print(paste(toString(i),"WORKING ON:", colnames(mutations)[i]))
-		
+	
 		grpA <- which(mutations[,i] > 0)
 		
 		#gene <- strsplit(
@@ -428,6 +427,9 @@ run_univariate_tests <- function(
 			marker <- colnames(mutations)[i]
 			target <- colnames(zscores)[j]
             nMin <- min(nA,nB)
+            zA <- median(ascores)
+            zB <- median(bscores)
+            zDiff <- zA - zB
 			# Output the result if min sample size is 2 or more
 			if(nMin > 2){
 				results <- rbind(
@@ -438,7 +440,10 @@ run_univariate_tests <- function(
 						nA,
 						nB,
 						wilcox.p,
-                        cles
+                        cles,
+                        zA,
+                        zB,
+                        zDiff
 					)
 				)
 			}
@@ -455,11 +460,17 @@ run_univariate_tests <- function(
 		"nA",
 		"nB",
 		"wilcox.p",
-		"CLES"
+		"CLES",
+        "zA",
+        "zB",
+        "ZDiff"
 	)
 	
-	return(results)	
+	return(results)
+	
 }
+
+
 
 
 # This is the revised code from Colm (17 Mar 2016) which include the effect size test, and without spearman, etc:
