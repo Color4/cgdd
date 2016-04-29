@@ -219,7 +219,7 @@ var wtxc=1.6, muxc=3.8, boxwidth=1.8;
 var svg, xscale, yscale, Yscreen0, lines;
 var tissue_lists;
     
- $(function() { // on dom ready
+$(function() { // on dom ready
   
   lines = boxplot_csv.split(";"); // 'lines' is global as is used by the tooltip on hoover
   var col = lines[0].split(","); // y-axis range and wt & mu boxes
@@ -269,7 +269,7 @@ var tissue_lists;
 	}
   });
  
-  }); // on dom ready
+}); // on dom ready
 
 
 function axes(wtxc,muxc, ymin,ymax) {
@@ -355,17 +355,22 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 	
     var toggle_button = '<input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="toggle_tissue_checkboxes();">';
 	var legend = "<tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Total<br/>cellines</th><th>WildType<br/>cellines</th><th>Mutant<br/>cellines</th></tr>";
+	
+	var wt_total=0, mu_total=0;
     for (tissue in tissue_lists) {
 	  var colour = tissue_colours[tissue];
 //	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'" onclick="showhide_cell_clicked(this);"><input type="checkbox" id="cb_'+tissue+'" checked onchange="showhide_tissue(this);" /></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td></tr>';
       if (tissue_lists[tissue].length != wt_tissue_counts[tissue]+mu_tissue_counts[tissue]) {alert("ERROR: Tissue count mismatch for tissue: '"+tissue+"'")} // Just to check my script is working correctly
 	  
 	  if (wt_tissue_counts[tissue]==0) {wt_tissue_counts[tissue]='<i>'+wt_tissue_counts[tissue].toString()+'</i>'} // To put italics on the zeros
+	  else {wt_total+=parseInt(wt_tissue_counts[tissue])}
 	  if (mu_tissue_counts[tissue]==0) {mu_tissue_counts[tissue]='<i>'+mu_tissue_counts[tissue].toString()+'</i>'}
+	  else {mu_total+=parseInt(mu_tissue_counts[tissue])}
+	  
 	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'"><input type="checkbox" id="cb_'+tissue+'" checked/></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td><td style="text-align:center">'+wt_tissue_counts[tissue]+'</td><td style="text-align:center">'+mu_tissue_counts[tissue]+'</td></tr>';
-	  	  
-	  // The onchange event should also work with keyboard input, whereas onclick is only mouse clicks I think.
 	  }
+    legend += '<tr><td></td><td>Totals:</td><td style="text-align:center">'+(wt_total+mu_total)+'</td><td style="text-align:center">'+wt_total+'</td><td style="text-align:center">'+mu_total+'</td></tr>';
+	  // The onchange event should also work with keyboard input, whereas onclick is only mouse clicks I think.
 	  
 	$("#legend_table").html(legend);
 	
@@ -374,7 +379,7 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 		showhide_cell_clicked
 		document.getElementById("td_"+tissue).onclick=showhide_cell_clicked;
 		document.getElementById("cb_"+tissue).onchange=showhide_tissue;
-		}		
+		}
 }
 
 
@@ -402,7 +407,7 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
 	if (dashed) {e.setAttribute("stroke-dasharray", "6,3");} // se: http://www.w3schools.com/svg/svg_stroking.asp
     svg.appendChild(e);
 	}
-
+/*
 function cline(xcenter,width,ystats) {
 // <canvas id="myCanvas" width="200" height="100"></canvas>  // Optionally: style="border:1px solid #000000;"
 // can translate the 0,0 position, eg: ctx.translate(radius, radius);
@@ -443,6 +448,7 @@ ctx.font = radius*0.15 + "px arial";
 ctx.textBaseline="middle";
 ctx.textAlign="center";
 	}
+*/
 	
 function text(x,y,size,vertical,text) {
     // Fore attributes, see: http://www.w3schools.com/svg/svg_text.asp
