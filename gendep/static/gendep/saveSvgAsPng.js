@@ -239,7 +239,7 @@ image.onload = function() {
         } catch (e) {
           if ((typeof SecurityError !== 'undefined' && e instanceof SecurityError) || e.name == "SecurityError") {
             console.error("Rendered SVG images cannot be downloaded in this browser.");
-			alert("Rendered SVG to PNG images cannot be downloaded in this browser, due to an issue with the browsewr's 'canvas.toDataURL()' function. If you are using Internet Explorer, then try Firefox, Opera, Chrome or Safari browsers.");
+			alert('Rendered SVG to PNG images cannot be downloaded using this button in this browser, due to an issue with the browser\'s "canvas.toDataURL()" function.\n\nInstead if you are using Internet Explorer: with mouse pointer on the boxplot image, click the RIGHT mouse button, then from the popup menu choose "Save picture as...", then in the save dialog that appears, for the "Save as type" choose "PNG (*.png)", then "Save". If that doesn\'t work, then then try Firefox, Opera, Chrome or Safari browsers.');
             return;
           } else {
             throw e;

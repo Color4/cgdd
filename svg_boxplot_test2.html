@@ -8,18 +8,22 @@
   
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
 
-  <link rel="stylesheet" type="text/css" href="gendep/static/gendep/style.css" />
-
-  <script src="gendep/static/gendep/saveSvgAsPng.js"></script>
-  
-  <!-- link rel="stylesheet" type="text/css" href="style.css" /-->
-   
-  
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
-  
 
+  <!-- For saving SVG image as PNG -->
+  <script src="gendep/static/gendep/saveSvgAsPng.js"></script>
+  <!-- or better for IE: -->
+		<!-- For the "toDataURI()" security exception in IE, need to use the "canvg" renderer: -->
+        <!-- if IE -->
+		<script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/base64.js"></script>
+		<script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/rgbcolor.js"></script> 
+		<script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/canvg.js"></script> 
+		<!-- endif -->
+   <script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/svg_todataurl.js"></script>
+
+  <link rel="stylesheet" type="text/css" href="gendep/static/gendep/style.css" />
   
   <style type="text/css">
   #legend_table {
@@ -29,25 +33,42 @@
    }
    /* #legend_table th td {border: 1px solid black;}*/
  
-  #legend_table tr:hover {background-color: #f5f5f5}	
-
+  #legend_table tr:hover {background-color: #f5f5f5}
 
   .ui-tooltip {
     padding: 4px 4px;
-    background: #ffff70;
+    background: #ffffd0;
 	/*color: white; */
     border-radius: 10px;
     font: bold 12px "Helvetica Neue", Sans-Serif;
   }
+/*
+  .custom-tooltip-styling {
+    font-size:14px;
+    padding:20px auto;
+    text-align:center;
+    display:block;
+}
+*/
   </style>
   
   <script type="text/javascript">
 
+// SVGMagic would enable older browsers to view the SVG imagers: https://github.com/dirkgroenen/SVGMagic  
+  
 // SVG javascript libraries:
-// http://svgjs.com/ for manipulating and annimations (15 kb gzipped)
-// Raphael - 20kb when gzipped:
-// http://dmitrybaranovskiy.github.io/raphael/
-// https://github.com/DmitryBaranovskiy/raphael supports older browsers via VML (eg. IE<=8 and early Safari)
+// 1) svg.js:  http://svgjs.com/ for manipulating and annimations (15 kb gzipped)
+// 2) snap svg:  http://snapsvg.io/
+// 3) Raphael - 20kb when gzipped:
+//      http://dmitrybaranovskiy.github.io/raphael/
+//      https://github.com/DmitryBaranovskiy/raphael supports older browsers via VML (eg. IE<=8 and early Safari)
+//      https://dev.opera.com/articles/raphael-javascript-api-for-svg/
+// 4) Pablo - http://pablojs.com/ a small library for SVG
+// 5) D3.js:  http://d3js.org/
+// 6) Velocity.js: http://julian.com/research/velocity/ (for fast annimation, doesn't use jQuery)
+
+// 7) Eve "event helping library" https://github.com/adobe-webplatform/eve
+// 8) Plot.ly (commercial graph library, uses D3) https://plot.ly/javascript/box-plots/
 
 // Older plotting library for IE7, IE8: http://www.jqplot.com/index.php
 
@@ -55,6 +76,7 @@
 // Box plot libraries: https://plot.ly/javascript/box-plots/
 //   http://forum.highcharts.com/highcharts-usage/bee-swarm-t34154/
 
+// A Nice graph: http://i.stack.imgur.com/qDuUN.png
 
 // D3 many good graphs: https://github.com/mbostock/d3/wiki/Gallery
 
@@ -87,6 +109,7 @@
 // Lightboxes: http://js-tutorial.com/category/lightbox-7
 //    eg: Simple LightBox: http://js-tutorial.com/simple-lightbox-1502
 
+// An SVG tutorial: http://svgtutorial.com/manipulating-svg-with-javascript/
 
 
 /*
@@ -151,6 +174,8 @@ document.body.appendChild(svg);
   
 // edge effects: http://www.software-architects.com/devblog/2015/03/22/Shades-of-Gray-in-SVG---How-to-Get-a-Sharp-Black-Line
 
+// Fills and Strokes:    https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Fills_and_Strokes
+
 // A dictionary might be faster:
 function histotype_display(histotype) { // This is a duplicate of the one in index.html
   switch (histotype) {	
@@ -211,23 +236,25 @@ var driver = "ERBB2", target="MAP2K3", wilcox_p = "4 x 10<sup>-4</sup>", effect_
 var boxplot_csv ="79,-5,2,-2.66,-1.28,-0.62,0.04,1.26,-4.61,-3.555,-1.765,-0.91,-0.62;BONE,143B,1.14,-0.21,0;BONE,CAL72,1.1,-0.61,0;BONE,G292,1.01,-1.85,0;BONE,HOS,1.13,-2.15,0;BONE,HUO3N1,0.86,-1.12,0;BONE,HUO9,0.82,-0.91,0;BONE,MG63,0.71,-1.48,0;BONE,NOS1,1.12,-0.99,0;BONE,NY,0.97,0.18,0;BONE,SAOS2,1.16,-0.91,0;BONE,SJSA1,1.11,0.88,0;BONE,U2OS,1.3,0.36,0;BREAST,BT20,1.3,-2.29,0;BREAST,BT549,0.76,-1.67,0;BREAST,CAL120,0.81,1.26,0;BREAST,CAL51,0.69,-0.67,0;BREAST,CAMA1,0.73,1.04,0;BREAST,DU4475,0.9,0.22,0;BREAST,HCC38,0.93,-0.23,0;BREAST,HCC70,0.73,-0.91,0;BREAST,HS578T,0.91,-2.03,0;BREAST,MCF7,1.3,-0.42,0;BREAST,MDAMB157,1.12,-1.54,0;BREAST,MDAMB231,1,-0.1,0;BREAST,MDAMB436,0.74,-0.1,0;BREAST,MFM223,1.09,-1.94,0;BREAST,T47D,1.29,-2.31,0;BREAST,BT474,2.05,-3.45,1;BREAST,HCC1954,1.88,-0.62,1;BREAST,HCC202,1.91,-4.61,1;BREAST,JIMT1,2.17,-1.09,1;BREAST,MDAMB453,1.88,-0.71,1;BREAST,ZR7530,2.27,-3.66,1;LUNG,A427,0.96,-0.31,0;LUNG,A549,0.74,-0.85,0;LUNG,BEN,0.77,-1.27,0;LUNG,H1299,1.29,0.19,0;LUNG,H1650,0.76,0.4,0;LUNG,H1838,0.92,-0.34,0;LUNG,H1975,1.27,-0.52,0;LUNG,H2228,1.29,-0.65,0;LUNG,H23,1.26,-0.55,0;LUNG,H2342,0.8,-2.66,0;LUNG,H292,1.28,-0.54,0;LUNG,H358,0.9,0.46,0;LUNG,H460,1.17,0.19,0;LUNG,H727,1.28,-0.75,0;HEADNECK,PCI30,0.69,-0.08,0;PANCREAS,ASPC1,0.69,-0.4,0;PANCREAS,BXPC3,0.93,-1.26,0;PANCREAS,MIAPACA2,0.82,-0.22,0;CERVICAL,C33A,0.87,-1.29,0;CERVICAL,CASKI,1.08,-1.52,0;CERVICAL,HELA,1.23,-1.02,0;CERVICAL,SIHA,0.86,-1.49,0;OVARY,CAOV3,0.92,0.36,0;OVARY,ES2,1.21,-1.13,0;OVARY,OAW42,1.16,-2.26,0;OVARY,OV90,0.78,-0.3,0;OVARY,OVISE,1.26,-1.67,0;OVARY,OVMANA,0.7,-1.58,0;OVARY,OVTOKO,1.23,-1.32,0;OVARY,TOV112D,1.11,0.53,0;OVARY,TOV21G,1.05,0.23,0;OVARY,RMGI,2.11,-1.55,1;OVARY,SKOV3,1.79,-2.49,1;OESOPHAGUS,FLO1,0.9,-1,0;OESOPHAGUS,SKGT4,0.95,0.61,0;OESOPHAGUS,TE1,1.16,-0.81,0;OESOPHAGUS,TE10,0.85,-0.82,0;OESOPHAGUS,TE11,1.03,0.08,0;OESOPHAGUS,TE8,0.68,-0.62,0;OESOPHAGUS,TE9,1.13,0,0;OESOPHAGUS,ESO26,2.33,-4.29,1;OESOPHAGUS,OE19,1.77,-0.83,1;OESOPHAGUS,OE33,1.7,-1.98,1;OESOPHAGUS,TE6,1.77,-0.99,1;ENDOMETRIUM,MFE296,1.06,0.6,0;CENTRAL_NERVOUS_SYSTEM,KNS42,1.08,0.37,0"
 
 var irange=0, iwtbox=3, imubox=8;
-var itissue=0, icelline=1, ix=2, iy=3, imutant=4;
+var itissue=0, icelline=1, iy=3, imutant=4;  //  ix=2, 
 var svgNS="http://www.w3.org/2000/svg"; // Name space needed for SVG.
-var YscreenMin=550, YscreenMax=10; // To allow a margin a bottom, and small margin at top
-var XscreenMin=50,  XscreenMax=590; // To allow for a margin at left
+var YscreenMin=450, YscreenMax=10; // To allow a margin a bottom, and small margin at top
+var XscreenMin=50,  XscreenMax=490; // To allow for a margin at left
 var wtxc=1.6, muxc=3.8, boxwidth=1.8;
 var svg, xscale, yscale, Yscreen0, lines;
 var tissue_lists;
+var celline_count;
+var collusionTestRadius;
     
 $(function() { // on dom ready
   
   lines = boxplot_csv.split(";"); // 'lines' is global as is used by the tooltip on hoover
   var col = lines[0].split(","); // y-axis range and wt & mu boxes
   
-  var count = parseInt(col[0]);  // .split(",")[1]
-  // The "count" is the number of cell_lines. So add 1 lines for first line(count,range,wt_box,mu_box).
+  celline_count = parseInt(col[0]); // is global variable. // .split(",")[1]
+  // The "celline_count" is the number of cell_lines. So add 1 lines for first line(celline_count,range,wt_box,mu_box).
   
-  if (lines.length-1 != count) {alert( "Boxplot data length mismatch: "+(lines.length-1)+" != "+count )}
+  if (lines.length-1 != celline_count) {alert( "Boxplot data length mismatch: "+(lines.length-1)+" != "+celline_count )}
 
   var ymin = parseInt(col[1]), ymax = parseInt(col[2]);
 
@@ -244,33 +271,76 @@ $(function() { // on dom ready
   var mu_boxstats = []; for (var i=0; i<5; i++) {mu_boxstats[i] = parseFloat(col[imubox+i]);}
   boxplot( wtxc, boxwidth, wt_boxstats);
   boxplot( muxc, boxwidth, mu_boxstats);
-  
+  // **** An idea is variable width is proportional to square root of size of groups: https://en.wikipedia.org/wiki/Box_plot
+  // https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/boxplot.html
+  // range = this determines how far the plot whiskers extend out from the box. If range is positive, the whiskers extend to the most extreme data point which is no more than range times the interquartile range from the box. A value of zero causes the whiskers to extend to the data extremes.
+  // width = a vector giving the relative widths of the boxes making up the plot.
+  // varwidth = if varwidth is TRUE, the boxes are drawn with widths proportional to the square-roots of the number of observations in the groups.
+  // notch = if notch is TRUE, a notch is drawn in each side of the boxes. If the notches of two plots do not overlap this is ‘strong evidence’ that the two medians differ (Chambers et al, 1983, p. 62). See boxplot.stats for the calculations used.
+
   line(XscreenMin/xscale,-2, XscreenMax/xscale,-2, "1px", true, "red"); // the red y=-2 full-width line
 	
   beeswarm(lines, wtxc-1*boxwidth, muxc-2*boxwidth, boxwidth); // The -1 and -2 are because that is the position set in R for the jitter.
   
   $("#boxplot_title").html("<b>"+target+"</b> altered cell lines have an increased dependency upon <b>"+driver+"</b><br/>(p="+wilcox_p+" | effect size="+effect_size+" | &Delta;Score="+delta_score+" | Tissues="+histotype + " | Source="+study + ")<br/>WebLinks ......");
 
+  // An alternative tooltips: http://www.mecxpert.de/svg/tooltips.html
+  // good: https://forum.jquery.com/topic/tooltip-on-svg-title-element
+  // http://stevenbenner.github.io/jquery-powertip/
+  // jQuery Tipsy: http://onehackoranother.com/projects/jquery/tipsy/ (these display quickly)
+  // Good info about the different types of tooltips for SVG elements.
     // $('#title').tooltip({
-  $( document ).tooltip({
+  $("#mysvg").tooltip({  // was $(document).tooltip(....
     items: "circle",
     //content: "Awesome title!"
-	position: { my: "left+23 center", at: "center center+10" }, // at: "right center" }
+	position: { my: "left+28 center", at: "center center+10" }, // at: "right center" }
 	show: false, //{ effect: "", duration: 0, delay: 0},
 	hide: false, // { effect: "", duration: 0, delay: 0}, // see: http://webduos.com/tooltip-using-jquery-ui-library/#.Vvb48uKLSih	
+    // tooltipClass: "custom-tooltip-styling", // doesn't work :(
 	content: function(callback) {
 	  var element = $( this );
       if ( element.is( "circle" ) ) {
 	    var id = element.attr("id");
         var i = parseInt(id.substring(1)); // remove the starting 'c'
 	    var col = lines[i].split(",");  // or could encode the tissue and celline in the ID.
-        return '<b>'+col[icelline]+'</b><br/>'+histotype_display(col[itissue])+'<br/>Z-score: '+col[iy];
+		
+     	//var y = tohalf(Yscreen0 + parseFloat(col[iy]) * yscale, 1);
+        //var Yi = Math.round(y / collusionTestRadius); // 5 is twice the circle radius.
+        var tissue = col[itissue];
+		// the following is background, not backgroundColor:
+//		this.style.background=tissue_colours[tissue];  // eg: element.style.backgroundColor = "red";
+//		console.log(this);
+//alert(tissue_colours[tissue]+'_tooltip');
+       //$( document ).tooltip( "option", "tooltipClass", tissue_colours[tissue]+'_tooltip' );
+//	   $("#mysvg").tooltip( "option", "tooltipClass", 'custom-tooltip-styling');
+ //alert("Get:"+$( document ).tooltip( "option", "tooltipClass" ));
+ 
+ // <p style="background-color:'+tissue_colours[tissue]+';"> .... +'</p>'
+ 
+        return '<b>'+col[icelline]+'</b><br/>'+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
 	    }
-	}
+	},
+	/*
+	// could dynamically create the styles:  $('head').append('<style type="text/css">.novice{color:green;}</style>'); 
+	
+	// From: http://stackoverflow.com/questions/26135451/how-to-change-tooltip-color-on-open-using-jquery-ui-tooltip
+	 tooltipClass: tissue_colours[tissue]+'_tooltip',  // severity,
+        show: "slideDown",
+        open: function (event, ui) {
+            ui.tooltip.hover(function () {
+                $(this).fadeTo("slow", 0.5);
+            });
+        }
+	*/
   });
  
 }); // on dom ready
 
+function tohalf(x, strokewidth) {
+  // As drawing vertical or horizontal one-pixel-wide lines positioned at the half pixel will make them exactly one pixel wide and won't be anti-aliased.
+  //return x;
+  return (strokewidth % 2 == 0) ? Math.round(x) : Math.floor(x)+0.5; // if even widthy then center line on grid, else center half-way between grid lines.
+  }
 
 function axes(wtxc,muxc, ymin,ymax) {
     line(wtxc, ymin, muxc, ymin, "1px", false, "black"); // the horizontal axis
@@ -292,6 +362,11 @@ function axes(wtxc,muxc, ymin,ymax) {
     }
 
 function mouseOver(e) {
+    // http://stackoverflow.com/questions/12043504/how-to-apply-hover-on-svg-inner-rect-element
+	// http://www.petercollingridge.co.uk/data-visualisation/mouseover-effects-svgs
+	// http://www.petercollingridge.co.uk/data-visualisation/svg-mouseover-tricks
+	// http://www.petercollingridge.co.uk/interactive-svg-components/tooltip
+	
     //this.setAttribute("r", "10");	
 	//alert("In");
 	e = e || window.event;  // Need: window.event for IE <=8 
@@ -310,11 +385,28 @@ function mouseOut(e) {
 	target.setAttribute("r", "5");	
     }
 
+function search_rows_above_and_below(which_row,row,row_above,row_below,row_twoabove,row_twobelow) {
+    var i = row.length; // ie. beyond end of this row
+    while ( ((i < row_above.length) && row_above[i]) // testing for a space in the row below
+         || ((i < row_below.length) && row_below[i]) // and for a space in the row above
+         || ((i < row_twoabove.length) && row_twoabove[i]) // testing for a space in the row below
+         || ((i < row_twobelow.length) && row_twobelow[i]) // and for a space in the row above		 
+        ) {
+        i++;
+        //console.log('searching_above_and_below '+which_row+': '+i)
+        }
+    return i;
+}
+	   
 
 function beeswarm(lines,wtx,mux,boxwidth) {
+// A beeswarm with jitter example: http://jsfiddle.net/5kc0wtfg/5/
+
   tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
+
+  var wtleft=[], wtright=[], muleft=[], muright=[]; // To avoid overlapping points.
   var wt_tissue_counts = {}, mu_tissue_counts = {};
-  for (var i=1; i<lines.length-1; i++) {
+  for (var i=1; i<lines.length; i++) { // corectly starts at i=1, as lines[0] is the boxplot dimensions.
     var e = document.createElementNS(svgNS,"circle");
     var col = lines[i].split(",");
     var tissue = col[itissue];
@@ -325,10 +417,141 @@ function beeswarm(lines,wtx,mux,boxwidth) {
     //e.setAttribute("stroke", colour);    // e.style.stroke=colour;
 	// e.setAttribute("stroke-width", "1"); // e.style.strokewidth=1;
 	// e.setAttribute("fill-opacity", "0.5");
-	var xcenter = col[imutant]==0 ? wtx : mux;
+	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
 
-	e.setAttribute("cx", ((xcenter + boxwidth*parseFloat(col[ix])) * xscale).toString() ); // or: e.cx.baseVal.value =  parseFloat(col[2]) * xscale );
-	e.setAttribute("cy", (Yscreen0 + parseFloat(col[iy]) * yscale).toString() ); // or: e.cy.baseVal.value = parseFloat(col[3]) * yscale );
+	var x = isWT ? (wtx+boxwidth)*xscale : (mux+2*boxwidth)*xscale;  // The centerline.
+		
+//	newFilledArray(len, val) {
+//    var a = [];
+//    while(len--){
+//    	a.push(val);
+//    }
+//    return a;
+//}
+collusionTestRadius=4.6;
+	var y = tohalf(Yscreen0 + parseFloat(col[iy]) * yscale, 1);
+    var Yi = Math.round(y / collusionTestRadius); // 5 is twice the circle radius.
+
+	if (isWT) { // Wild type
+//console.log("isWT: y:"+y+" Yi:"+Yi);
+	    // right is set to one true so won't plot two points on centre line.
+		for (var j=-2; j<=2; j++) {
+	      if (typeof wtleft[Yi+j] === 'undefined') {if (typeof wtright[Yi+j] !== 'undefined') {alert("wtright defined Yi+'+j+' "+Yi)}; wtleft[Yi+j]=[]; wtright[Yi+j]=[true];}
+		  }
+		  // console.log('wtleft['+j+']=[]');
+				
+// find position on left nearest to centre line:
+
+	   var xleft  = search_rows_above_and_below('wtleft:'+Yi,wtleft[Yi],wtleft[Yi-1],wtleft[Yi+1],wtleft[Yi-2],wtleft[Yi+2]);
+	   var xright = search_rows_above_and_below('wtright:'+Yi,wtright[Yi],wtright[Yi-1],wtright[Yi+1],wtright[Yi-2],wtright[Yi+2]);
+
+//       var xleft = wtleft[Yi].length; // eg '0' initially	   
+//	   while ( ((xleft<wtleft[Yi-1].length) && wtleft[Yi-1][xleft]) // testing for a space in the row below
+//	        || ((xleft<wtleft[Yi+1].length) && wtleft[Yi+1][xleft]) // and for a space in the row above
+//			) {xleft++; console.log('Finding xleft: '+xleft)}
+
+//       var xright = wtright[Yi].length; // eg '1' initially
+//	   while ( ((xright<wtright[Yi-1].length) && wtright[Yi-1][xright])
+//	        || ((xright<wtright[Yi+1].length) && wtright[Yi+1][xright])
+//			) {xright++; console.log('Finding xright: '+xright)}
+			
+
+	   if (xleft<=xright) {for (var j=wtleft[Yi].length; j<xleft; j++) {wtleft[Yi][j]=false;}; wtleft[Yi][xleft]=true; x-=xleft*12;} // console.log('using xleft x='+x+' wtleft[Yi].length:'+wtleft[Yi].length);
+	   else {for (var j=wtright[Yi].length; j<xright; j++) {wtright[Yi][j]=false;}; wtright[Yi][xright]=true; x+=xright*12;} // console.log('using xright x='+x+' wtright[Yi].length:'+wtright[Yi].length);
+	   
+// return; // as run away script maybe ?
+	   
+// ** Worth trying:  https://github.com/gillyb/reimg
+// Just include this library in your html code: in header include   script src="reimg.js" 
+// Here are some examples on how to use it:
+// convert svg element to img element:  var img = ReImg.fromSvg(document.querySelector('svg')).toImg();  // now 'img' is the img element created
+// convert svg element to png:  var png = ReImg.fromSvg(document.getElementById('svg-element-id')).toPng();
+// force client download of svg as png image:   ReImg.fromSvg(document.querySelector('svg')).downloadPng();
+// convert canvas to png:   var png = ReImg.fromCanvas(document.getElementById('canvasId')).toPng();
+
+// I created a small library that does this (along with some other handy conversions). It's called reimg, and it's really simple to use.
+// ReImg.fromCanvas(yourCanvasElement).toPng()
+/*
+==
+function downloadImage()
+            {
+                var canvas = document.getElementById("thecanvas");
+                var image = canvas.toDataURL();
+
+                var aLink = document.createElement('a');
+                var evt = document.createEvent("HTMLEvents");
+                evt.initEvent("click");
+                aLink.download = 'image.png';
+                aLink.href = image;
+                aLink.dispatchEvent(evt);
+            }
+
+
+body onload="draw()"
+    <canvas width=200 height=200 id="thecanvas"></canvas>
+    <div><button onclick="downloadImage()">Download</button></div>
+    <image id="theimage"></image>
+
+BUT IE 8+ only support "data: for img, link, css
+Converting an nsIFile to a data URIEDIT
+This function returns a base 64-encoded data URI from the passed nsIFile.
+
+function generateDataURI(file) {
+  var contentType = Components.classes["@mozilla.org/mime;1"]
+                              .getService(Components.interfaces.nsIMIMEService)
+                              .getTypeFromFile(file);
+  var inputStream = Components.classes["@mozilla.org/network/file-input-stream;1"]
+                              .createInstance(Components.interfaces.nsIFileInputStream);
+  inputStream.init(file, 0x01, 0600, 0);
+  var stream = Components.classes["@mozilla.org/binaryinputstream;1"]
+                         .createInstance(Components.interfaces.nsIBinaryInputStream);
+  stream.setInputStream(inputStream);
+  var encoded = btoa(stream.readBytes(stream.available()));
+  return "data:" + contentType + ";base64," + encoded;
+}
+	
+*/
+
+/*	   
+	   if ( > wtright[Yi]) { // plot a point on the right:
+		  var Xi = Math.max(wtright[Yi],wtright[Yi-1],wtright[Yi+1]);
+		  x+=Xi*12;
+		  wtright[Yi]=Xi+1;
+		  console.log("right:",Yi,Xi,x,wtright[Yi]);
+		 } 
+	   else { // plot a point on the left:
+	   	  var Xi = Math.max(wtleft[Yi],wtleft[Yi-1],wtleft[Yi+1]);
+		  x-=Xi*12;
+		  wtleft[Yi]=Xi+1;
+		  console.log("left:",Yi,Xi,x,wtleft[Yi]);		  
+//	   x-=wtleft[Yi]*12; wtleft[Yi]++	   
+	     }
+*/
+	   }
+	else { // is Mutant
+	  for (var j=-2; j<=2; j++) {
+	    if (typeof muleft[Yi+j] === 'undefined') {if (typeof muright[Yi+j] !== 'undefined') {alert("muright defined Yi+'+j+' "+Yi)}; muleft[Yi+j]=[]; muright[Yi+j]=[true];}
+	  }
+      // console.log('muleft[0]=[]'); 
+	  
+// find position on left nearest to centre line:
+		
+	   var xleft  = search_rows_above_and_below('muleft:'+Yi,muleft[Yi],muleft[Yi-1],muleft[Yi+1],muleft[Yi-2],muleft[Yi+2]);
+	   var xright = search_rows_above_and_below('muright:'+Yi,muright[Yi],muright[Yi-1],muright[Yi+1],muright[Yi-2],muright[Yi+2]);
+	
+	   if (xleft<=xright) {for (var j=muleft[Yi].length; j<xleft; j++) {muleft[Yi][j]=false;}; muleft[Yi][xleft]=true; x-=xleft*12;} // console.log('using xleft x='+x+' muleft[Yi].length:'+muleft[Yi].length);
+	   else {for (var j=muright[Yi].length; j<xright; j++) {muright[Yi][j]=false;}; muright[Yi][xright]=true; x+=xright*12;} // console.log('using xright x='+x+' muright[Yi].length:'+muright[Yi].length);
+	   
+		}
+		
+//	console.log('undefined',wtleft[5]);}
+	
+	//e.setAttribute("cx", tohalf((xcenter + boxwidth*parseFloat(col[ix])) * xscale, 1).toString() ); // or: e.cx.baseVal.value =  parseFloat(col[2]) * xscale );
+	// was: (xcenter + boxwidth*parseFloat(col[ix])
+	e.setAttribute("cx", tohalf(x, 1).toString() ); // or: e.cx.baseVal.value =  parseFloat(col[2]) * xscale );
+	
+	e.setAttribute("cy", y.toString() ); // or: e.cy.baseVal.value = parseFloat(col[3]) * yscale );
+		
 	e.setAttribute("r", "5"); // Firefox and IE don't use the 'r' in the 'circle' class (whereas Chrome does)  e.r.baseVal.value = "5"; set in the 'circle' class
 	var id = "c"+i.toString();
 	e.setAttribute("id", id); // 'c' for circle or cell_line
@@ -359,6 +582,9 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 	var wt_total=0, mu_total=0;
     for (tissue in tissue_lists) {
 	  var colour = tissue_colours[tissue];
+	  
+//	  $('head').append('<style type="text/css">.'+tissue+'_tooltip{background:'+colour+';}</style>'); // add the style to use later for the tooltips background colour.	  
+	  
 //	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'" onclick="showhide_cell_clicked(this);"><input type="checkbox" id="cb_'+tissue+'" checked onchange="showhide_tissue(this);" /></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td></tr>';
       if (tissue_lists[tissue].length != wt_tissue_counts[tissue]+mu_tissue_counts[tissue]) {alert("ERROR: Tissue count mismatch for tissue: '"+tissue+"'")} // Just to check my script is working correctly
 	  
@@ -374,6 +600,8 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 	  
 	$("#legend_table").html(legend);
 	
+	if ( (wt_total+mu_total) != celline_count) {alert("cellline_count mismatch: "+(wt_total+mu_total)+" != "+celline_count)}
+	
 	// The inline onchange="..." tag doesn't pass the event in all browsers, which is needed, so attaching the events using javascript:
     for (tissue in tissue_lists) {
 		showhide_cell_clicked
@@ -385,10 +613,11 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 
 function rect(xcenter,width,ystats) {
     var e = document.createElementNS(svgNS,"rect");
-	e.setAttribute("x", (xcenter-0.5*width)*xscale );
-    e.setAttribute("width", width*xscale );
-	e.setAttribute("y", Yscreen0 + ystats[3]*yscale );  // Note: box drawn upside down, as screen zero is top left.
-	e.setAttribute("height", (ystats[1]-ystats[3])*yscale );	// yscale is -ive
+	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
+	var y = tohalf(Yscreen0 + ystats[3]*yscale, 1);
+	e.setAttribute("y", y);  // Note: box drawn upside down, as screen zero is top left.
+    e.setAttribute("width", Math.round(width*xscale) );	
+	e.setAttribute("height", Math.round( (Yscreen0+ystats[1]*yscale)-y) );	// yscale is -ive. Slightly more accurate than (ystats[1]-ystats[3])*yscale, as ystats[3]*yscale has been moved slightly by the tohalf.
 	//e.setAttribute("fill", "none"); // set by the CSS
 	//e.setAttribute("stroke", "black");
 	//e.setAttribute("stroke-opacity", "1.0");
@@ -398,10 +627,20 @@ function rect(xcenter,width,ystats) {
 	
 function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
     var e = document.createElementNS(svgNS,"line");
-	e.setAttribute("x1", x1*xscale );  // For sharp lines, best to have position at 0.5 if thinkness is 1px, then won't need antialiasing.
-	e.setAttribute("y1", Yscreen0 + y1*yscale );
-	e.setAttribute("x2", x2*xscale );
-	e.setAttribute("y2", Yscreen0 + y2*yscale );
+    var isVertical = x1==x2;
+    var isHorizontal = y1==y2;
+	
+	// For sharp lines, best to have position at 0.5 if thinkness is 1px, then won't need antialiasing.
+	var x = isVertical ? tohalf(x1*xscale, strokewidth) : x1*xscale;
+	e.setAttribute("x1", x);
+	e.setAttribute("x2", (isVertical ? x : x2*xscale) );  // otherwise tohalf(x2*xscale) which is same as above.
+    //if (isVertical) {console.log("tohalf x"+x2+" => "+x);}
+
+	var y = isHorizontal ? tohalf(Yscreen0 + y1*yscale, strokewidth) : Yscreen0 + y1*yscale;
+	e.setAttribute("y1", y);	
+	e.setAttribute("y2", (isHorizontal ? y : Yscreen0 + y2*yscale) );
+    //if (isHorizontal) {console.log("tohalf y"+y2+" => "+y);}
+	
 	e.setAttribute("stroke", colour); // as black is default in the CSS
 	e.setAttribute("stroke-width", strokewidth);
 	if (dashed) {e.setAttribute("stroke-dasharray", "6,3");} // se: http://www.w3schools.com/svg/svg_stroking.asp
@@ -452,6 +691,30 @@ ctx.textAlign="center";
 	
 function text(x,y,size,vertical,text) {
     // Fore attributes, see: http://www.w3schools.com/svg/svg_text.asp
+	// if wish to position text better, could first get size using, either:
+	// getBBox(text) -> returns x.width and x.height
+    // getBoundingClientRect(text) return x.width and x.height, but affected by any scaling in the SVG elements.
+    // getComputedTextLength(text) return width }, }, // for text elements only. Very slight difference result from getBBox
+  	// see: http://bl.ocks.org/MSCAU/58bba77cdcae42fc2f44
+	// Maybe "does not seem to work if the text element is styled using CSS; the calculated pixel width corresponds to the document´s default font size."
+	// var el = document.getElementsByTagName('text')[3];  <-- if element created using SVG markup tags, rather than with javascript.
+    // el.getComputedTextLength(); // returns a pixel integer
+
+	// You can set the word spacing of a text using the word-spacing CSS property. The word spacing is the amount of white space between the words in the text. Here is an example:
+
+    //<text x="20" y="20">
+    //Word spacing is normal
+    // </text>
+    // <text x="20" y="40"
+    //  style="word-spacing: 4;"> (means the number of extra spaces (?pixels) between words.
+	// can set style=stroke:none; for not outline around text, just a fill, otherwise looks bold text.
+	// in some browsers, can use:  style="writing-mode: tb;" for vertical (top-to-bottom) text instead of rotating text
+	// The y-attribute determines where to locate the bottom of the text (not the top)
+	// Good: http://tutorials.jenkov.com/svg/text-element.html
+	
+	// useful: http://www.hongkiat.com/blog/scalable-vector-graphics-text/
+	
+	// *** Better to position text, could use:  style="text-anchor: middle" so uses text centre for positioning text
     var e = document.createElementNS(svgNS,"text");
     var xscreen = x*xscale;
 	e.setAttribute("x", xscreen);
@@ -561,35 +824,219 @@ function save_svg_as_png() {
    // Uses the "saveSvgAsPng.js" from: https://github.com/exupero/saveSvgAsPng
    var study_without_brackets = study.replace('(','').replace(')','');
    var png_filename = driver+"_"+target+"_"+study_without_brackets+".png";
-   saveSvgAsPng(svg, png_filename);
+   
+   //'In Internet Explorer: with mouse pointer on the boxplot image, click the RIGHT mouse button, then from the popup menu choose "Save picture as...", then in the save dialog that appears, for the "Save as type" choose "PNG (*.png)", the "Save".'
+   
+   //'If you are using Internet Explorer: with mouse pointer on the boxplot image, click the RIGHT mouse button, then from the popup menu choose "Save picture as...", then in the save dialog that appears, for the "Save as type" choose "PNG (*.png)", then "Save". If that doesn\'t work, then then try Firefox, Opera, Chrome or Safari browsers.'
+   
+   // This seems to be another way around this issue in IE, and demo shows that the Native toDataURI doesn't work in my IE11 when I tried their demo site: https://github.com/sampumon/SVG.toDataURL
+   // but their alternative should work.
+
+   // canvas2image library: https://github.com/hongru/canvas2image
+   
+   // **** deprecated “svgElement.offsetWidth/height” on Chrome: http://stackoverflow.com/questions/35568259/how-to-replace-the-deprecated-svgelement-offsetwidth-height-on-chrome
+/*   
+   e.getBoundingClientRect()
+
+   // when there is no scale: or remove any parent transforms first.
+   var rect = e.getBoundingClientRect();
+
+  i = 0;
+  cur = elm;
+
+
+  //restore the transform for all ancestors
+  while (cur) {
+    if (cur.style) {
+      cur.style.transform = saveTransforms[i];
+    }
+    i++;
+    cur = cur.parentNode;
+  }
+
+
+  return rect.width;
+}
+*/
+
+
+// **** GOOD javascript event handlers and 'this': http://www.sitepoint.com/javascript-this-event-handlers/
+// Avoid using inline events:   onclick="return EventHandler(this);">
+//  https://github.com/jquery/jquery/issues/2889
+// Apparently: This is harmless, undefined < 0 is false so when these properties get removed, this method will automatically start using the getClientRects().length check.
+   
+   // Downloading a canvas as an image:
+   // var image = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");  // here is the most important part because if you dont replace you will get a DOM 18 exception.
+   // window.location.href=image; // it will save locally
+   
+   
+    var img = document.getElementById("fromcanvas");
+   
+    // var img = document.createElement('canvas'); // var img = document.getElementById("fromcanvas");
+    //canvas.width = image.width; // set by the library
+    //canvas.height = image.height;
+
+
+    var ua = window.navigator.userAgent;
+	// 'MSIE' for IE<=10; 'Trident/' for IE 11; || (ua.indexOf('Edge/')>0) for Edge (IE 12+)
+    // if ($.browser.msie) {alert($.browser.version);}
+	
+    var ie = ((ua.indexOf('MSIE ') > 0) || (ua.indexOf('Trident/')>0));
+	var render = ie ? "canvg" : "native";  // Using "cancg" for IE, to avoid the SECURITY_ERR in IE: canvas.toDataURL(type)
+	
+	// saving SVG as Image: http://techslides.com/save-svg-as-an-image
+	
+	// SVG Crowbar helpfully inlines any stylesheets you may have on the page, but you might find you need to edit a few of the styles by hand to get things to look right. For example, the font-family “sans-serif” won’t work in an SVG image, even though it works when the SVG is built client-side; you’ll have to make the font name explicit, such as “Helvetica” or “Arial”.  From: Other waays maybe: https://bl.ocks.org/mbostock/6466603
+	
+	// Maybe SVG to svg file using: var dataUrl = 'data:image/svg+xml,'+encodeURIComponent(svgString);
+	
+	// Pablo has functions for saving PNGs, etc: http://pablojs.com/
+	
+	// http://stackoverflow.com/questions/3173048/is-there-an-equivalent-of-canvass-todataurl-method-for-svg
+	// var SVGtopngDataURL = document.getElementById("svg_element_id").toDataURL("image/png");
+    mysvg.toDataURL("image/png", {
+	    callback: function(data) {
+            img.setAttribute("src", data)
+            var a = document.querySelector("#data")
+            a.href = data
+            a.style.display = "inline"
+         },
+		 renderer: render 
+    });
+   
+   //saveSvgAsPng(svg, png_filename);
+   
+   // http://weworkweplay.com/play/saving-html5-canvas-as-image/
    }
+   
+   // Save SVG as image: http://techslides.com/save-svg-as-an-image
+   
+   // Alternative to save as SVG use:
+   // http://stackoverflow.com/questions/2483919/how-to-save-svg-canvas-to-local-filesystem
+   
+function img_and_link() {
+// "There is no need to do base64 encoding - you can create a link with raw SVG code in it. Here is a modified function encode_as_img_and_link() from The_Who's answer:"
+  $('body').append(
+    $('<a>')
+      .attr('href-lang', 'image/svg+xml')
+      .attr('href', 'data:image/svg+xml;utf8,' +  unescape($('#mysvg').outerHTML))
+      .text('Download')
+  );
+  
+  // Better might be: https://gist.github.com/jweir/706988
+// This example was created using Protovis & jQuery
+// Base64 provided by http://www.webtoolkit.info/
+function encode_as_img_and_link(){
+ // Add some critical information
+ $("svg").attr({ version: '1.1' , xmlns:"http://www.w3.org/2000/svg"});
+
+ var svg = $("#chart-canvas").html();
+ var b64 = Base64.encode(svg);
+
+ // Works in recent Webkit(Chrome)
+ $("body").append($("<img src='data:image/svg+xml;base64,\n"+b64+"' alt='file.svg'/>"));
+
+ // Works in Firefox 3.6 and Webit and possibly any browser which supports the data-uri
+ $("body").append($("<a href-lang='image/svg+xml' href='data:image/svg+xml;base64,\n"+b64+"' title='file.svg'>Download</a>"));
+}
+
+// or maybe save SVG: http://stackoverflow.com/questions/2483919/how-to-save-svg-canvas-to-local-filesystem
+	$('#SVGsave').click(function(){
+		var a      = document.createElement('a');
+		a.href     = 'data:image/svg+xml;utf8,' + unescape($('#SVG')[0].outerHTML);
+		a.download = 'plot.svg';
+		a.target   = '_blank';
+		document.body.appendChild(a); a.click(); document.body.removeChild(a);
+	});  
+  
+}
+
+
+/*
+// Alternatively sent to server to render:
+
+<button onclick="sendSVG();">Save as SVG File</button>
+
+(3) Include the JavaScript function named in your button markup:
+
+function sendSVG() 
+{
+   var svgText = document.getElementById('svg').innerHTML;
+
+   var form = document.createElement("form");
+   form.setAttribute("method", "post");
+   form.setAttribute("action", "http://path-to-your-server-app");
+   form.setAttribute("accept-charset", "UTF-8");
+
+   var hiddenSVGField = document.createElement("input");    
+   hiddenSVGField.setAttribute("type", "hidden");
+   hiddenSVGField.setAttribute("name", "svgText");
+   hiddenSVGField.setAttribute("value", svgText);
+
+   form.appendChild(hiddenSVGField);
+   document.body.appendChild(form);
+   form.submit();
+}
+(4) Write a server app to accept your SVGtext post request and return as image/svg+xml using Content-Disposition to specify an attachment. Working code in three languages is presented, although I am not a Perl programmer and have never used PHP in anger.
+
+Java Servlet
+
+public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException
+{
+   String svgText = (String) request.getParameter("svgText");
+   response.setContentType("image/svg+xml");
+   response.addHeader("Content-Disposition", "attachment; filename=\"image.svg\"");
+   PrintWriter out = response.getWriter();
+   out.println(svgText);
+}
+Perl CGI
+
+use CGI qw(:standard);
+my $svgText = param('svgText');
+print header(-type => "image/svg+xml",
+    -content_disposition => "attachment; filename=image.svg");      
+print $svgText;
+PHP
+
+<?php
+   $svgText = $_POST['svgText'];
+   header('Content-type: image/svg+xml');
+   header('Content-Disposition: attachment; filename="image.svg"'); 
+   print "$svgText";
+?>
+I have used a hard-coded name for the image here (image.svg), but actually pick up a discriptor of the dynamic content I generate from the page (using a div and an ID again, and document.getElementById('graphName').textContent).
+*/
+  
+
+  
    
   </script>
 
 </head>
 
-<body>
+<body style="font-family: sans-serif;">
 <br/>
 <table align="center"><tr><td>
 <!-- the tag: version="1.1" isn't used by any browsers -->
 <svg id="mysvg" 
 	 xmlns="http://www.w3.org/2000/svg"
      xmlns:xlink="http://www.w3.org/1999/xlink" 
-     width="600" height="600">
+     width="500" height="500">
   <style>
+
     line{
       /* stroke: black; */
       /* stroke-width: 1px; */
-      stroke-opacity: 1.0;	
-	  shape-rendering: crispEdges;	
+      stroke-opacity: 1.0;
 	}
+	/* shape-rendering: crispEdges; Not needed if placed at half pixel	*/
 	
     rect{
       fill: none;
       stroke: black;
       stroke-width: 1px;
       stroke-opacity: 1.0;
-	  shape-rendering: crispEdges;
+	  /* shape-rendering: crispEdges; */
     }
 	
     circle {
@@ -624,10 +1071,76 @@ function save_svg_as_png() {
 </svg>
 </td><td valign="middle">
   <table id="legend_table" cellpadding="1" cellspacing="0" style="font-size: 75%;"></table>
-  <p style="font-size:90%">Download boxplot as:<br/><input type="button" id="download_SVG_boxplot" value="SVG image"/> <input type="button" id="download_PNG_boxplot" value="PNG image" onclick="save_svg_as_png();"/> <input type="button" id="download_CSV_boxplot" value="CSV data"/>
+  <p style="font-size:90%">Download boxplot as:<br/><input type="button" id="download_SVG_boxplot" value="SVG image" onclick="img_and_link();"/> <input type="button" id="download_PNG_boxplot" value="PNG image" onclick="save_svg_as_png();"/> <input type="button" id="download_CSV_boxplot" value="CSV data"/>
 </td></tr>
 <tr><td id="boxplot_title" colspan="2" style="text-align:center"></td></tr>
 </table>
+
+<a id="data" href="data:">Go to DataURL</a> <!-- #data {
+				display: none;
+			}
+-->
+
+<img id="fromcanvas" alt="svg butterfly from canvas.toDataURL()" />
+
+<!--
+It seems like if I add an arbitrary delay before trying to drawImage I meet with more success. It seems like 'onload' is firing early on SVG images, before it is actually ready, so when you go to draw the image it fails.
+
+
+// https://github.com/sampumon/SVG.toDataURL
+
+// Javascript SVG parser and renderer on Canvas
+// http://code.google.com/p/canvg/
+
+/**
+ * detect IE
+ * returns version of IE or false, if browser is not Internet Explorer
+ */
+function detectIE() {
+    var ua = window.navigator.userAgent;
+
+    var msie = ua.indexOf('MSIE ');
+    if (msie > 0) {
+        // IE 10 or older => return version number
+        return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+    }
+
+    var trident = ua.indexOf('Trident/');
+    if (trident > 0) {
+        // IE 11 => return version number
+        var rv = ua.indexOf('rv:');
+        return parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+    }
+
+    var edge = ua.indexOf('Edge/');
+    if (edge > 0) {
+       // Edge (IE 12+) => return version number
+       return parseInt(ua.substring(edge + 5, ua.indexOf('.', edge)), 10);
+    }
+
+    // other browser
+    return false;
+}
+Sample usage:
+
+alert('IE ' + detectIE());
+Default string of IE 10:
+
+Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)
+Default string of IE 11:
+
+Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko 
+Default string of IE 12 (aka Edge):
+
+Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36 Edge/12.0 
+Default string of Edge 13 (thx @DrCord):
+
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586
+
+
+// SVG Java rasteriser (on server): http://xmlgraphics.apache.org/batik/tools/rasterizer.html
+-->
+
 </body>
 </html>
 

@@ -366,7 +366,7 @@ run_univariate_tests <- function(
 	mutations <- as.matrix(mutations)
 	all_variants <- as.matrix(all_variants)
 	
-	
+	work_count <- 0  # SJB added
 	results <- NULL
 	i <- NULL
 	for(i in seq(1:length(colnames(mutations)))){
@@ -379,8 +379,8 @@ run_univariate_tests <- function(
 			print(paste(toString(i),"skipping:", colnames(mutations)[i]))
 			next
 		}
-
-		print(paste(toString(i),"WORKING ON:", colnames(mutations)[i]))
+        work_count <- work_count + 1
+		print(paste(toString(i),"WORKING ON:",toString(work_count),colnames(mutations)[i]))
 	
 		grpA <- which(mutations[,i] > 0)
 		
@@ -826,7 +826,8 @@ print(sprintf("driver:%s,target:%s",marker_gene,target_gene))
 				if(length(wt_rows_by_tissue) > 0){
 					# plot at 1
 					# jitter(): https://stat.ethz.ch/R-manual/R-devel/library/base/html/jitter.html
-					x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
+					# on Uniform distribution: https://stat.ethz.ch/R-manual/R-devel/library/stats/html/Uniform.html
+					# x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
 					y <- zscores[wt_rows_by_tissue,results$target[i]]
 					cell_lines = row.names(tissues)[wt_rows_by_tissue] # Added by SJB
 					print(c(round(x,2),y,cell_lines)) # tissue_cols[j])) # Added by SJB
@@ -874,6 +875,7 @@ write_box_dot_plot_data <- function(
 	response_type="Z-score"
 	){
 
+# Using cat() as does less conversion than print() so should be faster: https://stat.ethz.ch/R-manual/R-devel/library/base/html/cat.html
 fileConn<-file("boxplot_dataA_test.txt", open="w") # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
 
 cat(names(results), "boxplot_json\n", file=fileConn, sep="\t")
@@ -1078,12 +1080,19 @@ cat(unname(unlist(results[i,])),file=fileConn,sep="\t") # Write the full results
 
 # or as CSV:
 #cat("\t",boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = "", append=TRUE)
+
+
 cat("\t", file=fileConn)
-cat("range",boxplot_range, file=fileConn, sep = ",")
-cat(";", file=fileConn)
-cat("wt_box",wt_boxplot_stats, file=fileConn, sep = ",")
-cat(";", file=fileConn)
-cat("mu_box",mutant_boxplot_stats, file=fileConn, sep = ",")
+celline_count
+cat(boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = ",")
+
+#cat("\t", file=fileConn)
+#cat("range",boxplot_range, file=fileConn, sep = ",")
+#cat(";", file=fileConn)
+#cat("wt_box",wt_boxplot_stats, file=fileConn, sep = ",")
+#cat(";", file=fileConn)
+#cat("mu_box",mutant_boxplot_stats, file=fileConn, sep = ",")
+
 cat(";", file=fileConn)
 
 
@@ -1111,7 +1120,7 @@ cell_line_count <- 0
 				if(length(wt_rows_by_tissue) > 0){
 					# plot at 1
 					# jitter(): https://stat.ethz.ch/R-manual/R-devel/library/base/html/jitter.html
-					x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
+					#x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
 					y <- zscores[wt_rows_by_tissue,results$target[i]]
 					cell_lines <- row.names(tissues)[wt_rows_by_tissue] # Added by SJB
 					
@@ -1140,7 +1149,8 @@ cell_line_count <- 0
 
 # or as CSV:
 for (k in 1:length(wt_rows_by_tissue)) {
-  cat(tissue,cell_line_names[k],round(x[k],2),y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  cat(tissue,cell_line_names[k],y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  # cat(tissue,cell_line_names[k],round(x[k],2),y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   }
   
 # fill = FALSE, labels = NULL,
@@ -1158,7 +1168,7 @@ for (k in 1:length(wt_rows_by_tissue)) {
 				}
 				if(length(mutant_rows_by_tissue) > 0){
 					# plot at 2
-					x <- jitter(rep(2,times=length(mutant_rows_by_tissue)), amount=0.33)
+					#x <- jitter(rep(2,times=length(mutant_rows_by_tissue)), amount=0.33)
 					y <- zscores[mutant_rows_by_tissue,results$target[i]]
 					cell_lines <- row.names(tissues)[mutant_rows_by_tissue] # Added by SJB
 					#print(c(round(x,2),y,cell_lines)) # ,tissue_cols[j] # Added by SJB
@@ -1185,9 +1195,11 @@ for (k in 1:length(wt_rows_by_tissue)) {
 	
 # or as CSV:
 for (k in 1:length(mutant_rows_by_tissue)) {
-  cat(tissue,cell_line_names[k],round(x[k],2),y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  cat(tissue,cell_line_names[k],y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  #cat(tissue,cell_line_names[k],round(x[k],2),y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   }
   
+  output the cell_line_count at start and put box plot stats on one line
 
 ##					points(
 ##						x,

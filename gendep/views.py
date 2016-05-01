@@ -461,12 +461,63 @@ CDK11A
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
 
+def get_boxplot_csv(request, driver_name, target_name, histotype_name, study_pmid):  # Optionally a 'target_variant' for the Achilles data
+=================
+   if delim_type=='csv':
+        dialect = csv.excel
+        content_type='text/csv' # can be called: 'application/x-csv' or 'application/csv'
+    elif delim_type=='tsv':
+        dialect = csv.excel_tab
+        content_type='text/tab-separated-values'
+    else:
+        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
+
+    # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
+    response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?    
+    response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
+    
+    writer = csv.writer(response, dialect=dialect)  # An alternative would be: csv.unix_dialect
+      # csv.excel_tab doesn't display well
+      # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
+    
+    count = dependency_list.count()
+    study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
+    writer.writerows([
+        ["","A total of %d dependencies were found for: %s='%s', Tissue='%s', Study='%s'" % (count, search_by.title(), gene_name,histotype_full_name, study_name),], # Added some dummy columns so Excel knows from first row that is CSV
+        ["","Downloaded from CGDD on %s" %(timestamp),],
+        ["",],
+        ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
+
+    writer.writerow(search_by_driver_column_headings_for_download if search_by_driver
+               else search_by_target_column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. 
+=============
+    try:
+#      print("gene_name: %s %d %d %d" %(row['driver'], row['num_studies'], row['num_histotypes'], row['num_targets']))
+
+      # Using driver_id and target_id as faster as don't need to join with the Gene table to check the gene_name which is same as driver_id and traget_id anyway.
+      d = Dependency.objects.get(driver_id=driver_name,target_id=target_name, histotype=histotype_name, study_id=study_pmid)  # can this ever findmore than one row that matches - not at present as there is a unique contraint on the dependency table.
+      
+      # Double-check that name is same:
+      if d.driver_id!=driver_name or d.target_id!=target_name or d.histotype!=histotype_name or d.study_id!=study_pmid:
+        print("*** ERROR: driver '%s' '%s' or target '%s' '%s' or histotype '%s' '%s' or study '%s' '%s' mismatch" %(d.driver_id, driver_name,  d.target_id, target_name, d.histotype, histotype_name, d.study_id, study_pmid)
+        # return error message
+      else:      
+        ..... d.boxplot_data
+      
+    except ObjectDoesNotExist: # Not found by the objects.get()
+      print("*** ERROR: driver '%s' or target '%s' or histotype '%s' or study '%s' mismatch" %(driver_name, target_name, histotype_name, study_pmid)
+      return error
+
+    return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
+  
+        
     
 def stringdb_interactions(required_score, protein_list):
-    print("In: get_stringdb_interactions")
+    #print("In: get_stringdb_interactions")
     stringdb_options="network_flavor=confidence&limit=0&required_score="+required_score;  # &additional_network_nodes=0
     # The online interactive stringdb uses: "required_score" 400 and: "limit" 0 (otherwise by default will add 10 more proteins)
 
+    
     protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
