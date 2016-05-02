@@ -208,10 +208,13 @@ def load_hgnc_dictionary():
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
       
 def fix_gene_name(name):
+  if len(name) > 20: print("*** ERROR: gene_name '%s' >20 characters long" %(name))
   if   name == 'C8orf44.SGK3': return 'C8orf44-SGK3'  # as is hghc: 48354
   elif name == 'CTB.89H12.4':  return 'CTB-89H12.4'
   elif name == 'RP11.78H18.2': return 'RP11-78H18.2'
   elif name == 'C9orf96':      return 'STKLD1' # as C9orf96 is the old name.
+  elif name == 'LOC100499484.C9ORF174':    
+    return 'LOC100499484-C9ORF174' # removed the '.' as is 21 characters otherwise 
   else: return name
 
 
@@ -273,6 +276,9 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
   names[0] = fix_gene_name(names[0])
   gene_name = names[0]
   entrez_id = names[1]
+  if entrez_id == 'EntrezNotFound':
+    print("Entrez id='%s' for gene %s, changing to 'NoEntrezId'" (entrez_id,gene_name))
+    entrez_id='NoEntrezId' # As 'EntrezNotFound' from Achilles data is too long for the 10 character entrez_id field.
   ensembl_id = names[2]
   
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
@@ -312,34 +318,44 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
       if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
         print("WARNING: For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[ientrez_id], entrez_id) )
         this_hgnc[ientrez_id] = entrez_id        # So change it to use the one from the Excel file.
-      if entrez_id != '' and entrez_id != 'NoEnsemblIdFound' and ensembl_id != this_hgnc[iensembl_id]:
+      if ensembl_id != '' and ensembl_id != 'NoEnsemblIdFound' and ensembl_id != this_hgnc[iensembl_id]:
         print("WARNING: For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[iensembl_id], ensembl_id) )
         this_hgnc[iensembl_id] = ensembl_id  # So change it to use the one from the Excel file.
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   http://docs.mygene.info/en/latest/doc/query_service.html  Fields available:  http://mygene.info/v2/gene/1017     http://docs.mygene.info/en/latest/
       # or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
 #      if info_source == 'HGNC':
+
       prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
       
+      full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2      
+      entrez_id  = this_hgnc[ientrez_id],       # eg: 2064
+      ensembl_id = this_hgnc[iensembl_id],      # eg: ENSG00000141736
+      cosmic_id  = this_hgnc[icosmic_id],       # eg: ERBB2
+      omim_id    = this_hgnc[iomim_id],         # eg: 164870
+      uniprot_id = this_hgnc[iuniprot_id],      # eg: P04626
+      vega_id    = this_hgnc[ivega_id],         # eg: OTTHUMG00000179300
+      hgnc_id    = this_hgnc[ihgnc_id]
+
       # In HGNC some genes have two or three OMIM IDs, eg: gene "ATRX" has omim_id: "300032|300504" (length=13, but column width is 10, and simpler to just store first name)
-      if len(this_hgnc[iomim_id]) >= 9:
-          pos = this_hgnc[iomim_id].find('|')
-          if pos > -1: this_hgnc[iomim_id] = this_hgnc[iomim_id][:pos]
-          
+      if len(omim_id) >= 9:
+          pos = omim_id.find('|')
+          if pos > -1:
+            print("%s: using only first omid_id: %s" %(gene_name,omic_id))
+            omim_id = omim_id[:pos]
+      
       g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
                original_name = original_gene_name,
                is_driver  = is_driver,
                is_target  = is_target,
-               full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2
-               # synonyms   = this_hgnc[isynonyms],        # eg: NEU|HER-2|CD340|HER2
-               # prev_names = this_hgnc[iprev_names],      # eg: NGL  # was: hgnc[name][iprevsymbol],
-               prevname_synonyms = prevname_synonyms,
-               entrez_id  = this_hgnc[ientrez_id],       # eg: 2064
-               ensembl_id = this_hgnc[iensembl_id],      # eg: ENSG00000141736
-               cosmic_id  = this_hgnc[icosmic_id],       # eg: ERBB2
-               omim_id    = this_hgnc[iomim_id],         # eg: 164870
-               uniprot_id = this_hgnc[iuniprot_id],      # eg: P04626
-               vega_id    = this_hgnc[ivega_id],         # eg: OTTHUMG00000179300
-               hgnc_id    = this_hgnc[ihgnc_id]
+               full_name  = full_name,       # eg: erb-b2 receptor tyrosine kinase 2
+               prevname_synonyms = prevname_synonyms,     # eg: NGL  (plus)  NEU|HER-2|CD340|HER2
+               entrez_id  = entrez_id,       # eg: 2064
+               ensembl_id = ensembl_id,      # eg: ENSG00000141736
+               cosmic_id  = cosmic_id,       # eg: ERBB2
+               omim_id    = omim_id,         # eg: 164870
+               uniprot_id = uniprot_id,      # eg: P04626
+               vega_id    = vega_id,         # eg: OTTHUMG00000179300
+               hgnc_id    = hgnc_id
                # cancerrxgene_id = ....... ????
                # 'hgnc_id'          # eg: 3430
                # 'alias_name'       # eg: neuro/glioblastoma derived oncogene homolog|human epidermal growth factor receptor 2

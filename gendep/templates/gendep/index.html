@@ -43,17 +43,14 @@
 
 <script type="text/javascript">
 
-// Global variables set by Django template engine
-
+// Global variables set by Django template engine's url() tag:
+var global_url_for_faq = "{% url 'gendep:faq' %}"; 
+var global_url_static_image_dir = "{% static 'gendep/images/' %}";
+var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 var global_url_for_dependency_search = "{% url 'gendep:get_dependencies' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
 var global_url_for_download_csv = "{% url 'gendep:download_csv' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
 var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
 var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
-
-var global_url_for_faq = "{% url 'gendep:faq' %}"; 
-var global_url_static_image_dir = "{% static 'gendep/images/' %}";
-var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
-
 var global_url_for_cytoscape = "{% url 'gendep:cytoscape' required_score='700' protein_list='myproteins' %}"
 
 // String-db options:
@@ -73,14 +70,6 @@ var global_url_for_stringdb_one_network = "http://string-db.org/api/image/networ
 // Because of AJAX same origin policy (ie. no cross-site requests) so need to use pythonanywhere server as a proxy to get the string interaction list:
 var global_url_for_stringdb_interactionsList = "{% url 'gendep:get_stringdb_interactions' required_score='700' protein_list='myproteins' %}";
 
-// The online interactive stringdb uses:
-//   "required_score" 700 (The strindb default is 400, but Colm wants 700 as otherwise image is too crowded) 
-//   "advanced_menu" yes
-//   "limit" 0 (otherwise by default will add 10 more proteins)
-// Also maybe: "&additional_network_nodes=0"  :	 Number of additional nodes in network (ordered by score), e.g./ 10
-
-
-// From Lars for the interactive:  The '&advanced_menu=yes' is just needed for the interactive (flash) network view:
 var global_url_for_stringdb_interactive_networkList_score400 = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score400+"&advanced_menu=yes&identifiers=";
 
@@ -111,11 +100,13 @@ var experimenttype_array = [
 ];
   
 // Using this preloaded array gives faster response than AJAX call - but in future the driver list may grow too big to preload quickly.
-// The 'label' needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
+// Normally needs a 'label' property, needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
+// label: "{{driver.gene_name}} | {{ driver.prevname_synonyms }}", 
 var driver_array = [
-   {% for driver in driver_list %} {value: "{{driver.gene_name}}", label: "{{driver.gene_name}} | {{ driver.prevname_synonyms }}", synonyms_spaced: "{{ driver.prevname_synonyms }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" },
-   {% endfor %}
+  {% for driver in driver_list %} {value: "{{driver.gene_name}}", synonyms_spaced: "{{ driver.prevname_synonyms }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" },
+  {% endfor %}
 ];
+
 
 var target_array = [
 //   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prevname_synonyms }}", synonyms_spaced: "{{ target.prevname_synonyms }}", full_name: "{{target.full_name}}"},
@@ -125,11 +116,12 @@ var target_array = [
 
  
 // Could use a study hash:
-//var study_array =[
-//   {#% for study in study_list %#}
-// .....
-//   {#% endfor %#}
-//]
+var study_hash = {
+  {% for study in study_list %} "{{s.pmid}}": [ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ],
+  {#% endfor %#}
+ "ALL_STUDIES": [ "All studies", "All studies", "All studies", "<b>All studies</b>" ];  
+};
+
 // But probably faster using a switch statement as just four studies:
 function study_info(pmid) {
   switch (pmid) {
@@ -139,9 +131,17 @@ function study_info(pmid) {
    case "ALL_STUDIES": return [ "All studies", "All studies", "All studies", "<b>All studies</b>" ];
    default: return [ "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found", "Error: Study Not Found" ];
   }
-}  
+}
+var ishortname=0, iexptype=1, isummary=2, idetails=3; // column indexes for above study_info().
+
 
 // A dictionary might be faster:
+var histotype_display_hash = {
+ {% for histotype in histotype_list %} "{{ histotype.0 }}": "{{ histotype.1 }}",
+ {% endfor %}
+  "ALL_HISTOTYPES": "All tissues";
+};  //    default: return 'Error: Histotype "'+histotype+'" Not Found';
+
 function histotype_display(histotype) {
   switch (histotype) {
 	{% for histotype in histotype_list %}
@@ -152,108 +152,35 @@ function histotype_display(histotype) {
   }
 }
 
-//function study_link(pmid) {
-//
-//}
-//
-//function study_summary(pmid) {}
-
 //function gene_info(gene_name) {
 //    var url = global_url_gene_info_for_mygene.replace('mygene',gene_name);	
 //}
 
 
-
-//         'height': 800,
-//        width: 1000,
-//        'autoSize': false,
-//        'autoDimensions': false,
-//        'hideOnContentClick': false,
-
-
-//        'helpers': {
-//            'title': {
-//                'type': 'inside'
-//            },
-//            'overlay': {
-//                'showEarly': false
-//            }
-//        }
-// fitToView: false, // add this
-
 $(document).ready(function() {
 
-// add parser through the tablesorter addParser method. Based on: https://mottie.github.io/tablesorter/docs/example-parsers.html
-$.tablesorter.addParser({
-  id: 'pvalue',   // sets a unique id for this parser.
-  // The parse column is set in the html (or optionally in the tablesorter inititialisation below.
-  // is: function(s, table, cell, $cell) {  // option from tablesorter version  2.7.4, 
-    // return false so this parser is not auto detected
-  //  return false;
-  // },
-  format: function(s, table, cell, cellIndex) {
-    // format your data for normalization
-    // var e = s.replace(' x 10<sup>','e').replace('</sup>','');   // populate_table() does: .replace('e', ' x 10<sup>') + '</sup></td>';
-	// as this parser function receives only the text (seems to be .text() not .html()), not the markup, so 's' is: "4 x 10-3" not: "4 x 10<sup>-3</sup>"
-    var e = s.replace(' x 10','e');
-	//console.log(cellIndex,"'"+s+"' '"+e+"'");
-	return e
-  },
-  // set type, either numeric or text
-  type: 'numeric'
-});
+  // Parser for the 'wilcox_p' column(eg. "4 x 10<sup>-3</sup>") to back scientific number:
+  $.tablesorter.addParser({
+    id: 'pvalue',
+    format: function(s, table, cell, cellIndex) {
+      return s.replace(' x 10','e'); // converts "4 x 10-3" as parameter 's' receives the text, not html.
+    },
+    type: 'numeric'
+  });
 
-
-
-    // Alternative tables: jqgrid: http://www.jqwidgets.com/jquery-widgets-demo/demos/jqxgrid/index.htm#demos/jqxgrid/deferredscrolling.htm
-	
-	// Datatables: http://www.datatables.net/index
-	
-	// backgrid.js: http://backgridjs.com/
-    // and React.js:  https://react.rocks/tag/DataTable
-	// http://zippyui.com/react-datagrid/#/
-    // jEasyUI: http://www.jeasyui.com/tutorial/datagrid/datagrid27_demo.html
-
-	$("#result_table").tablesorter({
-	    // For diocs see: https://mottie.github.io/tablesorter/docs/
-		// https://mottie.github.io/tablesorter/docs/#methods
-		// Ajax example: https://mottie.github.io/tablesorter/docs/example-ajax.html
-		// **** GOOD - adding tooltips to table column headings                   
-		
-	    // size: 20, // Set initial number of visible rows. This value is changed by the dropdown selector targeted by the cssPageSize option.
-        // debug: true, // to output debug info to the firebug console.
+  	// Initialise the Dependency Table:
+    $("#result_table").tablesorter({
+        // debug: true, // outputs to firebug console
 		showProcessing: true,
-		delayInit: true, // "Setting this option to true will delay parsing of all table cell data until the user initializes a sort. This speeds up the initialization process of very large tables, but the data still needs to be parsed, so the delay is still present upon initial sort."
-        // removeRows: true, // "remove rows from the table to speed up the sort of large tables. Setting this to false, only hides the non-visible rows; needed if you plan to add/remove rows with the pager enabled."
-
+		delayInit: true, // display table sooner
 		theme: 'blue',
-		widgets: ["filter", "scroller"], //, "resizable"], // "zebra",    // removed the zebra row colouring as might be making table slow - see: https://github.com/Mottie/tablesorter/issues/273  So the zebra effect can be in the CSS instead.
-		
+		widgets: ["filter", "scroller"], 		
 		widthFixed : true,
 
 		widgetOptions: {
-            // zebra: ["even", "odd"],
-			scroller_height: 400,  // default is 300
-			resizable_widths: [ '16%', '12%', '12%', '12%', '12%', '12%', '12%', '12%'], // or can use px, eg. '20px' (8 columns currently)
-			filter_functions: {
-                // Note that only the normalized (n) value will contain numerical data
-                // If you use the exact text, you'll need to parse it (parseFloat or parseInt)
-				// These column indexes are zero-based, and must correspond with the 'wilcox_p' column position in the "populate_table()" javascript function
-				
-	// as this parser function receives only the text, not the markup, so 's' is: "4 x 10-3" not: "4 x 10<sup>-3</sup>"
-    //var e = s.replace(' x 10','e');
-	//console.log(cellIndex,"'"+s+"' '"+e+"'");
-	
-	//  "&le; 0.05" becomes "≤ 0.05", which is unicode (U+2264) or in python: u"\u2264", or can type in MS Windows type: Alt 243
-	// From: http://www.javascripter.net/faq/mathsymbols.htm
-	// chr  HexCode   Numeric   HTML entity  escape(chr)   encodeURI(chr)   Description
-	// ≤    \u2264    &#8804;   &le;	     %u2264        %E2%89%A4        less-than or equal to
-	
-	// "&le; 5 x 10<sup>-4</sup>" => "\u2264 5 x 10-4", but just using: '<'
-	// so seems to gets the: .val() for the filter select menu
-	// not using parameters: , $r, c, data)
-	//console.log("e:",e, "n:",n, "f:",f, "i",i, "$r:",$r, "c",c, "data:",data);
-    // where: 'e' is 4 x 10-3",e, "n:",n, "f:",f, "i
+			scroller_height: 400,
+			resizable_widths: [ '16%', '12%', '12%', '12%', '12%', '12%', '12%', '12%'], // or use eg: '20px'
+			filter_functions: { // 0-based column indexes:
                 1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
                     "<0.01"              : function(e, n, f, i) {return n <= 0.01;},    // 1e-2
@@ -262,68 +189,41 @@ $.tablesorter.addParser({
 	                "<5x10<sup>-4</sup>" : function(e, n, f, i) {return n <= 0.0005;},  // 5e-4
 	                "<1x10<sup>-4</sup>" : function(e, n, f, i) {return n <= 0.0001;}	// 1e-4
                 },
-				// 5 : {.....experimenttype_array},
-				6: {
+				7: {
 				   "Any"    : function(e, n, f, i) {return e != '';},
 				   "Medium" : function(e, n, f, i) {return e == 'Medium';},
 				   "High"   : function(e, n, f, i) {return e == 'High';},
 				   "Highest": function(e, n, f, i) {return e == 'Highest';}
 				},
-				7: {
+				8: {
 				   "Any"    : function(e, n, f, i) {return e != '';}
 				   // or could use 'inhibitors, '
 				}
             }
-//data-value="T" "\u2264 0.05"
-// Add 'Any' as option for interaction column (in addition to Medium/High/Highest and unfiltered)
-
-//filter_placeholder: {
-        //th_pvalue : 'From...' //,
-//		search: 'Search',
-//		select: 'Select'
-//        //to   : 'To...'
-//      }
-
-        },  // widgetOptions maybe need to be after the widgets: [...] line.
+        },
 		sortInitialOrder: "asc", // default sort order
 		sortRestart: true, // so sort always restarts from the specified sortInitialOrder.
 		sortStable: true,
-		ignoreCase: true,  // so sorting ignores case
-		filter_ignoreCase: true, //, // so filtering ignores case
-		// headers: { 0: { sorter: false} }  // If wish to disable sorting on a column.
-		// headers: { 1: { sorter: 'pvalue' } } // "sorter-pvalue" added as a class name in the HTML, alternatively could uncomment this header option.
+		ignoreCase: true,  // sort ignores case
+		filter_ignoreCase: true, // filtering ignores case
 	})
 	.bind('filterEnd', function(e, filter){
 	   var num_rows = ($('#result_table tbody tr:visible').length-1).toString();
        $("#string_link").html("for "+num_rows+" rows <span style='font-size: 70%;'>(max: "+global_max_stringdb_proteins_ids+")</span>"); // the -1 is because of the filter widget row
     });
-	
-	
-   // From: https://jqueryui.com/tooltip/#custom-content
-/*
-   In style.css can set:
-   
-   .ui-tooltip {
-    max-width: 350px;
-  }
-*/
-    //$( document ).tooltip({
 
-   // Using tooltips: http://www.tutorialspoint.com/jqueryui/jqueryui_tooltip.htm
+	
+	// Initialise the Tooltips
 	$('#result_table_tbody, #result_table_thead').tooltip({
-	// $('#result_table').tooltip({	
-      //items: "img, [title]",
-	  items: "[data-gene], [data-study], [data-exptype], [data-note]", // , [drug]
-	  // track:true,
-	  show: false, //{ effect: "", duration: 0, delay: 0},
-	  hide: false, // { effect: "", duration: 0, delay: 0}, // see: http://webduos.com/tooltip-using-jquery-ui-library/#.Vvb48uKLSih
-      track: true, // follows mouse
+	  items: "[data-gene], [data-study], [data-exptype], [data-note]",
+	  show: false, // effect
+	  hide: false,
+      track: true, // follow mouse
 	  position: {
-        my: "center bottom-20", // was bottom-20, but used arrow's css to make arrow slightly taller
+        my: "center bottom-20",
         at: "center top",
 	    using: function( position, feedback ) {
           $( this ).css( position );
-          // The arrow is in wrong place when the text is wider than the tooltip box.
 		  
 		  $( "<div>" )
             .addClass( "arrow" )
@@ -333,22 +233,7 @@ $.tablesorter.addParser({
         }
 	  },
 	  
-      content: function(callback) {  // note the 'callback' which is called below with the data.
-	  
-	  // See: http://html5beta.com/jquery-2/a-little-guide-about-jqueryui-tooltip-ajax-callback/
-	  // $(document).tooltip({
-      //   items:'#lists .table a.btn-preview',
-      //   tooltipClass:'preview-tip',
-      //   position: { my: "left+15 top", at: "right center" },
-      //   content:function(callback) { //callback
-      //      $.get('preview.php',{}, function(data) {
-      //      callback(data); //call the callback function to return the value
-      //      });
-      //   },
-      // });
-      // More info: https://forum.jquery.com/topic/using-jquery-ui-tooltip-with-dynamic-ajax-content-on-click-instead-of-hover
-	  
-	  // For tooltip styling, see: https://jqueryui.com/tooltip/#custom-style
+      content: function(callback) {  // 'callback' function is called below with the data:	  
         var element = $( this );
         if ( element.is( "[data-gene]" ) ) {
           var gene_name = element.attr("data-gene");  // was: = element.text();
@@ -359,51 +244,37 @@ $.tablesorter.addParser({
 		  else {
             var url = global_url_gene_info_for_mygene.replace('mygene',gene_name);
             $.ajax({
-              url: url,              // data: 'button=' + $(this).val(), // Optional
+              url: url,
               dataType: 'json', 
             })
-            .done(function(data, textStatus, jqXHR) {  // or use .always(function ..... see: http://stackoverflow.com/questions/13175268/ajax-content-in-a-jquery-ui-tooltip-widget
-			// data = JSON.parse(json) ? // but maybe already parsed? which should Parses a string containing JSON and returns the de-serialized object.
-//console.log(data);
-			// data = $.parseJSON(json); //"The JSON standard does not permit "control characters" such as a tab or newline. An example like $.parseJSON( '{ "testing":"1\t2\n3" }' ) will throw an error in most implementations because the JavaScript parser converts the string's tab and newline escapes into literal tab and newline; doubling the backslashes like "1\\t2\\n3" yields expected results. This problem is often seen when injecting JSON into a JavaScript file from a server-side language such as PHP."
-
+            .done(function(data, textStatus, jqXHR) {  // or use .always(...)
               if (data['success']) {
-			  	gene_info_cache[gene_name] = data; // cache result so can retrieve it faster in future.
-			    result = format_gene_info_for_tooltip(data);							
-			    callback(result);  // return "Success";
+			  	gene_info_cache[gene_name] = data; // cache to retrieve faster next time.
+			    result = format_gene_info_for_tooltip(data);
+			    callback(result);
 				}
 			  else {callback("Error: "+data['message'])}
 		    })
 		    .fail(function(jqXHR, textStatus, errorThrown) {
 			  callback("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
-            }) // correctly a comma as is part of list of atttributes
+            })
 		  }
-          //return "<img class='map' alt='" + text +
-          //  "' src='http://maps.google.com/maps/api/staticmap?" +
-          //  "zoom=11&size=350x350&maptype=terrain&sensor=false&center=" +
-          //  text + "'>";
-//		  return text;
-//        }
         }
       else if ( element.is( "[data-study]" ) ) {
 	      var study = study_info(element.attr("data-study"));
-          return '<b>'+study[0]+':</b> '+study[3]; //study_col contains the pmid of this study. [0] returns short_name, [3] returns study details
-        }		
+          return '<b>'+study[ishortname]+':</b> '+study[idetails];
+        }
       else if ( element.is( "[data-exptype]" ) ) {
           var study = study_info(element.attr("data-exptype"));
-   	      return '<b>'+study[1]+':</b> '+study[2]; //exptype contains the pmid of this study. [1]is expt type, [2] returns exp summary
+   	      return '<b>'+study[iexptype]+':</b> '+study[isummary];
         }
       else if ( element.is( "[data-note]" ) ) {
 	      return element.attr("data-note");
         }
       //else if ( element.is( "[drug]" ) ) {
       //    return element.attr("drug"); // drug contains the list of inhibitors
-      //  }
-		
-     //if ( element.is( "img" ) ) {
-      //  return element.attr( "alt" );
-      //}	
-      }    // end of 'content:' can have a comma as is still part of list of atttributes
+      //  }		
+      }    // end of 'content:'
    });  // end of tooltip
 
 /*
@@ -427,167 +298,54 @@ $.tablesorter.addParser({
     });
 */	
 
-/*	
-	$('[data-url]').qtip({
-	content: {
-	show: {
-	event: 'mouseenter'
-},
-hide: {
-	event: 'mouseleave'
-}
-Good - See: http://craigsworks.com/projects/forums/showthread.php?tid=3115
 
-Alternatives to qtip2 are:
-Tipped (has paid pro version):  http://www.tippedjs.com/documentation
-Tool Tipster (looks good): http://iamceege.github.io/tooltipster/
-	
-            text: function(event, api) {
-                $.ajax({
-                    url: "{% url 'gendep:qtip' query='myurl' %}".replace('myurl', element.data('url')), // Use data-url attribute for the URL.
-					{# As the url reverse is generated by python on server, and replace() is client side javascript. This replace() idea is from: http://stackoverflow.com/questions/1795701/django-reverse-for-javascript but https://github.com/ierror/django-js-reverse might be better if needed in several js functions. #}
-					dataType: 'json',
-                })
-                .then(function(content) {
-                    // Set the tooltip content upon successful retrieval
-                    api.set('content.text', content);
-                }, function(xhr, status, error) {
-                    // Upon failure... set the tooltip content to the status and error value
-                    api.set('content.text', status + ': ' + error);
-                });
-            return 'Loading...'; // Set some initial text
-            }
-        }
-    });
-*/
-
-	
-/*
-        showNavArrows: false,
-        autoSize: false,
-        // autoResize: false,
-        autoHeight: false,
-        autoWidth: false,
-        width: 900,
-        height: 600,
-        minWidth: 900,
-        minHeight: 600,
-        maxWidth: 900,
-        maxHeight: 600,
-*/
-//=========================================================
-
-/*
-Could use a function for displaying the text, which would mean transferring less text to browser:
-function formatTitle(title, currentArray, currentIndex, currentOpts) {
-    return '<div id="tip7-title"><span><a href="javascript:;" onclick="$.fancybox.close();"><img src="/data/closelabel.gif" /></a></span>' + (title && title.length ? '<b>' + title + '</b>' : '' ) + 'Image ' + (currentIndex + 1) + ' of ' + currentArray.length + '</div>';
-}
-
-$(".tip7").fancybox({
-	'showCloseButton'	: false,
-	'titlePosition' 		: 'inside',
-	'titleFormat'		: formatTitle
-});
-#tip7-title { text-align: left; }
-
-#tip7-title b { display: block; margin-right: 80px; }
-
-#tip7-title span { float: right; }
-*/
-
-// var result_start = "1"; // For now
-    // From: http://www.tutorialspoint.com/jquery/jquery-ajax.htm
     $("#search_button").click(function(event){
 var t0 = performance.now();
 	
         if ( ! is_form_complete() ) {return false;}
 		var search_by = $("#search_by").val();
         var gene = $("#gene").val();
-		global_selected_gene = gene; // Store the selected driver/target as a global variable accessible to all functions as needed for the box plot() function.
+		global_selected_gene = gene; // Store selected driver/target as a global as needed by boxplot plot(), etc.
         var histotype = $("#histotype").val();
         var study = $("#study").val();
-        // result_start = "1";
-        // var numrows = "25"; // Max rows to return for now
 		$("#result_div").hide();
-		$('#result_table').trigger('filterReset'); // To remove filter from the rows.
+		$('#result_table').trigger('filterReset'); // Remove existing filter settings from the rows.
 		$("#result_progress_div").html("<b>Fetching data from server....</b>");
 		
 		var url = global_url_for_dependency_search.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',histotype).replace('mystudy',study);
 		
-		//alert("Get from: "+url);
 console.log("Setup: ",performance.now()-t0); t0 = performance.now();
-		$.ajax({ // ajax call starts
+		$.ajax({
             url: url,
-            // data: 'button=' + $(this).val(), // Optional
             dataType: 'json', 
         })
         .done(function(data, textStatus, jqXHR) {
 var timings = data['timings']; for (timing in timings) {console.log(timing);}
 
 console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
-		    // when you return the data from django, that is a success. "Error" in jQuery means a communication error, not a semantic error (eg. you need to return a 400/500 error code from django to have fail called).
-			// use: data['success'] = False
-			// Maybe need to use  json = JSON.parse(data) ? // which should Parses a string containing JSON and returns the de-serialized object.
-			// data = $.parseJSON(data); // It works without this but just to be sure. This throws an error, maybe because: "The JSON standard does not permit "control characters" such as a tab or newline. An example like $.parseJSON( '{ "testing":"1\t2\n3" }' ) will throw an error in most implementations because the JavaScript parser converts the string's tab and newline escapes into literal tab and newline; doubling the backslashes like "1\\t2\\n3" yields expected results. This problem is often seen when injecting JSON into a JavaScript file from a server-side language such as PHP."
-//console.log(data);
-//id=data['gene_ids'];
-//console.log(id);
 
-//test='{"query_info":{"study_details":"<b>All studies</b>","study_pmid":"ALL_STUDIES", "gene_weblinks":"<a class=\'tip\' href=\'http://www.genecards.org/cgi-bin/carddisp.pl?gene=ERBB2\' target=\'_blank\'>GeneCards<span>Genecards</span></a>"}}';
-//console.log($.parseJSON(test));
-console.log("Json parsing: ",performance.now()-t0); t0 = performance.now();			
 			$("#result_progress_div").html("Data received from server. Building results table ....");
-  	        $("#welcome_div").hide(); // hide the welcome text...
-//console.log(data);
-			//console.log(Object.keys(data).length);
-			//console.log(sizeof(data)); // This sizeof() script slows loading.
+  	        $("#welcome_div").hide(); // hide welcome text.
+
 			show_search_info(data);
 		    t0 = populate_table(data,t0);
 console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 			$("#result_progress_div").html("Results table built.");
-
-
 			
 			$("#result_div").show();
 console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();			
-			//$("#result_progress_div").html("");
-			
+			//$("#result_progress_div").html("");			
 		})
-		.fail(function(jqXHR, textStatus, errorThrown) {  // See: https://github.com/jquery/api.jquery.com/issues/49
-            // alert( "fail: '"+textStatus+"'  '"+errorThrown+"'");
+		.fail(function(jqXHR, textStatus, errorThrown) {
 			$("#result_progress_div").html("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
         });
 
-        return false; // keeps the page from not refreshing 
+        return false; // false prevents page refreshing.
     });
-{% comment %}	
-/*
-       $.get(url, 
-		      function(response, status, xhr) {if(status == "success") {}
-*/
-/*
-		 // If a "complete" callback is provided, it is executed after post-processing and HTML insertion has been performed.
-		 // so load suits if data returned is HTML, but for other data 
-        $("#result_div").load("{% url 'gendep:ajax_results_post' %}", 
-	        //{"search_by":search_by, "gene":gene, "histotype":histotype, "study":study, "start":result_start, "numrows": numrows, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
-			{"search_by":search_by, "gene":gene, "histotype":histotype, "study":study, 'csrfmiddlewaretoken': '{{ csrf_token }}',},
-            function(response, status, xhr){
-                if(status == "success") {				
-				    // alert("External content loaded successfully!");
-	                $("#welcome_div").hide() // hide the welcome text...
 
-					}
-                if(status == "error")
-                    alert("Error: " + xhr.status + ": " + xhr.status);
-            }
-	    ); // Appends the returned html data to this id.
-	   // see: http://www.w3schools.com/jquery/ajax_load.asp and  https://api.jquery.com/load/	   
-    });
-*/
-    // Optionally add: $(document).ajaxSend(function (event, jqxhr, settings) {jqxhr.setRequestHeader("X-CSRFToken", '{{ csrf_token }}');}); // This way all AJAX requests will always get the csrftoken.  Or see: https://docs.djangoproject.com/en/1.9/ref/csrf/#ajax  
-{% endcomment %} 
+
+    // Initialise the driver autocomplete search box:
     $("#gene").autocomplete({
-        // source: "/api/get_drivers/",   // to use Ajax call.
         source: driver_array,  // using the above array (but is reset to target_array if user selects search_by='target'.
         // It is possible to format the list items using the focus and select functions and html, etc:	
         minLength: 2,  // number of letters need to type for drop-down menu to appear.
