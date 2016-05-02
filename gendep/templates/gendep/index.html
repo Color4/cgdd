@@ -95,21 +95,21 @@ var gene_info_cache = {}; // To cache gene_info retrieved by AJAX call for the t
 // var dependency_array = [];
 
 var experimenttype_array = [
-   {% for experimenttype in experimenttype_list %} {value: "{{ experimenttype.0 }}" },
+   {% for experimenttype in experimenttype_list %} {value: "{{ experimenttype.0 }}" }{% if not forloop.last %},{% endif %}
    {% endfor %}
 ];
   
 // Using this preloaded array gives faster response than AJAX call - but in future the driver list may grow too big to preload quickly.
 // Normally needs a 'label' property, needs to contain the gene_name as it is the label that is searched for the characters pressed. Maybe add a separate description field.
-// label: "{{driver.gene_name}} | {{ driver.prevname_synonyms }}", 
+// label: "{{driver.gene_name}} | {{ driver.prevname_synonyms }}",
 var driver_array = [
-  {% for driver in driver_list %} {value: "{{driver.gene_name}}", synonyms_spaced: "{{ driver.prevname_synonyms }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" },
+  {% for driver in driver_list %}{value: "{{driver.gene_name}}", synonyms: "{{ driver.prevname_synonyms }}", full_name: "{{driver.full_name}}", tissue_list: "{{driver.driver_histotype_list}}", study_list: "{{driver.driver_study_list}}" }{% if not forloop.last %},{% endif %}
   {% endfor %}
 ];
 
 
 var target_array = [
-//   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prevname_synonyms }}", synonyms_spaced: "{{ target.prevname_synonyms }}", full_name: "{{target.full_name}}"},
+//   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prevname_synonyms }}", synonyms: "{{ target.prevname_synonyms }}", full_name: "{{target.full_name}}"}{% if not forloop.last %},{% endif %}
 //   {% endfor %}
 ]; // Only populated by AJAX if user selects sets the 'search_by' to 'target'
 
@@ -117,9 +117,9 @@ var target_array = [
  
 // Could use a study hash:
 var study_hash = {
-  {% for study in study_list %} "{{s.pmid}}": [ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ],
-  {#% endfor %#}
- "ALL_STUDIES": [ "All studies", "All studies", "All studies", "<b>All studies</b>" ];  
+  {% for s in study_list %}"{{s.pmid}}": [ "{{s.short_name}}", "{{s.experiment_type}}", "{{s.summary}}", '"{{s.title}}", {{s.authors|slice:"0:30"}}....et al, <i>{{s.journal}}, {{s.pub_date}}</i>' ],
+  {% endfor %}
+  "ALL_STUDIES": [ "All studies", "All studies", "All studies", "<b>All studies</b>" ]
 };
 
 // But probably faster using a switch statement as just four studies:
@@ -139,14 +139,13 @@ var ishortname=0, iexptype=1, isummary=2, idetails=3; // column indexes for abov
 var histotype_display_hash = {
  {% for histotype in histotype_list %} "{{ histotype.0 }}": "{{ histotype.1 }}",
  {% endfor %}
-  "ALL_HISTOTYPES": "All tissues";
+  "ALL_HISTOTYPES": "All tissues"
 };  //    default: return 'Error: Histotype "'+histotype+'" Not Found';
 
 function histotype_display(histotype) {
   switch (histotype) {
 	{% for histotype in histotype_list %}
-    case "{{ histotype.0 }}": return "{{ histotype.1 }}";// break;
-	{% endfor %}
+	case "{{ histotype.0 }}": return "{{ histotype.1 }}"; {% endfor %}	
     case "ALL_HISTOTYPES": return "All tissues";// break;
     default: return 'Error: Histotype "'+histotype+'" Not Found';
   }
@@ -358,7 +357,7 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 	    // Add the item's value as a data attribute on the <li>
 		// see: https://api.jqueryui.com/autocomplete/#method-_renderItem
         return $( "<li>" )
-            .append( "<a><b>" + item.value + "</b> | " + item.synonyms_spaced + '<br/><font size="-2">' + item.full_name + "</font></a>" )
+            .append( "<a><b>" + item.value + "</b> | " + item.synonyms + '<br/><font size="-2">' + item.full_name + "</font></a>" )
             .appendTo( ul );
     };  // .val('SMAD4').data('autocomplete')._trigger('change');
 	
@@ -408,7 +407,7 @@ function set_tissue_and_study_options(event, ui) {
 	  // $(this).val(b.item.value);
         var item = ui.item;   // alternatively first test: if (ui.hasOwnProperty("item")) {..... but maybe less browser support and slower
 		// item is "The item selected from the menu, if any. Otherwise the property is null."
-		console.log("Change .....");
+		//console.log("Change .....");
         if (typeof item  === 'undefined') {
 		  // As this change is called because directly value was set by URL eg: "/genedep/driver/SMAD2/"
 		  // Otherwise get error about: "Uncaught TypeError: Cannot read property 'tissue_list' of undefined"
