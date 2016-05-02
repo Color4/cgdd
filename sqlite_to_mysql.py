@@ -51,7 +51,7 @@ if connection.vendor == 'sqlite' or DB['ENGINE'][-7:] == 'sqlite3':  # ENGINE: "
     print("ERROR: In '%s/settings.py' the default DATABASE is sqlite, but this script expects MySQL (or Postrges)" %(PROJECT))
     sys.exit()
       
-print("\n** WARNING: This will delete all data from this database **")
+print("\n** WARNING: This will delete all data from database '%s' **" %(%(DB['NAME'])))
 if input("\nContinue (y/n)?").lower() != 'y':
     print("Exiting")
     sys.exit() # input() removes the trailing newline.
@@ -69,7 +69,7 @@ if input("\nContinue (y/n)?").lower() != 'y':
 if connection.vendor == 'mysql':
     print("Deleting data from the MySQL database %s ..." %(DB['NAME']))    
     print(mysql_cursor.execute("SET FOREIGN_KEY_CHECKS=0; TRUNCATE `gendep_dependency`; TRUNCATE `gendep_study`; TRUNCATE `gendep_gene`; SET FOREIGN_KEY_CHECKS=1;")) # maybe add "IF EXISTS", eg: "TRUNCATE `gendep_gene` IF EXISTS;"    
-    # The following AUTO_INCREMENT=1 reset needs to be in a separate mysql execute statrement, otherwise get error about: #        django.db.utils.ProgrammingError: (2014, "Commands out of sync; you can't run this command now")
+    # The following AUTO_INCREMENT=1 reset needs to be in a separate mysql execute statement, otherwise get error about: #        django.db.utils.ProgrammingError: (2014, "Commands out of sync; you can't run this command now")
     print(mysql_cursor.execute("ALTER TABLE `gendep_dependency` AUTO_INCREMENT=1;"))     
     
 elif connection.vendor == 'postgres':

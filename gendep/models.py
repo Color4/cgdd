@@ -187,7 +187,8 @@ class Dependency(models.Model):
     # 'HAEMATOPOIETIC_AND_LYMPHOID_TISSUE' is 35 characters long:
     histotype   = models.CharField('Histotype', max_length=35, choices=HISTOTYPE_CHOICES, db_index=True )   # also optional "default" parameter
     
-    boxplot_data = models.TextField('Boxplot data in CSV format', blank=True, default='') # The cell-lines and zscores for plotting the boxplots with javascript SVG.
+# **** Add later:
+#    boxplot_data = models.TextField('Boxplot data in CSV format', blank=True, default='') # The cell-lines and zscores for plotting the boxplots with javascript SVG.
     
     def histotype_full_name(h):
        for row in Dependency.HISTOTYPE_CHOICES:
