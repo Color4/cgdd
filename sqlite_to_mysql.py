@@ -51,7 +51,7 @@ if connection.vendor == 'sqlite' or DB['ENGINE'][-7:] == 'sqlite3':  # ENGINE: "
     print("ERROR: In '%s/settings.py' the default DATABASE is sqlite, but this script expects MySQL (or Postrges)" %(PROJECT))
     sys.exit()
       
-print("\n** WARNING: This will delete all data from database '%s' **" %(%(DB['NAME'])))
+print("\n** WARNING: This will delete all data from database '%s' **" %(DB['NAME']))
 if input("\nContinue (y/n)?").lower() != 'y':
     print("Exiting")
     sys.exit() # input() removes the trailing newline.
