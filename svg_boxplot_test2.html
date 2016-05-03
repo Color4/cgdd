@@ -12,18 +12,25 @@
   <!-- OR: script type="text/javascript" src="http://code.jquery.com/jquery-latest.min.js" -->
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 
+  
   <!-- For saving SVG image as PNG -->
-  <script src="gendep/static/gendep/saveSvgAsPng.js"></script>
+  <!--script src="gendep/static/gendep/saveSvgAsPng.js"></script-->
+  <script src="saveSvgAsPng.js"></script>
+  
   <!-- or better for IE: -->
 		<!-- For the "toDataURI()" security exception in IE, need to use the "canvg" renderer: -->
         <!-- if IE -->
-		<script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/base64.js"></script>
+		<!--script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/base64.js"></script-->
+		<script type="text/javascript" src="SVGtoDataURL/base64.js"></script>
 		<script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/rgbcolor.js"></script> 
 		<script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/canvg.js"></script> 
 		<!-- endif -->
-   <script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/svg_todataurl.js"></script>
+   <!--script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/svg_todataurl.js"></script-->
+   <script type="text/javascript" src="SVGtoDataURL/svg_todataurl.js"></script>
 
-  <link rel="stylesheet" type="text/css" href="gendep/static/gendep/style.css" />
+  <!--link rel="stylesheet" type="text/css" href="gendep/static/gendep/style.css" /-->
+  <link rel="stylesheet" type="text/css" href="style.css" />
+  
   
   <style type="text/css">
   #legend_table {
@@ -482,8 +489,8 @@ collusionTestRadius=4.6;
 //	        || ((xright<wtright[Yi+1].length) && wtright[Yi+1][xright])
 //			) {xright++; console.log('Finding xright: '+xright)}
 
-       if (tissue_count % 2 == 0) // put odd numbered tissues on the left, even on right.
-	   //if (xleft<=xright)
+//       if (tissue_count % 2 == 0) // put odd numbered tissues on the left, even on right.
+	   if (xleft<=xright)
 	     {for (var j=wtleft[Yi].length; j<xleft; j++) {wtleft[Yi][j]=false;}; wtleft[Yi][xleft]=true; x-=xleft*12;} // console.log('using xleft x='+x+' wtleft[Yi].length:'+wtleft[Yi].length);
 	   else 
 	     {for (var j=wtright[Yi].length; j<xright; j++) {wtright[Yi][j]=false;}; wtright[Yi][xright]=true; x+=xright*12;} // console.log('using xright x='+x+' wtright[Yi].length:'+wtright[Yi].length);
@@ -568,18 +575,14 @@ function generateDataURI(file) {
 	   var xleft  = search_rows_above_and_below('muleft:'+Yi,muleft[Yi],muleft[Yi-1],muleft[Yi+1],muleft[Yi-2],muleft[Yi+2]);
 	   var xright = search_rows_above_and_below('muright:'+Yi,muright[Yi],muright[Yi-1],muright[Yi+1],muright[Yi-2],muright[Yi+2]);
 
-       if (tissue_count % 2 == 0) // put odd numbered tissues on the left, even on right.	   
-//	   if (xleft<=xright)
+//       if (tissue_count % 2 == 0) // put odd numbered tissues on the left, even on right.	   
+	   if (xleft<=xright)
 	     {for (var j=muleft[Yi].length; j<xleft; j++) {muleft[Yi][j]=false;}; muleft[Yi][xleft]=true; x-=xleft*12;} // console.log('using xleft x='+x+' muleft[Yi].length:'+muleft[Yi].length);
 	   else 
 	     {for (var j=muright[Yi].length; j<xright; j++) {muright[Yi][j]=false;}; muright[Yi][xright]=true; x+=xright*12;} // console.log('using xright x='+x+' muright[Yi].length:'+muright[Yi].length);
 	   
 		}
 	
-http://stackoverflow.com/questions/2436688/append-an-object-to-a-list-in-r-in-amortized-constant-time-o1
-a <- list(0)
-            for(i in 1:n) {a <- list(a, list(i))}
-			
 	
 //	console.log('undefined',wtleft[5]);}
 	
@@ -1114,12 +1117,13 @@ I have used a hard-coded name for the image here (image.svg), but actually pick 
 <tr><td id="boxplot_title" colspan="2" style="text-align:center"></td></tr>
 </table>
 
-<a id="data" href="data:">Go to DataURL</a> <!-- #data {
+
+<a id="data" href="data:"></a> <!-- Go to DataURL  #data {
 				display: none;
 			}
 -->
 
-<img id="fromcanvas" alt="svg butterfly from canvas.toDataURL()" />
+<center><img id="fromcanvas" alt="PNG image will appear below a couple of seconds after the 'PNG image' button clicked"/></center>
 
 <!--
 It seems like if I add an arbitrary delay before trying to drawImage I meet with more success. It seems like 'onload' is firing early on SVG images, before it is actually ready, so when you go to draw the image it fails.
