@@ -1,14 +1,18 @@
+import csv, time
+import json # For ajax for the jquery autocomplete search box
+import math # For ceil()
+from urllib.request import Request, urlopen
+from urllib.error import  URLError
+from datetime import datetime # For get_timming()
+
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
+from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
 
 #Is this image comple as was locked by R:
 #    SEMG2_CAMK1_PANCAN__PMID26947069.png
  
- 
 from .models import Study, Gene, Dependency  # Removed: Histotype,
-import json # For ajax for the jquery autocomplete search box
-import math # For ceil()
-from datetime import datetime # For get_timming()
 
 # This django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
 #import logging
@@ -213,8 +217,6 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
     # returns json - should also return the error message as json format.
     # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
     # mimetype = 'text/html' # for error messages. was: 'application/json'
-
-    from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
     
     timing_array = []  # Using an array to preserve order on output.
     start = datetime.now()
@@ -525,8 +527,7 @@ def stringdb_interactions(required_score, protein_list):
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
     #print(url)
-    from urllib.request import Request, urlopen
-    from urllib.error import  URLError
+    
 # or maybe use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
 # import requests
 # r = requests.get(url, stream=True)
@@ -698,7 +699,6 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
     # The download get link needs to contain serach_by, gene, tissue, study parameters.
 
     # In Windows at least, 'csv' files are associated with Excel. To also associate tsv file with excel: In your browser, create a helper preference associating file type 'text/tab-separated values' and file extensions 'tsv' with application 'Excel'. Pressing Download will then launch Excel with the data.
-    import csv, time
     
     mimetype = 'text/html' # was: 'application/json'
     

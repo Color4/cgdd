@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-# This script to to generate the data for input to R.
+import os, csv, mygene
 
+# This script to to generate the data for input to R.
 
 # 22 March 2016:
 Partly added the ensembl_protein_id - but NOT finished - (simpler to annotate database after data is loaded into database) - so use the earlier script if need to rebuild the Achilles R input data.
@@ -39,8 +40,7 @@ AADAT_2_00101   AADAT   0.540022249007015
 
 """
 
-import os, csv
-import mygene
+
 
 analysis_dir = "Achilles_data"
 

@@ -7,7 +7,6 @@
 # Do the annotation with entrez, ensembl, etc as a separate script later.
 # Add the ensembl_protein - as is used by StringDB for interactions.
 
-
 # Script to import the data into the database tables
 # An alternative if loading data into empty database is using 'Fixtures': https://docs.djangoproject.com/en/1.9/howto/initial-data/
 # or django-adapters: http://stackoverflow.com/questions/14504585/good-ways-to-import-data-into-django
@@ -18,6 +17,15 @@ from django.db import transaction
 from django.core.exceptions import ObjectDoesNotExist
 from distutils import file_util  # Single file operations, eg: copy_file()
 from django.db.models import Count # For the distinct study and target counts for drivers.
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
+# Needs the following django.setup(), otherwise get exception about: django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
+# From google search, this django.setup() is called in the 'execute_from_command_line(sys.argv)' in the manage.py script
+#    http://stackoverflow.com/questions/25537905/django-1-7-throws-django-core-exceptions-appregistrynotready-models-arent-load
+#    http://grokbase.com/t/gg/django-users/14acvay7ny/upgrade-to-django-1-7-appregistrynotready-exception
+import django
+django.setup()
+from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
 
 # In mysqlite database, the max_length parameter for fields is ignored as "Note that numeric arguments in parentheses that following the type name (ex: "VARCHAR(255)") are ignored by SQLite - SQLite does not impose any length restrictions (other than the large global SQLITE_MAX_LENGTH limit) on the length of strings, ...." (unless use sqlites CHECK contraint option)
 
@@ -60,17 +68,6 @@ Colt_separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes_col
 
 static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
-
-# Needs the following django.setup(), otherwise get exception about: django.core.exceptions.AppRegistryNotReady: Apps aren't loaded yet.
-# From google search, this django.setup() is called in the 'execute_from_command_line(sys.argv)' in the manage.py script
-#    http://stackoverflow.com/questions/25537905/django-1-7-throws-django-core-exceptions-appregistrynotready-models-arent-load
-#    http://grokbase.com/t/gg/django-users/14acvay7ny/upgrade-to-django-1-7-appregistrynotready-exception
-import django
-django.setup()
-
-
-from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
 
 def make_AtoZ_subdirs(to_dir):  
   for i in range(ord('A'), ord('Z')+1):

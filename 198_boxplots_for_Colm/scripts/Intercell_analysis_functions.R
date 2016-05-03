@@ -881,6 +881,7 @@ fileConn<-file("boxplot_dataA_test.txt", open="w") # Output file. Needs "w" othe
 cat(names(results), "boxplot_json\n", file=fileConn, sep="\t")
 # The by_tissue results will have extra 'tissue' column.
 
+	data_rows <- character(500) # Initialise to a large empty vector so that appending is fast
 	
 	i <- NULL	
 	for(i in 1:nrow(results)){
@@ -1071,32 +1072,14 @@ boxplot_range <- c( floor(boxplot_range[1]), ceiling(boxplot_range[2]) ) # Round
 			# legend("topleft", legend=c("Line 1", "Line 2"), col=c("red", "blue"), lty=1:2, cex=0.8)
 			
 			# points for each tissue type
-#writeLines(c(paste(marker_gene,target_gene)), fileConn)
 
-cat(unname(unlist(results[i,])),file=fileConn,sep="\t") # Write the full results. As is a connection don't neeed "append=TRUE"
-
-# As JSON:
-# cat("\t{",'"range":',toJSON(boxplot_range), ',"wt_box":',toJSON(wt_boxplot_stats), ',"mu_box":',toJSON(mutant_boxplot_stats), file=fileConn, sep = "", append=TRUE)
-
-# or as CSV:
-#cat("\t",boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = "", append=TRUE)
-
-
-cat("\t", file=fileConn)
-celline_count
-cat(boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = ",")
-
-#cat("\t", file=fileConn)
-#cat("range",boxplot_range, file=fileConn, sep = ",")
-#cat(";", file=fileConn)
-#cat("wt_box",wt_boxplot_stats, file=fileConn, sep = ",")
-#cat(";", file=fileConn)
-#cat("mu_box",mutant_boxplot_stats, file=fileConn, sep = ",")
-
-cat(";", file=fileConn)
-
+# Maybe append function.
+# Maybe lapply(): http://www.r-bloggers.com/efficient-accumulation-in-r/
+# http://www.win-vector.com/blog/2015/07/efficient-accumulation-in-r/
 
 cell_line_count <- 0
+
+
 # fill = FALSE, labels = NULL,
 #    append = FALSE)
 							
@@ -1115,6 +1098,10 @@ cell_line_count <- 0
 
 				# count to check that the full number of cell_lines is sent by the AJAX call:
                 cell_line_count <- cell_line_count + length(wt_rows_by_tissue) + length(mutant_rows_by_tissue)
+				
+				data_rows_count <- 0  # Index for the 'data_rows' vector, which is number of cell-lines for this tissue (which is different from cell_line_count above for all the tissues for this driver+target)
+
+				# or set the data_rows vector length to the above: length(wt_rows_by_tissue) + length(mutant_rows_by_tissue)
 				
 			    ### SJB: To get row names, use: print(row.names(tissues)[wt_rows_by_tissue])				
 				if(length(wt_rows_by_tissue) > 0){
@@ -1149,8 +1136,10 @@ cell_line_count <- 0
 
 # or as CSV:
 for (k in 1:length(wt_rows_by_tissue)) {
-  cat(tissue,cell_line_names[k],y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  # cat(tissue,cell_line_names[k],y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   # cat(tissue,cell_line_names[k],round(x[k],2),y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  data_rows_count <- data_rows_count +1
+  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],y[k],"0", sep=",") # removed the semi colon, as will join at end using sep=';' as don't want semi-colon at end of the very last row.
   }
   
 # fill = FALSE, labels = NULL,
@@ -1195,11 +1184,20 @@ for (k in 1:length(wt_rows_by_tissue)) {
 	
 # or as CSV:
 for (k in 1:length(mutant_rows_by_tissue)) {
-  cat(tissue,cell_line_names[k],y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  #cat(tissue,cell_line_names[k],y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   #cat(tissue,cell_line_names[k],round(x[k],2),y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
+  data_rows_count <- data_rows_count +1
+  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],y[k],"1", sep=",") # removed ';' from end.
+  for empty first tissue use: if k==1 ""
+if pre-allocate rows to be large vector then keep a counter might be faster..., do not need to empty, just take slice upto size.
+
+
+  eg:
+  res <- if (k==1) tissue else ""
+# There exists also the function ifelse that allows rewriting the expression above as:
+  ifelse(k==1, tissue, "")
+
   }
-  
-  output the cell_line_count at start and put box plot stats on one line
 
 ##					points(
 ##						x,
@@ -1208,8 +1206,45 @@ for (k in 1:length(mutant_rows_by_tissue)) {
 ##						pch=19,
 ##						cex=1.5
 ##						)
-				}
-			}	
+				}  
+=======================================  
+  output the cell_line_count at start and put box plot stats on one line
+#writeLines(c(paste(marker_gene,target_gene)), fileConn)
+
+
+
+# As JSON:
+# cat("\t{",'"range":',toJSON(boxplot_range), ',"wt_box":',toJSON(wt_boxplot_stats), ',"mu_box":',toJSON(mutant_boxplot_stats), file=fileConn, sep = "", append=TRUE)
+
+# or as CSV:
+#cat("\t",boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = "", append=TRUE)
+
+#cat("\t", file=fileConn)
+#cat("range",boxplot_range, file=fileConn, sep = ",")
+#cat(";", file=fileConn)
+#cat("wt_box",wt_boxplot_stats, file=fileConn, sep = ",")
+#cat(";", file=fileConn)
+#cat("mu_box",mutant_boxplot_stats, file=fileConn, sep = ",")
+
+#cat(unname(unlist(results[i,])),file=fileConn,sep="\t")
+#cat("\t", file=fileConn)
+#cat(celline_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = ",")
+#cat(";", file=fileConn)
+#cat(head(data_rows, n = data_rows_count), file=fileConn, sep=';')
+
+# or as one cat():
+
+# Write the full results (ie. driver,target,wilcox_p, CLES, etc. As is a connection don't need "append=TRUE"
+cat(file=fileConn, sep="\t",
+  unname(unlist(results[i,])),
+  paste(sep=';',
+     paste(sep = ",", celline_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats), 
+	 head(data_rows, n=data_rows_count)
+	 )
+  )
+
+=================================
+			}
 ####			dev.off()
 # as JSON:
 # cat("}\n",  file=fileConn, append=TRUE)

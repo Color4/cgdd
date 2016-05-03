@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys, os
+import sys, os, sqlite3
 from django.db import transaction
 import mygene
 
@@ -8,6 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
 import django
 django.setup()
 
+# The following import needs to be after django.setup()
 from gendep.models import Gene, Dependency  # Study, Drug.  Removed: Histotype
 
 
@@ -279,7 +280,6 @@ def load_stringdb_protein_alias_file_into_sqlite_db():
   # http://zetcode.com/db/sqlitepythontutorial/
   # https://docs.python.org/3/library/sqlite3.html
   
-  import sqlite3
   conn = sqlite3.connect('db_symbol_to_string_protein.sqlite3')
   c = conn.cursor()
   """
@@ -447,7 +447,6 @@ gendep_gene_protein_id_dict = dict()
 def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
   # Scan trough the Gene table:
   print("Adding Ensembl protein Ids to the Gene table ...")
-  import sqlite3
   conn = sqlite3.connect('db_symbol_to_string_protein.sqlite3')
   c = conn.cursor()
   

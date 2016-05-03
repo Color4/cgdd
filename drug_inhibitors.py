@@ -1,5 +1,22 @@
 #!/usr/bin/env python
 
+import sys, os
+from django.db import transaction
+import mygene
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
+import django
+django.setup()
+
+from gendep.models import Gene, Dependency  # Study, Drug.  Removed: Histotype
+
+
+import requests
+from urllib.request import Request, urlopen
+from urllib.error import URLError
+import json
+
+
 
 # From: http://dgidb.genome.wustl.edu/api
 
@@ -31,22 +48,6 @@ params = {
 
 #genes = []
 #genes['genes'] = self.genes
-
-import sys, os
-from django.db import transaction
-import mygene
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
-import django
-django.setup()
-
-from gendep.models import Gene, Dependency  # Study, Drug.  Removed: Histotype
-
-
-import requests
-from urllib.request import Request, urlopen
-from urllib.error import URLError
-import json
 
 
 def get_interactions(gene_list):
