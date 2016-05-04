@@ -12,7 +12,7 @@ from django.conf.urls import url
 
 # Information about each gene:
 class Gene(models.Model):
-    gene_name   = models.CharField('Gene name', max_length=20, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
+    gene_name   = models.CharField('Gene name', max_length=25, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
 # *** make gene_name 25 charactes in future to cope with 'LOC100499484.C9ORF174' which is 21 characters
     original_name = models.CharField('Original name', max_length=30) # As some names are changed, especially needed for the other studies.
     is_driver   = models.BooleanField('Is driver', db_index=True, default=False) # So will know for driver search menu/webpage which to list in the dropdown menu
@@ -186,8 +186,7 @@ class Dependency(models.Model):
     # 'HAEMATOPOIETIC_AND_LYMPHOID_TISSUE' is 35 characters long:
     histotype   = models.CharField('Histotype', max_length=35, choices=HISTOTYPE_CHOICES, db_index=True )   # also optional "default" parameter
     
-# **** Add later:
-#    boxplot_data = models.TextField('Boxplot data in CSV format', blank=True, default='') # The cell-lines and zscores for plotting the boxplots with javascript SVG.
+    boxplot_data = models.TextField('Boxplot data in CSV format', blank=True, default='') # The cell-lines and zscores for plotting the boxplots with javascript SVG.
     
     def histotype_full_name(h):
        for row in Dependency.HISTOTYPE_CHOICES:

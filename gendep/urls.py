@@ -1,4 +1,5 @@
 from django.conf.urls import url
+from django.views.decorators.cache import cache_page
 
 from . import views
 
@@ -8,6 +9,7 @@ app_name = 'gendep'
 # Optional parameters: http://stackoverflow.com/questions/14351048/django-optional-url-parameters
 
 urlpatterns = [
+   # url(r'^$', cache_page(60 * 15)(views.index), name='home'),
     url(r'^$', views.index, name='home'),
     
     url(r'^about/$', views.about, name='about'),
@@ -31,8 +33,7 @@ urlpatterns = [
     
     url(r'^download_csv/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
     
-    # BUT if the columns are 'search_by' gene then need to check we're sending the correct driver_target for the search_by term:
-    url(r'get_boxplot_csv/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<target_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_boxplot_csv, name='get_boxplot_csv'),
+    url(r'get_boxplot/(?P<dataformat>(?:myformat|csvplot|download))/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<target_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_boxplot, name='get_boxplot'),
     
     url(r'^get_gene_info/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.gene_info, name='get_gene_info'), # tip=element.data('url'),
 

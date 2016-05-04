@@ -22,9 +22,9 @@ combmuts_classes_file <- "../data_sets/func_mut_calls/combined_exome_cnv_mut_cla
 # Analysis specific input files #
 # ---------------------- -------#
 
-#isCampbell = TRUE;  isAchilles = FALSE; isColt = FALSE; # Campbell(2016)
+isCampbell = TRUE;  isAchilles = FALSE; isColt = FALSE; # Campbell(2016)
 #isCampbell = FALSE; isAchilles = TRUE;  isColt = FALSE;  # Achilles (2014)
-isCampbell = FALSE; isAchilles = FALSE; isColt = TRUE;  # Colt (2016)
+#isCampbell = FALSE; isAchilles = FALSE; isColt = TRUE;  # Colt (2016)
 
 if (isAchilles) { #### Achilles:
   # SJB - for Achilles - input files in C:/Users/HP/Django_projects/cgdd
@@ -177,31 +177,32 @@ uv_results_kinome_combmuts_bytissue <- read.table(
 # Plot all combmuts results coloured by tissue
 # select associations where wilcox.p ≤ 0.05
 
-source("../scripts/Intercell_analysis_functions.R")
-debug(make_mini_box_dot_plots)
-make_mini_box_dot_plots(
-	results=as.data.frame(
-		uv_results_kinome_combmuts[which(
-			uv_results_kinome_combmuts[,"wilcox.p"] <= 0.05 &
-			uv_results_kinome_combmuts[,"CLES"] >= 0.65 # SJB Added this effect_size test
-			),]
-		),
-	zscores=kinome_combmuts$rnai,
-	mutation.classes=kinome_combmuts$mut_classes,
-	mutations=kinome_combmuts$func_muts,
-	exclusions=kinome_combmuts$all_muts,
-	tissues=kinome_combmuts$tissues,
-	prefix_for_filename=combined_histotypes_boxplot_dir,
-	suffix_for_filename="PANCAN", # SJB WAS: "allhistotypes",
-	pubmed_id_for_filename=pubmed_id, # Added by SJB 
-	tissue_pretty_names=legend_pretty_tissues,
-	tissue_actual_names=legend_actual_tissues,
-	tissue_cols=legend_col
-	)
+#source("../scripts/Intercell_analysis_functions.R")
+#debug(make_mini_box_dot_plots)
+#make_mini_box_dot_plots(
+#	results=as.data.frame(
+#		uv_results_kinome_combmuts[which(
+#			uv_results_kinome_combmuts[,"wilcox.p"] <= 0.05 &
+#			uv_results_kinome_combmuts[,"CLES"] >= 0.65 # SJB Added this effect_size test
+#			),]
+#		),
+#	zscores=kinome_combmuts$rnai,
+#	mutation.classes=kinome_combmuts$mut_classes,
+#	mutations=kinome_combmuts$func_muts,
+#	exclusions=kinome_combmuts$all_muts,
+#	tissues=kinome_combmuts$tissues,
+#	prefix_for_filename=combined_histotypes_boxplot_dir,
+#	suffix_for_filename="PANCAN", # SJB WAS: "allhistotypes",
+#	pubmed_id_for_filename=pubmed_id, # Added by SJB 
+#	tissue_pretty_names=legend_pretty_tissues,
+#	tissue_actual_names=legend_actual_tissues,
+#	tissue_cols=legend_col
+#	)
 
 
+fileConn<-file(open="w", paste0( sub("\\.txt$","",uv_results_kinome_combmuts_file), "_and_boxplotdata.txt") ) # Need "\\." to correctly escape the dot in regexp in R
 source("../scripts/Intercell_analysis_functions.R")
-debug(write_box_dot_plot_data)
+#debug(write_box_dot_plot_data)
 write_box_dot_plot_data(
 	results=as.data.frame(
 		uv_results_kinome_combmuts[which(
@@ -214,19 +215,24 @@ write_box_dot_plot_data(
 	mutations=kinome_combmuts$func_muts,
 	exclusions=kinome_combmuts$all_muts,
 	tissues=kinome_combmuts$tissues,
-	suffix_for_filename="PANCAN", # SJB WAS: "allhistotypes",
+	fileConn = fileConn,
+	writeheader=TRUE,
 	tissue_actual_names=legend_actual_tissues
 	)
-	
+close(fileConn) # caller should close the fileConn	
+
 	
 # Plot combmuts results for separate histotypes
-# select associations where wilcox.p ≤ 0.05
+# select associations where wilcox.p <= 0.05 and CLES > =0.65
+fileConn<-file(open="w", 
+paste0( sub("\\.txt$","",uv_results_kinome_combmuts_bytissue_file), "_and_boxplotdata.txt") ) # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
 tissues <- levels(as.factor(uv_results_kinome_combmuts_bytissue$tissue))
+write_header <- TRUE
 for(this_tissue in tissues){
 	rows_to_plot <- which(
 		kinome_combmuts$tissues[,this_tissue] == 1
 		)
-	make_mini_box_dot_plots(
+	write_box_dot_plot_data(
 		results=as.data.frame(
 			uv_results_kinome_combmuts_bytissue[which(
 				uv_results_kinome_combmuts_bytissue[,"wilcox.p"] <= 0.05 &
@@ -239,14 +245,43 @@ for(this_tissue in tissues){
 		mutations=kinome_combmuts$func_muts[rows_to_plot,],
 		exclusions=kinome_combmuts$all_muts[rows_to_plot,],
 		tissues=kinome_combmuts$tissues[rows_to_plot,],
-		prefix_for_filename=separate_histotypes_boxplot_dir,
-		suffix_for_filename=this_tissue,
-		pubmed_id_for_filename=pubmed_id, # Added by SJB
-		tissue_pretty_names=legend_pretty_tissues,
+		fileConn=fileConn,
+		writeheader=write_header,
 		tissue_actual_names=legend_actual_tissues,
-		tissue_cols=legend_col
 		)
+	write_header <- FALSE # As only write the header line for first call of the above write_boxplot_data
 }
+close(fileConn) # caller should close the fileConn
+
+	
+# Plot combmuts results for separate histotypes
+# select associations where wilcox.p <= 0.05
+#tissues <- levels(as.factor(uv_results_kinome_combmuts_bytissue$tissue))
+#for(this_tissue in tissues){
+#	rows_to_plot <- which(
+#		kinome_combmuts$tissues[,this_tissue] == 1
+#		)
+#	make_mini_box_dot_plots(
+#		results=as.data.frame(
+#			uv_results_kinome_combmuts_bytissue[which(
+#				uv_results_kinome_combmuts_bytissue[,"wilcox.p"] <= 0.05 &
+#				uv_results_kinome_combmuts_bytissue[,"CLES"] >= 0.65 & # SJB Added this effect_size test
+#				uv_results_kinome_combmuts_bytissue[,"tissue"] == this_tissue
+#				),]
+#			),
+#		zscores=kinome_combmuts$rnai[rows_to_plot,],
+#		mutation.classes=kinome_combmuts$mut_classes[rows_to_plot,],
+#		mutations=kinome_combmuts$func_muts[rows_to_plot,],
+#		exclusions=kinome_combmuts$all_muts[rows_to_plot,],
+#		tissues=kinome_combmuts$tissues[rows_to_plot,],
+#		prefix_for_filename=separate_histotypes_boxplot_dir,
+#		suffix_for_filename=this_tissue,
+#		pubmed_id_for_filename=pubmed_id, # Added by SJB
+#		tissue_pretty_names=legend_pretty_tissues,
+#		tissue_actual_names=legend_actual_tissues,
+#		tissue_cols=legend_col
+#		)
+#}
 
 
 make_legends()

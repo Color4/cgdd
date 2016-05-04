@@ -58,7 +58,7 @@ function study_url(study_pmid) {
 
 function study_weblink(study_pmid, study) {
 //	if (typeof study === 'undefined') {
-		return sprintf('<a href="%s" target="_blank">%s</a>', study_url(study_pmid),study[0]);
+		return sprintf('<a href="%s" target="_blank">%s</a>', study_url(study_pmid),study[ishortname]);
 		// not displaying this now: study = study_info(study_pmid); 	// returns: short_name, experiment_type, summary, "title, authors, journal, s.pub_date"
 //        }
 //    return sprintf('<a class="tipright" href="%s" target="_blank">%s<span>%s</span></a>', study_url(click()), study[0], study[3] );
@@ -243,7 +243,7 @@ function show_search_info(data) {
   
   $("#gene_weblinks").html(gene_external_links(data['gene_ids'], '|', true));
   
-  $("#result_info").html( "For "+ search_by +" gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in " + study_info(qi['study_pmid'])[3]);
+  $("#result_info").html( "For "+ search_by +" gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in " + study_info(qi['study_pmid'])[idetails]);
   
   // was: qi['study_details']
 
@@ -275,7 +275,6 @@ function show_search_info(data) {
       $("#download_csv_button").html('Downloading CSV file')
 	//return true;
    });
-
 
 
 /*  
@@ -690,6 +689,11 @@ function toggle_show_drugs(obj,drug_names,div,gene) {
 //onclick="show_drugs(this);"
 //onclick="hide_drugs(this);"
 
+
+function show_enrichr() {
+  alert("Enrichr not enabled yet");
+}
+
 function make_drug_links(drug_names,div) {
   // DBIdb paper: http://nar.oxfordjournals.org/content/44/D1/D1036.full
   var drugs = drug_names.split(div); // 'div' is comma or semi-colon
@@ -876,7 +880,7 @@ function populate_table(data,t0) {
       if (search_by_driver) {target = d[igene];}
       else {driver = d[igene];}
 		
-	  var plot_function = "plot('" + driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[itarget_variant] +"');";
+	  var plot_function = "plot('" + driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[izdelta] +comma+ d[itarget_variant] +"');";
 
       // Another way to pouplatte table is using DocumentFragment in Javascript:
       //      https://www.w3.org/TR/DOM-Level-2-Core/core.html#ID-B63ED1A3
@@ -964,7 +968,7 @@ function populate_table(data,t0) {
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		'<td data-exptype="'+d[istudy_pmid]+'">' + study[1] + '</td>' + // experiment type. The 'data-exptype=""' is use by tooltips
+		'<td data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' + // experiment type. The 'data-exptype=""' is use by tooltips
         interaction_cell +  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
 		
 	    inhibitor_cell +  //'<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
@@ -1102,7 +1106,7 @@ function is_form_complete() {
   // Good answer: http://stackoverflow.com/questions/2028557/how-to-zoom-in-an-image-and-center-it
   
 // Could possibly use $(this).parent() to set background colour for row, then store this in global variable, then in fancybox close event set row color back to normal...eg: http://stackoverflow.com/questions/4253558/how-to-get-the-html-table-particullar-cell-value-using-javascript
-function show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant) {
+function show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score,target_info, target_variant) {
   // This is a separate function from plot(...) as this can be a called when Ajax succeeds.
 
 // eg: http://jsfiddle.net/STgGM/
@@ -1132,7 +1136,7 @@ function show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_
 //console.log(gene_info_cache[target]);
 //console.log(target_ids);
     
-  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
+  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')';
 
   if (typeof target_info === 'undefined') {plot_title += '<br/>Unable to retrieve synonyms and external links for this gene';}
   else {
@@ -1185,12 +1189,18 @@ function show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_
 
 
 //function plot(index) { // The index number of the dependency in the array
-function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_variant) { // The index number of the dependency in the array
+
+
+// onclick="show_svg_boxplot('ERBB2','DGKG', 'PANCAN','26947069');"
+
+function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_variant) { // The index number of the dependency in the array
 //console.log(target);
   var target_info;
   if (target in gene_info_cache) {
 	target_info = gene_info_cache[target];
-	show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
+	
+	show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant);
+	// Previously for PNG images:  show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant);	
 	}
   else {
 	// The target_info will usually have already been retreived by hoovering over the target in table, but if user clicked fast, then might not have been retreived yet.
@@ -1210,7 +1220,11 @@ function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, targ
 		 // target_info = undefined;
          })
 	  .always(function() {
-	  	 show_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, target_info, target_variant);
+		  		 
+	  	 show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant);
+
+	  	 // WAS: show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant);		 
+		 
 	     });
     }
 	

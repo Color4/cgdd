@@ -22,6 +22,9 @@ from .models import Study, Gene, Dependency  # Removed: Histotype,
 
 json_mimetype = 'application/json; charset=utf-8'
 html_mimetype = 'text/html; charset=utf-8'
+csv_mimetype  = 'text/csv; charset=utf-8' # can be called: 'application/x-csv' or 'application/csv'
+tab_mimetype  = 'text/tab-separated-values; charset=utf-8'
+plain_mimetype ='text/plain; charset=utf-8'
     
 def json_error(message, status_code='0'):    
     return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), json_mimetype ) # eg: str(exception)
@@ -463,16 +466,37 @@ CDK11A
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
 
-def get_boxplot_csv(request, driver_name, target_name, histotype_name, study_pmid):  # Optionally a 'target_variant' for the Achilles data
+def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, study_pmid):  # Optionally a 'target_variant' for the Achilles data
+    try:
+        d = Dependency.objects.get(driver_id=driver_name, target_id=target_name, histotype=histotype_name, study_id=study_pmid)
+        
+    except ObjectDoesNotExist: # Not found by the objects.get()
+        error_msg = "Error, Dependency: driver='%s' target='%s' tissue='%s' study='%s' NOT found in Dependency table" %(driver_name, target_name, histotype_name, study_pmid)
+        return HttpResponse(error_msg, content_type=plain_mimetype)
+
+    if dataformat == 'csvplot':
+        return HttpResponse(d.boxplot_data, content_type=csv_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
+        
+    elif dataformat=='download':        
+        dest_filename = ('%s_%s_%s_pmid%s.csv' %(driver_name,target_name,histotype_name,study_pmid)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
+        # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
+        response = HttpResponse(d.boxplot_data, content_type=csv_mimetype) # Maybe use the  type for tsv files?    
+        response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
+        return response
+            
+    else:
+        print("*** Invalid dataformat requested for get_boxplot() ***")
+        return HttpResponse("Error, Invalid dataformat '"+dataformat+"' requested for get_boxplot()", content_type=plain_mimetype)
+        
     """
 =================
    Not complete yet:
    if delim_type=='csv':
         dialect = csv.excel
-        content_type='text/csv' # can be called: 'application/x-csv' or 'application/csv'
+        content_type = csv_mimetype
     elif delim_type=='tsv':
         dialect = csv.excel_tab
-        content_type='text/tab-separated-values'
+        content_type = tab_mimetype
     else:
         return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
 
@@ -577,10 +601,10 @@ def get_stringdb_interactions(request, required_score, protein_list):
         #    if len(cols)<2: continue # As eg. has a newline at end so empty line at end
         #    result += cols[0].replace('string:', '')+"\t"+cols[1].replace('string:', '')+"\n"
         #print(protein_list2)
-        return HttpResponse(protein_list2, content_type='text/plain') # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
+        return HttpResponse(protein_list2, content_type=plain_mimetype) # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
     else:
         print(response)
-        return HttpResponse('ERROR: '+response, content_type='text/plain')
+        return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
     # Maybe handle any exception - eg. server doesn't respond
 
 
@@ -625,10 +649,10 @@ def cytoscape(request, required_score, protein_list):
         context = {'node_list': node_list, 'edge_list': edge_list}
         return render(request, 'gendep/cytoscape.html', context)
 
-        # return HttpResponse(protein_list2, content_type='text/plain') # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data 
+        # return HttpResponse(protein_list2, content_type=plain_mimetype) # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data 
     else:
         print(response)
-        return HttpResponse('ERROR: '+response, content_type='text/plain')
+        return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
     # Maybe handle any exception - eg. server doesn't respond
 
     
@@ -700,7 +724,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
 
     # In Windows at least, 'csv' files are associated with Excel. To also associate tsv file with excel: In your browser, create a helper preference associating file type 'text/tab-separated values' and file extensions 'tsv' with application 'Excel'. Pressing Download will then launch Excel with the data.
     
-    mimetype = 'text/html' # was: 'application/json'
+    mimetype = html_mimetype # was: 'application/json'
     
     # see: http://stackoverflow.com/questions/6587393/resource-interpreted-as-document-but-transferred-with-mime-type-application-zip
     
@@ -760,10 +784,10 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
 
     if delim_type=='csv':
         dialect = csv.excel
-        content_type='text/csv' # can be called: 'application/x-csv' or 'application/csv'
+        content_type = csv_mimetype # can be called: 'application/x-csv' or 'application/csv'
     elif delim_type=='tsv':
         dialect = csv.excel_tab
-        content_type='text/tab-separated-values'
+        content_type = tab_mimetype
     else:
         return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
 

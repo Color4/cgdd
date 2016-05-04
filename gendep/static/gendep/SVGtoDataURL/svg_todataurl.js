@@ -112,13 +112,33 @@ SVGElement.prototype.toDataURL = function(type, options) {
     function image_onload_timeout(canvas,ctx,svg_img) {  // SJB
 			debug("exported image size: " + [svg_img.width, svg_img.height])			
 			canvas.width = svg_img.width;
-			canvas.height = svg_img.height;			
-			ctx.drawImage(svg_img, 0, 0);
+			canvas.height = svg_img.height;
+
+			try {		
+				ctx.drawImage(svg_img, 0, 0);  // Throws error in IE 11 (and other IEs): http://stackoverflow.com/questions/24346090/drawimage-raises-script65535-on-ie11
+				// and: https://connect.microsoft.com/IE/feedback/details/809823/draw-svg-image-on-canvas-context		
+			} catch (e) {
+				// So could try again:
+				//           setTimeout(function() {context.drawImage(image, 0, 0)}, 1);
+				// setTimeout(function() {drawPiece(ctx,x,y,type,color)}, 1);
+				alert("Error: Internet explorer has issues converting SVG to PNG images. Try using another webbrowser, such as Firefox, Opera, Chrome or Safari")
+			}
+			// Will see if the IE update fixes this: https://www.microsoft.com/en-us/download/details.aspx?id=51031
 
 			// SECURITY_ERR WILL HAPPEN NOW
-			var png_dataurl = canvas.toDataURL(type);
-			debug(type + " length: " + png_dataurl.length);
-
+			try {  // SJB added this try .... catch based on idea from 'saveSVGAsPng.js'
+				var png_dataurl = canvas.toDataURL(type);
+				debug(type + " length: " + png_dataurl.length);
+			} catch (e) {
+				if ((typeof SecurityError !== 'undefined' && e instanceof SecurityError) || e.name == "SecurityError") {
+				console.error("Rendered SVG images cannot be downloaded in this browser.");
+				alert('Rendered SVG to PNG images cannot be downloaded using this button in this browser, due to an issue with the browser\'s "canvas.toDataURL()" function.\n\nInstead if you are using Internet Explorer: with mouse pointer on the boxplot image, click the RIGHT mouse button, then from the popup menu choose "Save picture as...", then in the save dialog that appears, for the "Save as type" choose "PNG (*.png)", then "Save". If that doesn\'t work, then then try Firefox, Opera, Chrome or Safari browsers.');
+				return;
+				} else {
+					throw e;
+				}
+			}
+				
 			if (options.callback) options.callback( png_dataurl );
 			else debug("WARNING: no callback set, so nothing happens.");
     }
@@ -135,7 +155,7 @@ SVGElement.prototype.toDataURL = function(type, options) {
 		svg_img.src = base64dataURLencode(svg_xml);
 
 		svg_img.onload = function() {
-		    setTimeout(function() {image_onload_timeout(canvas,ctx,svg_img);}, 1000); // SJB: To try to overcome the error in IE 
+		    setTimeout(function() {image_onload_timeout(canvas,ctx,svg_img);}, 50); // SJB: To try to overcome the error in IE 
 		}
 		
 		svg_img.onerror = function() {

@@ -25,7 +25,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
 #    http://grokbase.com/t/gg/django-users/14acvay7ny/upgrade-to-django-1-7-appregistrynotready-exception
 import django
 django.setup()
-from gendep.models import Study, Gene, Drug, Dependency  # Removed: Histotype, 
+from gendep.models import Study, Gene, Dependency  # Removed: Histotype, Drug, 
 
 # In mysqlite database, the max_length parameter for fields is ignored as "Note that numeric arguments in parentheses that following the type name (ex: "VARCHAR(255)") are ignored by SQLite - SQLite does not impose any length restrictions (other than the large global SQLITE_MAX_LENGTH limit) on the length of strings, ...." (unless use sqlites CHECK contraint option)
 
@@ -47,7 +47,7 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
  
 FETCH_BOXPLOTS = False # True # False # True # Should also test that is running on development computer.
 ACHILLES_FETCH_BOXPLOTS = False # True # False # True # Should also test that is running on development computer.
-COLT_FETCH_BOXPLOTS = True # False
+COLT_FETCH_BOXPLOTS = False # False
 
 # Build paths inside the project like this: os.path.join(PROJECT_DIR, ...)
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__)) # Full path to my django project directory, which is: "C:/Users/HP/Django_projects/cgdd/"  or: "/home/sbridgett/cgdd/"
@@ -75,10 +75,10 @@ def make_AtoZ_subdirs(to_dir):
     if not os.path.exists(to_dir_subdir): os.mkdir(to_dir_subdir)
 
 
-def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_name,target_name, old_histotype, histotype, old_pmid, pmid):
-  from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, old_target_name, old_histotype, old_pmid)
+def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_name,target_name, old_histotype, histotype, pmid):
+  from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, old_target_name, old_histotype, pmid)
   if not os.path.exists(from_filename): # As mostly already changed in Achilles data
-      from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, target_name, old_histotype, old_pmid)
+      from_filename = "%s/%s_%s_%s__PMID%s.png" %(from_dir, old_driver_name, target_name, old_histotype, pmid)
   
   to_dir_subdir = to_dir+'/' + driver_name[:1] # Storing in A-Z subdirectories to let OS find file a bit faster.
   # if not os.path.exists(to_dir_subdir): os.mkdir(to_dir_subdir) Already created by make_AtoZ_subdirs()
@@ -255,6 +255,9 @@ def load_mygene_hgnc_dictionary():
 
 RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
 
+# *** maybe not needed:
+#from django.utils.encoding import smart_text;
+
 def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names is a tuple of: gene_name, entrez_id, ensembl_id
   # if names[0] == 'PIK3CA' and is_driver: print("**** PIK3CA  is_driver: ",names)
   #global RE_GENE_NAME
@@ -296,15 +299,40 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
       g.save()
       
     # Test if ensemble_id is same:
-    if entrez_id != '' and g.entrez_id != entrez_id:
+    g_entrez_id = g.entrez_id
+    if entrez_id != '' and g_entrez_id != entrez_id:
       if g.entrez_id != '':
-        print("WARNING: For gene '%s': Entrez_id '%s' already saved in the Gene table doesn't match '%s' from the Excel file" %(g.gene_name,g.entrez_id,entrez_id))
+        print("WARNING: For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the Excel file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
       else:
         print("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
-        g.save()
-    if g.ensembl_id != ensembl_id: print("WARNING: For gene '%s': Ensembl_id '%s' already saved in the Gene table doesn't match '%s' from Excel file" %(g.gene_name, g.ensembl_id, ensembl_id) )
-
+        g.save()        
+        
+    if str(g.ensembl_id) != ensembl_id:
+      print("WARNING: For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from Excel file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
+    """
+ 1162 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
+WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
+WARNING: For gene 'THNSL1': Ensembl_id '('ENSG00000185875',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000185875' (<class 'str'>) from Excel file
+ 1163 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
+WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
+WARNING: For gene 'PBK': Ensembl_id '('ENSG00000168078',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000168078' (<class 'str'>) from Excel file
+ 1164 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
+WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
+WARNING: For gene 'UCK2': Ensembl_id '('ENSG00000143179',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000143179' (<class 'str'>) from Excel file
+    
+    
+    
+ 549 WARNING: For gene 'RB1': Entrez_id '('5925',)' already saved in the Gene table doesn't match '5925' from the Excel file
+WARNING: For gene 'RB1': Ensembl_id '('ENSG00000139687',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000139687' (<class 'str'>) from Excel file
+ 550 WARNING: For gene 'RB1': Entrez_id '('5925',)' already saved in the Gene table doesn't match '5925' from the Excel file
+WARNING: For gene 'RB1': Ensembl_id '('ENSG00000139687',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000139687' (<class 'str'>) from Excel file
+WARNING: For gene 'RELA': Ensembl_id '('ENSG00000173039',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000173039' (<class 'str'>) from Excel file
+ 551 WARNING: For gene 'RB1': Entrez_id '('5925',)' already saved in the Gene table doesn't match '5925' from the Excel file
+WARNING: For gene 'RB1': Ensembl_id '('ENSG00000139687',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000139687' (<class 'str'>) from Excel file
+WARNING: For gene 'RIOK3': Ensembl_id '('ENSG00000101782',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000101782' (<class 'str'>) from Excel file
+    """
+    
   except ObjectDoesNotExist: # Not found by the objects.get()
     # if gene_name == 'PIK3CA': print("PIK3CA Here B")
     if gene_name not in hgnc:
@@ -324,13 +352,13 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
 
       prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
       
-      full_name  = this_hgnc[ifull_name],       # eg: erb-b2 receptor tyrosine kinase 2      
-      entrez_id  = this_hgnc[ientrez_id],       # eg: 2064
-      ensembl_id = this_hgnc[iensembl_id],      # eg: ENSG00000141736
-      cosmic_id  = this_hgnc[icosmic_id],       # eg: ERBB2
-      omim_id    = this_hgnc[iomim_id],         # eg: 164870
-      uniprot_id = this_hgnc[iuniprot_id],      # eg: P04626
-      vega_id    = this_hgnc[ivega_id],         # eg: OTTHUMG00000179300
+      full_name  = this_hgnc[ifull_name]       # eg: erb-b2 receptor tyrosine kinase 2      
+      entrez_id  = this_hgnc[ientrez_id]       # eg: 2064
+      ensembl_id = this_hgnc[iensembl_id]      # eg: ENSG00000141736
+      cosmic_id  = this_hgnc[icosmic_id]       # eg: ERBB2
+      omim_id    = this_hgnc[iomim_id]         # eg: 164870
+      uniprot_id = this_hgnc[iuniprot_id]      # eg: P04626
+      vega_id    = this_hgnc[ivega_id]         # eg: OTTHUMG00000179300
       hgnc_id    = this_hgnc[ihgnc_id]
 
       # In HGNC some genes have two or three OMIM IDs, eg: gene "ATRX" has omim_id: "300032|300504" (length=13, but column width is 10, and simpler to just store first name)
@@ -435,11 +463,11 @@ def fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles, isColt, 
        
     to_dir = static_gendep_boxplot_dir
     old_histotype = get_boxplot_histotype(histotype)
-    fetch_boxplot(from_dir, to_dir, driver_gene.original_name, driver_gene.gene_name, target_gene_original_name, target_gene_name, old_histotype, histotype,  study_old_pmid, study.pmid)
+    fetch_boxplot(from_dir, to_dir, driver_gene.original_name, driver_gene.gene_name, target_gene_original_name, target_gene_name, old_histotype, histotype, study.pmid)
     
     
 # driver_counter = dict() # To count the number of times each driver is added to the database
-def import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid):
+def import_data_from_tsv_table(csv_filepathname, table_name, study):
   global FETCH_BOXPLOTS
   print("\nImporting table: ",csv_filepathname)
   print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
@@ -522,7 +550,7 @@ def add_counts_of_study_tissue_and_target_to_drivers():
       print("*** ERROR: driver gene_name % NOT found in the Gene table: '%s'" %(row['driver']))
   print("Finished adding study, tissue and target counts to the drivers in the dependency table")
 
-def add_counts_of_driver_tissue_and_target_to_studies(colt_pmid, colt_num_tissues):
+def add_counts_of_driver_tissue_and_target_to_studies(campbell_study, campbell_num_targets,  achilles_study, achilles_num_targets,  colt_study, colt_num_targets):
   print("Adding driver, tissue and target counts to studies")
   # select study, count(distinct driver), count(distinct histotype), count(distinct target) from gendep_dependency group by study;
   counts = Dependency.objects.values('study').annotate( num_drivers=Count('driver', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
@@ -537,11 +565,19 @@ def add_counts_of_driver_tissue_and_target_to_studies(colt_pmid, colt_num_tissue
       if s.pmid != row['study']:
         print("*** ERROR: count study mismatch for '%s' and '%s'" %(s.pmid,row['study']))
       else:
-        if s.pmid == colt_pmid:
-           s.num_targets = colt_study_num_tissues
-           print("But setting num_studies=%d (instead of %d) for Colt study (pmid=%s) as that is actual number tested in the study" %(colt_study_num_tissues,row['num_targets'],colt_pmid))
+        if s == campbell_study:
+           s.num_targets = campbell_num_targets
+           print("But setting num_targets=%d (instead of %d) for Campbell study (pmid=%s) as that is actual number tested in the study" %(campbell_num_targets,row['num_targets'],campbell_study.pmid))
+        elif s == achilles_study:
+           s.num_targets = achilles_num_targets
+           print("But setting num_targets=%d (instead of %d) for Achilles study (pmid=%s) as that is actual number tested in the study" %(achilles_num_targets,row['num_targets'],achilles_study.pmid))
+        elif s == colt_study:
+           s.num_targets = colt_num_targets
+           print("But setting num_targets=%d (instead of %d) for Colt study (pmid=%s) as that is actual number tested in the study" %(colt_num_targets,row['num_targets'],colt_study.pmid))
         else:
+           print("WARNING: Unknown pmid: %s" %(s.pmid))
            s.num_targets = row['num_targets']
+
         s.num_drivers = row['num_drivers']
         s.num_histotypes = row['num_histotypes']
 
@@ -551,7 +587,7 @@ def add_counts_of_driver_tissue_and_target_to_studies(colt_pmid, colt_num_tissue
   print("Finished adding driver, tissue and target counts to the study table")
 
 
-def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tissue_type, isAchilles=True, isColt=True):
+def read_achilles_R_results(result_file, table_name, study, tissue_type, isAchilles=True, isColt=True):
   global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS, COLT_FETCH_BOXPLOTS
   if isAchilles and isColt: print("*** ERROR: Cannot be both Achilles and Colt ******")
 
@@ -585,10 +621,11 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
   iwilcox = header_dict['wilcox.p'] # should be 16 if zero based
   ieffect_size = header_dict['CLES'] # CLES = 'common language effect size'
   # Added: zA     zB    ZDiff
-  iza = header_dict['za']
-  izb = header_dict['zb']
-  izdiff = header_dict['zdiff']
-  itissue = header_dict.get('tissue', -1) # The pancan file has no tissue column.        
+  iza = header_dict['zA']
+  izb = header_dict['zB']
+  izdiff = header_dict['ZDiff']
+  itissue = header_dict.get('tissue', -1) # The 'pancan' file has no tissue column.
+  iboxplotdata = header_dict['boxplot_data']
   
   for row in dataReader:      
     # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
@@ -651,6 +688,7 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
             d.za = row[iza]
             d.zb = row[izb]
             d.zdiff = row[izdiff]
+            d.boxplot_data = row[iboxplotdata]
             if d.target_variant == target_variant: print("** ERRROR: target_variant already in database for target_variant '%s' and key: '%s'" %(target_variant,key))
             d.target_variant = target_variant # Need to update the target_variant, as it is needed to retrieve the correct boxplot from the R boxplots, where image file is: driver_gene_target_gene+target_variant_histotype_Pmid.png
             count_replaced += 1
@@ -658,7 +696,7 @@ def read_achilles_R_results(result_file, table_name, study, study_old_pmid, tiss
             count_not_replaced += 1        
     else:
         # Added: zA     zB    ZDiff
-        d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], za = row[iza], zb = row[izb], zdiff = row[izdiff], histotype=histotype, mutation_type=mutation_type, study=study)
+        d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], za = row[iza], zb = row[izb], zdiff = row[izdiff], histotype=histotype, mutation_type=mutation_type, study=study, boxplot_data = row[iboxplotdata])
         # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
         # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
         dependencies.append( d )
@@ -880,20 +918,69 @@ def unmark_drivers_not_in_the_21genes():
 
   print("Finished unmarking drivers that are not in the list of 21 drivers")
 
-  
 
+def add_the_three_studies():
+    # ============================================================================================
+    Campbell_study_pmid = "26947069"
+    study_code = "B" # 'B' for campBell
+    study_short_name = "Campbell(2016)"
+    study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
+    study_authors = "Campbell J, Colm JR, Brough R, Bajrami I, Pemberton H, Chong I, Costa-Cabral S, Frankum J, Gulati A, Holme H, Miller R, Postel-Vinay S, Rafiq R, Wei W, Williamson CT, Quigley DA, Tym J, Al-Lazikani B, Fenton T, Natrajan R, Strauss S, Ashworth A, Lord CJ"
+    study_abstract = "One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."
+    study_summary = "siRNA screen of 714 kinase and kinase-related genes in 117 different tumor cell lines"
+    study_experiment_type = "kinome siRNA"
+    study_journal = "Cell reports"
+    study_pub_date = "2016, 2 Mar"
+    Campbell_study_num_targets = 713  # check this
 
+    Campbell_study=add_study( Campbell_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
+
+    # ============================================================================================
+    # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
+    Achilles_study_pmid     = "25984343"
+    study_code = "A" # 'A' for Achilles
+    study_short_name = "Cowley(2014)"
+    study_title = "Parallel genome-scale loss of function screens in 216 cancer cell lines for the identification of context-specific genetic dependencies."
+    study_authors = "Cowley GS, Weir BA, Vazquez F, Tamayo P, Scott JA, Rusin S, East-Seletsky A, Ali LD, Gerath WF, Pantel SE, Lizotte PH, Jiang G, Hsiao J, Tsherniak A, Dwinell E, Aoyama S, Okamoto M, Harrington W, Gelfand E, Green TM, Tomko MJ, Gopal S, Wong TC, Li H, Howell S, Stransky N, Liefeld T, Jang D, Bistline J, Hill Meyers B, Armstrong SA, Anderson KC, Stegmaier K, Reich M, Pellman D, Boehm JS, Mesirov JP, Golub TR, Root DE, Hahn WC"
+    study_abstract = "Using a genome-scale, lentivirally delivered shRNA library, we performed massively parallel pooled shRNA screens in 216 cancer cell lines to identify genes that are required for cell proliferation and/or viability. Cell line dependencies on 11,000 genes were interrogated by 5 shRNAs per gene. The proliferation effect of each shRNA in each cell line was assessed by transducing a population of 11M cells with one shRNA-virus per cell and determining the relative enrichment or depletion of each of the 54,000 shRNAs after 16 population doublings using Next Generation Sequencing. All the cell lines were screened using standardized conditions to best assess differential genetic dependencies across cell lines. When combined with genomic characterization of these cell lines, this dataset facilitates the linkage of genetic dependencies with specific cellular contexts (e.g., gene mutations or cell lineage). To enable such comparisons, we developed and provided a bioinformatics tool to identify linear and nonlinear correlations between these features."
+    study_summary = "shRNA screen of 11,000 genes in 216 different cancer cell lines, with 5 shRNAs per gene"
+    study_experiment_type = "genome shRNA"
+    study_journal = "Scientific Data"
+    study_pub_date = "2014, 30 Sep"
+    Achilles_study_num_targets = 5013 # see my email
+    
+    Achilles_study=add_study( Achilles_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+
+    # ==================================================================================================
+    # Colt:  https://neellab.github.io/bfg/   https://www.ncbi.nlm.nih.gov/pubmed/26771497
+   
+    Colt_study_pmid = "26771497"
+    study_code = "C"  # 'C' for Colt
+    study_short_name = "Marcotte(2016)"
+    study_title = "Functional Genomic Landscape of Human Breast Cancer Drivers, Vulnerabilities, and Resistance."
+    study_authors = "Marcotte R, Sayad A, Brown KR, Sanchez-Garcia F, Reimand J, Haider M, Virtanen C, Bradner JE, Bader GD, Mills GB, Pe'er D, Moffat J, Neel BG"
+    study_abstract = "Large-scale genomic studies have identified multiple somatic aberrations in breast cancer, including copy number alterations and point mutations. Still, identifying causal variants and emergent vulnerabilities that arise as a consequence of genetic alterations remain major challenges. We performed whole-genome small hairpin RNA (shRNA) \"dropout screens\" on 77 breast cancer cell lines. Using a hierarchical linear regression algorithm to score our screen results and integrate them with accompanying detailed genetic and proteomic information, we identify vulnerabilities in breast cancer, including candidate \"drivers,\" and reveal general functional genomic properties of cancer cells. Comparisons of gene essentiality with drug sensitivity data suggest potential resistance mechanisms, effects of existing anti-cancer drugs, and opportunities for combination therapy. Finally, we demonstrate the utility of this large dataset by identifying BRD4 as a potential target in luminal breast cancer and PIK3CA mutations as a resistance determinant for BET-inhibitors."
+    study_summary = "shRNA screen of on 77 breast cancer cell lines. Dropout trends for each screen in at three time points (8-9 arrays per screen, and a total of 621 arrays)"
+    study_experiment_type = "genome shRNA"
+    study_journal = "Cell"
+    study_pub_date = "2016, 14 Jan"
+    Colt_study_num_targets = 15697 # The actual number of targets tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirement.
+
+    Colt_study=add_study( Colt_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    
+    return Campbell_study,Achilles_study,Colt_study,  Campbell_study_num_targets,  Achilles_study_num_targets, Colt_study_num_targets
+    
 
 if __name__ == "__main__":
 # add_tissue_and_study_lists_for_each_driver()
 
-  unmark_drivers_not_in_the_21genes()
+  ##unmark_drivers_not_in_the_21genes()
   
   #add_counts_of_driver_tissue_and_target_to_studies()
   #sys.exit()
   #exit()
 
-if __name__ == "__sjb_ignore_these__":  
+##if __name__ == "__sjb_ignore_these__":  
   # global static_gendep_boxplot_dir As this isn't a def then don't need global here.
   if static_gendep_boxplot_dir is None or static_gendep_boxplot_dir == '':
      print("****** WARNING: static_gendep_boxplot_dir is empty ******")
@@ -905,78 +992,47 @@ if __name__ == "__sjb_ignore_these__":
   load_hgnc_dictionary()
   load_mygene_hgnc_dictionary()
   
-  # ============================================================================================
-  Campbell_study_pmid = "26947069"
-  study_old_pmid = "nnnnnnnn" # This is  the ID assigned to boxplots by the R script at present, but can change this in future to be same as the actual pmid.
-  study_old_pmid = "26947069"
-  study_code = "B" # 'B' for campBell
-  study_short_name = "Campbell(2016)"
-  study_title = "Large Scale Profiling of Kinase Dependencies in Cancer Cell Line"
-  study_authors = "Campbell J, Colm JR, Brough R, Bajrami I, Pemberton H, Chong I, Costa-Cabral S, Frankum J, Gulati A, Holme H, Miller R, Postel-Vinay S, Rafiq R, Wei W, Williamson CT, Quigley DA, Tym J, Al-Lazikani B, Fenton T, Natrajan R, Strauss S, Ashworth A, Lord CJ"
-  study_abstract = "One approach to identifying cancer-specific vulnerabilities and novel therapeutic targets is to profile genetic dependencies in cancer cell lines. Here we use siRNA screening to estimate the genetic dependencies on 714 kinase and kinase-related genes in 117 different tumor cell lines. We provide this dataset as a resource and show that by integrating siRNA data with molecular profiling data, such as exome sequencing, candidate genetic dependencies associated with the mutation of specific cancer driver genescan be identified. By integrating the identified dependencies with interaction datasets, we demonstrate that the kinase dependencies associated with many cancer driver genes form dense connections on functional interaction networks. Finally, we show how this resource may be used to make predictions about the drug sensitivity of genetically or histologically defined subsets of cell lines, including an increased sensitivity of osteosarcoma cell lines to FGFR inhibitors and SMAD4 mutant tumor cells to mitotic inhibitors."
-  study_summary = "siRNA screen of 714 kinase and kinase-related genes in 117 different tumor cell lines"
-  study_experiment_type = "kinome siRNA"
-  study_journal = "Cell reports"
-  study_pub_date = "2016, 2 Mar"
- 
+     
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
     print("\nEmptying database tables")
-    for table in (Dependency, Study, Gene, Drug): table.objects.all().delete()  # removed: Histotype,
+    for table in (Dependency, Study, Gene): table.objects.all().delete()  # removed: Histotype, Drug
 
-    study=add_study( Campbell_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
+    Campbell_study, Achilles_study, Colt_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets = add_the_three_studies()
   
     #for table_name in ('S1I', 'S1K'):
     #  csv_filepathname=os.path.join(PROJECT_DIR, os.path.join('input_data', 'Table_'+table_name+'_min_cols.txt'))   # Full path and name to the csv file
-    #  import_data_from_tsv_table(csv_filepathname, table_name, study, study_old_pmid)
+    #  import_data_from_tsv_table(csv_filepathname, table_name, study)
   # transaction.commit() # just needed if used "transaction.set_autocommit(False)"
 
     # BUT NEED to FIX THE
     table_name ='S1I'
-    Cambell_results_pancan = "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize.txt"
-    csv_filepathname=os.path.join(analysis_dir, Cambell_results_pancan)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=False, isColt=False)
+    Campbell_results_pancan= "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
+    csv_filepathname=os.path.join(analysis_dir, Campbell_results_pancan)
+    read_achilles_R_results(csv_filepathname, table_name, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
     table_name = 'S1K'
-    Cambell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize.txt"
-    csv_filepathname=os.path.join(analysis_dir, Cambell_results_bytissue)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
+    Campbell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
+    csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
+    read_achilles_R_results(csv_filepathname, table_name, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
-    Campbell_study_num_tissues = 
+
     # *** NOTE, warnings from R:
     # There were 50 or more warnings (use warnings() to see the first 50)
 
     # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
     # cannot compute exact p-value with ties
 
-    # ============================================================================================
-    # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
-    Achilles_study_pmid     = "25984343"
-    study_old_pmid = "25984343"
-    study_code = "A" # 'A' for Achilles
-    study_short_name = "Cowley(2014)"
-    study_title = "Parallel genome-scale loss of function screens in 216 cancer cell lines for the identification of context-specific genetic dependencies."
-    study_authors = "Cowley GS, Weir BA, Vazquez F, Tamayo P, Scott JA, Rusin S, East-Seletsky A, Ali LD, Gerath WF, Pantel SE, Lizotte PH, Jiang G, Hsiao J, Tsherniak A, Dwinell E, Aoyama S, Okamoto M, Harrington W, Gelfand E, Green TM, Tomko MJ, Gopal S, Wong TC, Li H, Howell S, Stransky N, Liefeld T, Jang D, Bistline J, Hill Meyers B, Armstrong SA, Anderson KC, Stegmaier K, Reich M, Pellman D, Boehm JS, Mesirov JP, Golub TR, Root DE, Hahn WC"
-    study_abstract = "Using a genome-scale, lentivirally delivered shRNA library, we performed massively parallel pooled shRNA screens in 216 cancer cell lines to identify genes that are required for cell proliferation and/or viability. Cell line dependencies on 11,000 genes were interrogated by 5 shRNAs per gene. The proliferation effect of each shRNA in each cell line was assessed by transducing a population of 11M cells with one shRNA-virus per cell and determining the relative enrichment or depletion of each of the 54,000 shRNAs after 16 population doublings using Next Generation Sequencing. All the cell lines were screened using standardized conditions to best assess differential genetic dependencies across cell lines. When combined with genomic characterization of these cell lines, this dataset facilitates the linkage of genetic dependencies with specific cellular contexts (e.g., gene mutations or cell lineage). To enable such comparisons, we developed and provided a bioinformatics tool to identify linear and nonlinear correlations between these features."
-    study_summary = "shRNA screen of 11,000 genes in 216 different cancer cell lines, with 5 shRNAs per gene"
-    study_experiment_type = "genome shRNA"
-    study_journal = "Scientific Data"
-    study_pub_date = "2014, 30 Sep"
-    study=add_study( Achilles_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
-
-    #Achilles_results_pancan = "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_160312_preeffectsize.txt"
     table_name = ''
-    Achilles_results_pancan ="univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_180312_witheffectsize.txt"
+    Achilles_results_pancan =  "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_30April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='PANCAN', isAchilles=True, isColt=False)
+    ######read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
     table_name = ''
-    Achilles_results_bytissue ="univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
+    Achilles_results_bytissue = "univariate_results_Achilles_v2_for23drivers_bytissue_kinome_combmuts_30April2016witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
-
-    Achilles_study_num_tissues = 
+    ######read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
     
     #** Maybe my browser memory?
     #https://www.ncbi.nlm.nih.gov/pubmed/
@@ -987,30 +1043,11 @@ if __name__ == "__sjb_ignore_these__":
     #Cookie
     #/n
 
-    # ==================================================================================================
-    # Colt:  https://neellab.github.io/bfg/   https://www.ncbi.nlm.nih.gov/pubmed/26771497
-   
-    Colt_study_pmid     = "26771497"
-    study_old_pmid = "26771497"
-    study_code = "C"  # 'C' for Colt
-    study_short_name = "Marcotte(2016)"
-    study_title = "Functional Genomic Landscape of Human Breast Cancer Drivers, Vulnerabilities, and Resistance."
-    study_authors = "Marcotte R, Sayad A, Brown KR, Sanchez-Garcia F, Reimand J, Haider M, Virtanen C, Bradner JE, Bader GD, Mills GB, Pe'er D, Moffat J, Neel BG"
-    study_abstract = "Large-scale genomic studies have identified multiple somatic aberrations in breast cancer, including copy number alterations and point mutations. Still, identifying causal variants and emergent vulnerabilities that arise as a consequence of genetic alterations remain major challenges. We performed whole-genome small hairpin RNA (shRNA) \"dropout screens\" on 77 breast cancer cell lines. Using a hierarchical linear regression algorithm to score our screen results and integrate them with accompanying detailed genetic and proteomic information, we identify vulnerabilities in breast cancer, including candidate \"drivers,\" and reveal general functional genomic properties of cancer cells. Comparisons of gene essentiality with drug sensitivity data suggest potential resistance mechanisms, effects of existing anti-cancer drugs, and opportunities for combination therapy. Finally, we demonstrate the utility of this large dataset by identifying BRD4 as a potential target in luminal breast cancer and PIK3CA mutations as a resistance determinant for BET-inhibitors."
-    study_summary = "shRNA screen of on 77 breast cancer cell lines. Dropout trends for each screen in at three time points (8-9 arrays per screen, and a total of 621 arrays)"
-    study_experiment_type = "genome shRNA"
-    study_journal = "Cell"
-    study_pub_date = "2016, 14 Jan"
-    study=add_study( Colt_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
-
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
     table_name = ''
-    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_12April2016_witheffectsize.txt"
-    
+    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_29April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
-    read_achilles_R_results(csv_filepathname, table_name, study, study_old_pmid, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
-
-    Colt_study_num_tissues = 15697 # The actual number of tisses tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirtement.
+    ######read_achilles_R_results(csv_filepathname, table_name, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
     
     # I downloaded: https://neellab.github.io/bfg/
     # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
@@ -1018,6 +1055,10 @@ if __name__ == "__sjb_ignore_these__":
     # ============================================================================================
     add_counts_of_study_tissue_and_target_to_drivers()
     #### ***** and add counts of num_drivers 
-    add_counts_of_driver_tissue_and_target_to_studies(colt_pmid=Colt_study_pmid, colt_num_tissues=Colt_study_num_tissues)
+    add_counts_of_driver_tissue_and_target_to_studies(    
+        campbell_study=Campbell_study, campbell_num_targets=Campbell_study_num_targets,
+        achilles_study=Achilles_study, achilles_num_targets=Achilles_study_num_targets,
+        colt_study=Colt_study,         colt_num_targets=Colt_study_num_targets
+    )
     
     add_tissue_and_study_lists_for_each_driver()

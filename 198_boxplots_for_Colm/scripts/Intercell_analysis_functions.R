@@ -111,7 +111,7 @@ if (isAchilles) {
 	"ENDOMETRIUM",
 	"CENTRAL_NERVOUS_SYSTEM"
 	)
-} else if(isColt) {	 # Only Breast
+} else if(isColt) {	 # Only Breast, but dummy BONE added for plotting
   legend_actual_tissues = c(
 	"BREAST"
     )
@@ -653,7 +653,7 @@ make_legends <- function(){
     #   tissue_cols <- legend_col
 
 	# The parameters used in the cgdd website are: 	w16_cex8 (ie. w=1.6, cex 0.8)
-	png(filename=paste("Legend_PMID", pubmed_id, ".png", sep=""),
+	png(filename=paste0("Legend_PMID", pubmed_id, ".png"),
 		# width=5.3, height=4.5, units="in", res=96)
 		# width=4.0, height=4.5, units="in", res=96)
 		width=1.6, height=4.0, units="in", res=96) # was: width=1.5,
@@ -870,15 +870,16 @@ write_box_dot_plot_data <- function(
 	mutations,
 	exclusions,
 	tissues,
-	suffix_for_filename,  # PANCAN or this_tissue (eg. BONE)
+	fileConn,
+	writeheader,
 	tissue_actual_names,
 	response_type="Z-score"
 	){
 
 # Using cat() as does less conversion than print() so should be faster: https://stat.ethz.ch/R-manual/R-devel/library/base/html/cat.html
-fileConn<-file("boxplot_dataA_test.txt", open="w") # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
+#fileConn<-file("boxplot_dataA_test.txt", open="w") # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
 
-cat(names(results), "boxplot_json\n", file=fileConn, sep="\t")
+if (writeheader){cat(names(results), "boxplot_data\n", file=fileConn, sep="\t")}
 # The by_tissue results will have extra 'tissue' column.
 
 	data_rows <- character(500) # Initialise to a large empty vector so that appending is fast
@@ -954,9 +955,6 @@ cat(names(results), "boxplot_json\n", file=fileConn, sep="\t")
 			# Trim the target_variant last character from the gene names for Achilles data:
 			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 #print(sprintf("driver:%s,target:%s",marker_gene,target_gene), quote = FALSE)
-
-
-
 
 			
 			# boxplot based on all data (wt and mut groups)
@@ -1077,7 +1075,9 @@ boxplot_range <- c( floor(boxplot_range[1]), ceiling(boxplot_range[2]) ) # Round
 # Maybe lapply(): http://www.r-bloggers.com/efficient-accumulation-in-r/
 # http://www.win-vector.com/blog/2015/07/efficient-accumulation-in-r/
 
-cell_line_count <- 0
+cell_line_count <- 0  # This should be same as the data_rows_count
+
+data_rows_count <- 0  # Index for the 'data_rows' vector, which is number of cell-lines for this tissue (which is different from cell_line_count above for all the tissues for this driver+target)
 
 
 # fill = FALSE, labels = NULL,
@@ -1099,8 +1099,6 @@ cell_line_count <- 0
 				# count to check that the full number of cell_lines is sent by the AJAX call:
                 cell_line_count <- cell_line_count + length(wt_rows_by_tissue) + length(mutant_rows_by_tissue)
 				
-				data_rows_count <- 0  # Index for the 'data_rows' vector, which is number of cell-lines for this tissue (which is different from cell_line_count above for all the tissues for this driver+target)
-
 				# or set the data_rows vector length to the above: length(wt_rows_by_tissue) + length(mutant_rows_by_tissue)
 				
 			    ### SJB: To get row names, use: print(row.names(tissues)[wt_rows_by_tissue])				
@@ -1114,7 +1112,18 @@ cell_line_count <- 0
 					cell_line_tissues <- sub("^(.*?)_","",cell_lines) # the part after the first "_"
 #					print(cell_line_tissues)
 					if(length(which(cell_line_tissues != tissue)) > 0){
-					   stop(paste("ERROR:",cell_line_tissues, "!=", tissue))
+					   unequal_tissues <- which(cell_line_tissues != tissue)
+					   for (k in 1:length(unequal_tissues)) {
+					      if (tissue=="INTESTINE" && (cell_line_tissues[k]=="LARGE_INTESTINE" || cell_line_tissues[k]=="SMALL_INTESTINE")) {
+						    #print(paste("Accepting:",cell_line_tissues[k],"==",tissue))
+						    } else {
+					         stop(paste("ERROR:",cell_line_tissues[k], "!=", tissue[k]))
+						    }
+					   # But for Achilles data we allow the case of: 
+					   #LARGE_INTESTINE != INTESTINE
+					   #SMALL_INTESTINE != INTESTINE
+					   # and lung.
+					   }
 					}
 					
 					# for JSON:
@@ -1142,6 +1151,8 @@ for (k in 1:length(wt_rows_by_tissue)) {
   # Optionally add: (if (k==1) tissue else "")
   data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],y[k],"0", sep=",") # removed the semi colon, as will join at end using sep=';' as don't want semi-colon at end of the very last row.
   }
+#  paste(tissue,cell_line_names,y,"0", sep=",", ';') # Maybe collapse argument will combine these together more efficiently than the above loop?
+
   
 # fill = FALSE, labels = NULL,
 #    append = FALSE)
@@ -1166,7 +1177,14 @@ for (k in 1:length(wt_rows_by_tissue)) {
 					cell_line_tissues <- sub("^(.*?)_","",cell_lines) # the part after the first "_"
 #					print(cell_line_tissues)
 					if(length(which(cell_line_tissues != tissue)) > 0){
-					   stop(paste("ERROR:",cell_line_tissues, "!=", tissue))
+					   unequal_tissues <- which(cell_line_tissues != tissue)					
+					   for (k in 1:length(unequal_tissues)) {
+					      if (tissue=="INTESTINE" && (cell_line_tissues[k]=="LARGE_INTESTINE" || cell_line_tissues[k]=="SMALL_INTESTINE")) {
+						    # print(paste("Accepting:",cell_line_tissues[k],"==",tissue))
+						    } else {
+					         stop(paste("ERROR:",cell_line_tissues[k], "!=", tissue[k]))
+						    }
+						}
 					}
 					# for JSON:
 					cell_line_names <- sub("_.*$","",cell_lines) # the part before the first "_"					
@@ -1184,9 +1202,9 @@ for (k in 1:length(wt_rows_by_tissue)) {
 # "c":"143B,CAL72,HOS,HUO3N1,HUO9,MG63,NOS1,NY,SAOS2,SJSA1,U2OS"
 	
 	
-	http://stackoverflow.com/questions/2436688/append-an-object-to-a-list-in-r-in-amortized-constant-time-o1
-a <- list(0)
-            for(i in 1:n) {a <- list(a, list(i))}
+#	http://stackoverflow.com/questions/2436688/append-an-object-to-a-list-in-r-in-amortized-constant-time-o1
+# a <- list(0)
+#            for(i in 1:n) {a <- list(a, list(i))}
 			
 
 	
@@ -1195,8 +1213,8 @@ for (k in 1:length(mutant_rows_by_tissue)) {
   #cat(tissue,cell_line_names[k],y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   #cat(tissue,cell_line_names[k],round(x[k],2),y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   data_rows_count <- data_rows_count +1
-  # Optionally add:  if (length(wt_rows_by_tissue)==0 && k==1) tissue else "")
-  data_rows[data_rows_count] <- paste( (tissue,cell_line_names[k],y[k],"1", sep=",") # removed ';' from end.
+  # Optionally add:  (if (length(wt_rows_by_tissue)==0 && k==1) tissue else "")
+  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],y[k],"1", sep=",") # removed ';' from end.
   # or: ifelse(k==1, tissue, "")
   
   # for empty first tissue use: if k==1 ""
@@ -1236,11 +1254,11 @@ for (k in 1:length(mutant_rows_by_tissue)) {
 #cat(";", file=fileConn)
 #cat("mu_box",mutant_boxplot_stats, file=fileConn, sep = ",")
 
-=================================
+#=================================
 			} # end of: for(j in 1:length(tissue_actual_names)){ ....
 #cat(unname(unlist(results[i,])),file=fileConn,sep="\t")
 #cat("\t", file=fileConn)
-#cat(celline_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = ",")
+#cat(cell_line_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats, file=fileConn, sep = ",")
 #cat(";", file=fileConn)
 #cat(head(data_rows, n = data_rows_count), file=fileConn, sep=';')
 
@@ -1249,14 +1267,29 @@ for (k in 1:length(mutant_rows_by_tissue)) {
 # Write the full results (ie. driver,target,wilcox_p, CLES, etc. As is a connection don't need "append=TRUE"
 # Hierarchy of separaters: , ; \t \n
 #  output the cell_line_count at start and put box plot stats on one line
-cat(file=fileConn, sep="\t",
-  unname(unlist(results[i,])),
-  paste(sep=';',
-     paste(sep = ",", celline_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats), 
-	 head(data_rows, n=data_rows_count)
-	 )
-  )			
-cat("\n", file=fileConn)
+
+if (data_rows_count!=cell_line_count) {stop(paste("ERROR:",cell_line_count, "!=", tissue))}
+# Correct:
+#"ERBB2_2064_ENSG00000141736      MAP2K3_ENSG00000034152  12      67      0.000379762881197737    0.807213930348259       range,-5,2;
+#wt_box,-2.66,-1.28,-0.62,0.04,1.26;
+#mu_box,-4.61,-3.555,-1.765,-0.91,-0.62;
+#BONE,143B,1.14,-0.21,0;BONE,CAL72,1.1,-0.61,0;BONE,G292,1.01,-1.85,0;BONE,HOS,1.13,-2.15,0;BONE,HUO3N1,0.86,-1.12,0;BONE,HUO9,0.82,-0.91,0;BONE,MG63,0.71,-1.48,0;BONE,NOS1,1.12,-0.99,0;BONE,NY,0.97,0.18,0;BONE,SAOS2,1.16,-0.91,0;BONE,SJSA1,1.11,0.88,0;BONE,U2O"
+
+"ERBB2_2064_ENSG00000141736      MAP2K3_ENSG00000034152  12      67      0.000379762881197737    0.807213930348259       -1.765  -0.62   -1.145  
+(count:)79,
+(range:)-5,2,
+(wt_box:)-2.66,-1.28,-0.62,0.04,1.26,
+(mu_box:)-4.61,-3.555,-1.765,-0.91,-0.62;
+(cell_line:)BONE,143B,-0.21,0;
+(cell_line:)BONE,CAL72,-0.61,0;
+(cell_line:)BONE,G292,-1.85,0;BONE,HOS,-2.15,0;BONE,HUO3N1,-1.12,0;BONE,HUO9,-0.91,0;BONE,MG63,-1.48,0;BONE,NOS1,-0.99,0;BONE,NY,0.18,0;BONE,SAOS2,-0.91,0;BONE,SJSA1,0.88,0;BONE,U2OS,0.36,0;BREAST,BT20,-2.29,0;BREAST,BT549,-1.67,0;BREAST,CAL120,1.26,0;BREAST,CAL51,-0.67,0;BREAST,CAMA1,1.04,0;BREAST,DU4475,0.22,0;BREAST,HCC38,-0.23,0;BREAST,HCC70,-0.91,0;BREAST,HS578T,-2.03,0;BREAST,MCF7,-0.42,0;BREAST,MDAMB157,-1.54,0;BREAST,MDAMB231,-0.1,0;..."
+
+cat(file=fileConn, sep="\t", unname(unlist(results[i,])))
+cat(file=fileConn, "\t")
+cat(file=fileConn, sep = ",", cell_line_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats)
+cat(file=fileConn, ";")
+cat(file=fileConn, sep=';', data_rows[1:data_rows_count]))  # data_rows[1:data_rows_count] is same as head(data_rows, n=data_rows_count)
+cat(file=fileConn, "\n")
 
 ####			dev.off()
 # as JSON:
@@ -1268,7 +1301,7 @@ cat("\n", file=fileConn)
 
 		} # end of: if(results$nA[i] > 2){ marker_gene <- strsplit(results$marker[i], "_")[[1]][1]; target_gene <- strsplit(results$target[i], "_")[[1]][1]
 	}
-	close(fileConn)
+#	close(fileConn) # caller should close the fileConn
 }
 
 
