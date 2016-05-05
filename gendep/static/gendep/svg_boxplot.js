@@ -287,10 +287,80 @@ function search_rows_above_and_below(which_row,row,row_above,row_below,row_twoab
         }
     return i;
 }
-	   
 
+ 
+function boxplot_stats(y) {
+// for an array of input numbers (integers or floating point), returns an array of 7 numbers for:
+// min, 1.5min, quartile, median, quartile, 1.5max, max
+// similar to R's boxplot.stats function.
+// see: https://en.wikipedia.org/wiki/Box_plot#Types_of_box_plots
+// or the lowest datum still within 1.5 IQR of the lower quartile, and the highest datum still within 1.5 IQR of the upper quartile (often called the Tukey boxplot)[2][3] (as in figure 3)
+// https://en.wikipedia.org/wiki/Five-number_summary#Example_in_R
+    if (y.length==0) {return [];} // return empty array as no data.
+	var sorted = y.sort(function(a, b){return a-b}); // by default sort comapres as strings, so need this compare function parameter.
+    var n = sorted.length;
+    var last = n-1; // as zero-based arrays
+	var min = sorted[0];
+	var max = sorted[last];
+	
+	// Median position: ((n+1)/2 -1) = ((last+2)/2 -1) = ((last+2-2)/2) = last/2
+	var len_is_odd = (last %2 == 0);  // same as: len %2 != 0
+    var median = len_is_odd ? sorted[last/2] : 0.5*(sorted[(last-1)/2] + sorted[(last+1)/2]);
+	  // odd: same as (len/2)-0.5. eg. for 10,20,30: we want index (2)/1 = 1 as zero-based arrays, so 20.
+      // even: eg. for 10,20,30,40 so (3-1)/2=index 1, and (3+1)/2 = index 2, so 0.5*(20+30)
+
+	// Lower quartile pos: ((n+1)/4 -1) = ((last+2)/4 -1) = ((last+2-4)/4) = ((last-2)/4)
+    // Upper quartile pos: (3*(n+1)/4 -1) = (3*(last+2)/4 -1) = (3*last+6-4)/4) = ((3*last+2)/4)
+	// eg: 1,2,3,4,5,6,7,8,9,10,11, so quartiles 3,9, ie. zero-based pos 2 and 8.
+	// or other ways: https://en.wikipedia.org/wiki/Quartile, eg: "Tukey's hinges
+	var median_pos_is_odd = ((last-2) % 4 == 0);
+    if (median_pos_is_odd) {
+       var lower_quartile = sorted[(last-2)/4];
+       var upper_quartile = sorted[(3*last+2)/4];
+	}
+    else {
+	   // Use floor() and ceiling() or subtract the modulus result: (last-2) % 4
+	   var mod = (last-2) % 4;
+       var iq = (last-2-mod)/4;
+	consol.log("Lower mod:"+mod+" iq:"+iq);
+       var lower_quartile = 0.5*(sorted[iq] + sorted[iq+1]);
+       // var lower_quartile = 0.5*(sorted[Math.floor(iq)] + sorted[Math.ceiling(iq)]);
+       mod = (3*last+2) % 4;  // will be the reverse of mod above - ie. mirror image (ie. (4-mod_above)
+       iq = (3*last+2-mod)/4;
+	   // iq = (3*last+2+mod)/4; // if use the above mod, then: var upper_quartile = 0.5*(sorted[iq-1] + sorted[iq]);
+	consol.log("Upper mod:"+mod+" iq:"+iq);	 
+       var upper_quartile = 0.5*(sorted[iq] + sorted[iq+1]);
+       // var upper_quartile = 0.5*(sorted[Math.floor(iq)] + sorted[Math.ceiling(iq)]);	   
+	}
+	
+	var quartile_range_15 = 1.5*(upper_quartile - lower_quartile); // as whiskers are within (1.5 of interquartile range) from the first and third quartile.
+    var lower_whisker = (lower_quartile-quartile_range_15);
+    for (var i=0; i<=last; i++) {
+		if (sorted[i]>=lower_whisker) {lower_whisker=sorted[i]; break}
+	}
+    var upper_whisker = (upper_quartile+quartile_range_15);
+    for (var i=last; i>=0; i--) {
+		if (sorted[i]<=upper_whisker) {upper_whisker=sorted[i]; break}
+	}
+	
+	// eg: There are eight observations, so the median is the mean of the two middle numbers, (2 + 13)/2 = 7.5. Splitting the observations either side of the median gives two groups of four observations. The median of the first group is the lower or first quartile, and is equal to (0 + 1)/2 = 0.5. The median of the second group is the upper or third quartile, and is equal to (27 + 61)/2 = 44. The smallest and largest observations are 0 and 63.
+	
+	return [ min, lower_whisker, lower_quartile, median, upper_quartile, upper_whisker, max ];
+}
+
+// Process 3D:
+//https://github.com/nylen/d3-process-map
+
+//http://nylen.tv/d3-process-map/graph.php
+//http://nylen.tv/d3-process-map/graph.php?dataset=les-mis
+
+//illustrate the relationships between objects in a process using d3.js.
+
+	   
 function beeswarm(lines,wtx,mux,boxwidth) {
 // A beeswarm with jitter example: http://jsfiddle.net/5kc0wtfg/5/
+
+console.log(boxplot_stats([6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49]));
 
   tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
 
@@ -946,7 +1016,7 @@ function download_boxplot(download_type, driver, target, histotype, study_pmid) 
    // http://weworkweplay.com/play/saving-html5-canvas-as-image/
   }
 
-
+   
    // Alternative to save as SVG use:
    // http://stackoverflow.com/questions/2483919/how-to-save-svg-canvas-to-local-filesystem
 
@@ -1217,10 +1287,8 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 
   var study = study_info(study_pmid);
 
-  var plot_title = '<hr/><p style="margin-top: 0; text-align: center; line-height: 1.7"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b></br>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')';
+  var plot_title = '<hr/><p style="margin-top: 0; text-align: center; line-height: 1.7"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b></br>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')<p>';
 
-//  $("#boxplot_title").html("<b>"+target+"</b> altered cell lines have an increased dependency upon <b>"+driver+"</b><br/>(p="+wilcox_p+" | effect size="+effect_size+" | &Delta;Score="+zdelta_score+" | Tissues="+histotype + " | Source="+study + ")<br/>WebLinks ......");
-  
   var plot_links='';
   if (typeof target_info === 'undefined') {plot_links = 'Unable to retrieve synonyms and external links for this gene';}
   else {
@@ -1231,7 +1299,7 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
 	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
 	  }
-  plot_title += '<br/>'+plot_links+'</p>';
+  plot_title += '<p stype="text-align: center; line-height: 1.7">'+plot_links+'</p>';
 
 //===========================================================================
 /*

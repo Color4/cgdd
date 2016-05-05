@@ -444,9 +444,67 @@ function show_cytoscape() {
 }
 
 
+/*
+function enrich(options) {
+	// This is redirecting to the Enrichr site, as: http://amp.pharm.mssm.edu/Enrichr/help#faq&q=3
+	//To use it, simply call:
+    //    enrich({list: genes});
+    // in your JavaScript and pass in genes as a list of Entrez Gene symbols separated by newlines.
+	// You can include a description for the list by using:
+    //    enrich({list: genes, description: "My description"});
+    // To have the results pop up in a new window, use:
+    //    enrich({list: genes, popup: true});
 
-function show_enrichr(display_callback_function) {
-    var gene_set_library='KEGG_2015';
+    if (typeof options.list === 'undefined') {
+        alert('No genes defined.');
+    }
+
+    var description  = options.description || "",
+    	popup = options.popup || false,
+    	form = document.createElement('form'),
+    	listField = document.createElement('input'),
+    	descField = document.createElement('input');
+  
+    form.setAttribute('method', 'post');
+    form.setAttribute('action', 'http://amp.pharm.mssm.edu/Enrichr/enrich');
+    if (popup) {
+        form.setAttribute('target', '_blank');
+    }
+    form.setAttribute('enctype', 'multipart/form-data');
+
+    listField.setAttribute('type', 'hidden');
+    listField.setAttribute('name', 'list');
+    listField.setAttribute('value', options.list);
+    form.appendChild(listField);
+
+    descField.setAttribute('type', 'hidden');
+    descField.setAttribute('name', 'description');
+    descField.setAttribute('value', description);
+    form.appendChild(descField);
+
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+*/
+
+function show_enrichr() {
+    var dependency_search = global_selected_gene+", "+histotype_display(global_selected_histotype)+", "+study_info(global_selected_study)[ishortname]+'.';
+    var gene_list_and_count = get_id_list_for_depenedencies("\n", 'gene');
+	if (gene_list_and_count[1]==0) {
+		alert("Sorry: No gene names found in this dependency table to submit to Enrichr")
+		return false; // to cancel form submission
+	    }		
+	var description = "For "+gene_list_and_count[1] +" genes from CGDD dependency search: "+dependency_search;  
+    document.getElementById("enrichr_list").value = gene_list_and_count[0];
+	document.getElementById("enrichr_description").value = description;
+    return true; // to submit the form, otherwise false;
+    }
+
+
+function fetch_enrichr_data(display_callback_function) {
+	// This is using the JSON API, via the pythonanywhere server: 
+    var gene_set_library='KEGG_2016';
 	$("#result_progress_div").html("<b><font color='red'>Fetching Enrichr "+gene_set_library+" enrichment ....</font></b>");
 	
 	var gene_list_and_count = get_id_list_for_depenedencies(';', 'gene');
