@@ -239,10 +239,8 @@ function axes(wtxc,muxc, ymin,ymax, driver, target) {
     text(muxc,ymin+23/yscale,18,false,"mutant");
 
     text(0.5*(XscreenMin+XscreenMax)/xscale,ymin+45/yscale,20,false,driver+"  status");
-	
-
 		
-	line(XscreenMin/xscale, ymin, XscreenMin/xscale, ymax, "1px", false, "black"); // y-axis
+	line(XscreenMin/xscale, ymin, XscreenMin/xscale, ymax, "1px", false, "black"); // y-axis	
 	for (var y=ymin; y<=ymax; y++) {
 	  line((XscreenMin-5)/xscale,y, XscreenMin/xscale,y,"1px",false,"black")
 	  var x = y>=0 ? 0.32 : 0.27;
@@ -296,6 +294,7 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 
   tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
 
+  var wtHorizPointSpacing = 8, muHorizPointSpacing = 12;  // was 12 for horizontal point spacing, but ERBB2 vs ERBB2 points overflow the boxplot width
   var tissue_count=0;
   var wtleft=[], wtright=[], muleft=[], muright=[]; // To avoid overlapping points.
   var wt_tissue_counts = {}, mu_tissue_counts = {};
@@ -365,9 +364,9 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 
 //       if (tissue_count % 2 == 0) // put odd numbered tissues on the left, even on right.
 	   if (xleft<=xright)
-	     {for (var j=wtleft[Yi].length; j<xleft; j++) {wtleft[Yi][j]=false;}; wtleft[Yi][xleft]=true; x-=xleft*12;} // console.log('using xleft x='+x+' wtleft[Yi].length:'+wtleft[Yi].length);
+	     {for (var j=wtleft[Yi].length; j<xleft; j++) {wtleft[Yi][j]=false;}; wtleft[Yi][xleft]=true; x-=xleft*wtHorizPointSpacing;} // console.log('using xleft x='+x+' wtleft[Yi].length:'+wtleft[Yi].length);
 	   else 
-	     {for (var j=wtright[Yi].length; j<xright; j++) {wtright[Yi][j]=false;}; wtright[Yi][xright]=true; x+=xright*12;} // console.log('using xright x='+x+' wtright[Yi].length:'+wtright[Yi].length);
+	     {for (var j=wtright[Yi].length; j<xright; j++) {wtright[Yi][j]=false;}; wtright[Yi][xright]=true; x+=xright*wtHorizPointSpacing;} // console.log('using xright x='+x+' wtright[Yi].length:'+wtright[Yi].length);
 	   
 // return; // as run away script maybe ?
 	   
@@ -451,9 +450,9 @@ function generateDataURI(file) {
 
 //       if (tissue_count % 2 == 0) // put odd numbered tissues on the left, even on right.	   
 	   if (xleft<=xright)
-	     {for (var j=muleft[Yi].length; j<xleft; j++) {muleft[Yi][j]=false;}; muleft[Yi][xleft]=true; x-=xleft*12;} // console.log('using xleft x='+x+' muleft[Yi].length:'+muleft[Yi].length);
+	     {for (var j=muleft[Yi].length; j<xleft; j++) {muleft[Yi][j]=false;}; muleft[Yi][xleft]=true; x-=xleft*muHorizPointSpacing;} // console.log('using xleft x='+x+' muleft[Yi].length:'+muleft[Yi].length);
 	   else 
-	     {for (var j=muright[Yi].length; j<xright; j++) {muright[Yi][j]=false;}; muright[Yi][xright]=true; x+=xright*12;} // console.log('using xright x='+x+' muright[Yi].length:'+muright[Yi].length);
+	     {for (var j=muright[Yi].length; j<xright; j++) {muright[Yi][j]=false;}; muright[Yi][xright]=true; x+=xright*muHorizPointSpacing;} // console.log('using xright x='+x+' muright[Yi].length:'+muright[Yi].length);
 	   
 		}
 	
@@ -604,7 +603,9 @@ function add_tooltips() {
  
  // <p style="background-color:'+tissue_colours[tissue]+';"> .... +'</p>'
  
-        return '<b>'+col[icellline]+'</b><br/>'+(mutant!="0" ? "MutantType....<br/>" : "")+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
+ 
+        // To add the mutation type, use: +(mutant!="0" ? "MutantType....<br/>" : "")
+        return '<b>'+col[icellline]+'</b><br/>'+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
 	    }
 	},
 	
@@ -910,28 +911,32 @@ function download_boxplot(download_type, driver, target, histotype, study_pmid) 
 
 	switch (download_type) {
 	case 'svg':
-      mysvg.toDataURL("image/svg+xml", {
+	  $("#download_message").html("Downloading SVG image ....."); // maybe warn if browser is IE
+	  mysvg.toDataURL("image/svg+xml", {		  
 	    callback: function(data) {download_data('SVG image',data,filename)}
       });
 	  break;
     case 'png':
+	  $("#download_message").html("Downloading PNG image ....."); // maybe warn if browser is IE
       var ua = window.navigator.userAgent;  // if ($.browser.msie) {alert($.browser.version);}	
       var ie = ((ua.indexOf('MSIE ') > 0) || (ua.indexOf('Trident/')>0));  // 'MSIE' for IE<=10; 'Trident/' for IE 11; || (ua.indexOf('Edge/')>0) for Edge (IE 12+)
 	  var render = ie ? "canvg" : "native";  // Using "canvg" for IE, to avoid the SECURITY_ERR in IE: canvas.toDataURL(type)	
       mysvg.toDataURL("image/png", {
-	    callback: function(data) {download_data('PNG image',data,filename)},
+  	    callback: function(data) {
+		    download_data(data,filename)
+			},
 		renderer: render 
       });
 	  break;
 
-	  
-// The following doesn't seem to work, so will just request a download from the webserver:
-//	case 'csv':
-//	  var data = encodeURIComponent('data:text/csv;charset=utf-8,' + boxplot_csv); // was: encodeURI(.....);
-//	  console.log(data);
+    // The following might work, so will just request a download from the webserver:
+    case 'csv':
+	  saveTextAsFile(boxplot_csv,filename,"text/csv")  // or "text/plain" or "text/json"
+      // The following doesn't seem to work, so will just request a download from the webserver:
+      //  var data = encodeURIComponent('data:text/csv;charset=utf-8,' + boxplot_csv); // was: encodeURI(.....);
 	  // For JSON, use: var data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(obj));  
-//	  download_data('CSV file', data, filename);
-//	  break;
+      // download_data('CSV file', data, filename);
+      break;
   
 	default: alert("Invalid download_type: '"+download_type+"'")
 	}
@@ -940,15 +945,13 @@ function download_boxplot(download_type, driver, target, histotype, study_pmid) 
    
    // http://weworkweplay.com/play/saving-html5-canvas-as-image/
   }
-   
-   // Save SVG as image: http://techslides.com/save-svg-as-an-image
-   
+
+
    // Alternative to save as SVG use:
    // http://stackoverflow.com/questions/2483919/how-to-save-svg-canvas-to-local-filesystem
 
-function download_data(download_msg_type, data, filename) {
-    // This probably doesn't work in IE, and 'download' attribute is only HTML5:		   
-    $("#download_message").html("Downloading "+download_msg_type+" ....."); // maybe warn if browser is IE
+function download_data(data, filename) {
+    // This probably doesn't work in IE, and 'download' attribute is only HTML5:
     var a = document.createElement('a');
     a.setAttribute('href', data);
     a.setAttribute('target', '_blank');	// or: 	a.target = '_blank';
@@ -956,9 +959,44 @@ function download_data(download_msg_type, data, filename) {
 	document.body.appendChild(a);    // as link has to be on the document - needed in Firefox, etc.
 	a.click();
     document.body.removeChild(a);
+	// http://halistechnology.com/2015/05/28/use-javascript-to-export-your-data-as-csv/
+	// http://cwestblog.com/2014/10/21/javascript-creating-a-downloadable-file-in-the-browser/
+	// **GOOD: http://hackworthy.blogspot.co.uk/2012/05/savedownload-data-generated-in.html
+	// http://stackoverflow.com/questions/4184944/javascript-download-data-to-file-from-content-within-the-page
+	// FileSaver Library (supports IE10+) : https://github.com/eligrey/FileSaver.js/
+	// http://stackoverflow.com/questions/35148578/download-a-text-file-from-textarea-on-button-click
+	// for earlier browsers flash: https://github.com/dcneiner/Downloadify	
     }
 	
-   
+
+	
+function saveTextAsFile(data,filename,mimetype) {
+	// mimetype should be, eg: "text/csv" or "text/plain"
+	// Based on: http://stackoverflow.com/questions/35148578/download-a-text-file-from-textarea-on-button-click
+
+    var textFileAsBlob = new Blob([data], { type: mimetype }); // create a new Blob (html5 magic) that conatins the data from your form field
+    var a = document.createElement("a");
+    a.download = filename;
+    a.innerHTML = "My Hidden Link";
+    // allow code to work in webkit & Gecko based browsers without the need for a if / else block.
+    window.URL = window.URL || window.webkitURL;    
+    a.href = window.URL.createObjectURL(textFileAsBlob); // Create the link Object.
+    // when link is clicked call a function to remove it from the DOM in case user wants to save a second file.
+    a.onclick = destroyClickedElement;
+    a.style.display = "none";         // make sure the link is hidden.
+    document.body.appendChild(a);  // add the link to the DOM
+    a.click();      // click the new link
+    }
+
+function destroyClickedElement(event) {
+    // remove the link from the DOM
+    document.body.removeChild(event.target);
+    }
+
+
+
+
+	
 function img_and_link() {
 // "There is no need to do base64 encoding - you can create a link with raw SVG code in it. Here is a modified function encode_as_img_and_link() from The_Who's answer:"
   $('body').append(
@@ -1178,20 +1216,22 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 // alt="Loading boxplot image...."/
 
   var study = study_info(study_pmid);
-  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')';
+
+  var plot_title = '<hr/><p style="margin-top: 0; text-align: center; line-height: 1.7"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b></br>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')';
 
 //  $("#boxplot_title").html("<b>"+target+"</b> altered cell lines have an increased dependency upon <b>"+driver+"</b><br/>(p="+wilcox_p+" | effect size="+effect_size+" | &Delta;Score="+zdelta_score+" | Tissues="+histotype + " | Source="+study + ")<br/>WebLinks ......");
   
-  if (typeof target_info === 'undefined') {plot_title += '<br/>Unable to retrieve synonyms and external links for this gene';}
+  var plot_links='';
+  if (typeof target_info === 'undefined') {plot_links = 'Unable to retrieve synonyms and external links for this gene';}
   else {
       if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] );}
 	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
 	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
 	  var target_synonyms   = target_info['synonyms'];
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
-	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
+	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
 	  }
-  plot_title += '</p>';
+  plot_title += '<br/>'+plot_links+'</p>';
 
 //===========================================================================
 /*
@@ -1249,7 +1289,49 @@ console.log(mycontent);
 <a id="data" href="data:"></a> \
 <center><img id="fromcanvas" alt="PNG image will appear below a couple of seconds after the \'PNG image\' button clicked"/></center>
 */
-  	
+  
+
+/*
+A POSSIBLY FASTER ALTERNATIVE TO USING FANCY BOX IS:
+  https://docs.djangoproject.com/en/1.9/ref/request-response/#jsonresponse-objects
+return JsonResponse(response_data, status=201)
+safe=True,
+=======  
+   // From: http://www.w3schools.com/jsref/met_win_open.asp
+   var myWindow = window.open("", "MsgWindow", "width=200,height=100");
+   // additional options, eg: toolbar=yes,scrollbars=yes,resizable=yes,top=500,left=500,
+   myWindow.document.write("<p>This is 'MsgWindow'. I am 200px wide and 100px tall!</p>");
+    // To close window, use:  myWindow.close();   // Closes the new window
+  focus() 	Sets focus to the current window
+  egt: 
+  function popitup(url) {
+	newwindow=window.open(url,'name','height=200,width=150');
+	if (window.focus) {newwindow.focus()} // tests first if browser supports the focus() method
+	return false; // prevents browser following the link
+   // Save SVG as image: http://techslides.com/save-svg-as-an-image
+   <body onunload="javascript: exitpop()" >
+   
+   function openWindow(url) {
+var width = 500;
+var height = 500;
+var left = (screen.width - width)/2;
+var top = (screen.height - height)/2;
+var params = 'width='+ width +', height='+ height+', top='+ top +', left='+ left+ ', resizable=1';
+newwin = window.open(url,"Grassmarkers.Com", params);
+if (window.focus) {newwin.focus()}
+return false;
+}
+*/
+
+// Count add next/previous buttons: http://jsfiddle.net/xW5gs/
+  
+  
+  // Fancybox options: http://fancyapps.com/fancybox/
+// Can use template option to format the close button:  
+//  tpl : {
+// closeBtn : '<a title="Close" class="fancybox-item fancybox-close" href="javascript:;"></a>'
+// }
+
   $.fancybox.open({
     // href: url_boxplot,
     preload: 0, // Number of gallary images to preload

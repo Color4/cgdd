@@ -485,7 +485,7 @@ def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, s
     elif dataformat=='download':        
         dest_filename = ('%s_%s_%s_pmid%s.csv' %(driver_name,target_name,histotype_name,study_pmid)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
         # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
-        response = HttpResponse(d.boxplot_data, content_type=csv_mimetype) # Maybe use the  type for tsv files?    
+        response = HttpResponse(d.boxplot_data.replace(';','\n'), content_type=csv_mimetype) # Maybe use the type for tsv files?    
         response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
         return response
             
