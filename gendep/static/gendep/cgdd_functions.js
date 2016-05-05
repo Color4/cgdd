@@ -370,7 +370,7 @@ function count_char(s,c) {
 	return count;
 }
 
-function get_protein_id_list_for_depenedencies(div) {
+function get_id_list_for_depenedencies(div, idtype='protein') {
 	// returns string with proteins separated by div, and the count of number of proteins in the string
 	
 	// could add a parameter in future: max_number_to_get
@@ -405,11 +405,13 @@ function get_protein_id_list_for_depenedencies(div) {
 	// Request-URI Too Long The requested URL's length exceeds the capacity limit for this server.
 	// This url of corresponds to 8216 characters (see example in file: max_stringdb_url.txt)
     //console.log('first-child:')
+
+    var data_tag = idtype=='protein' ? "data-epid" : "data-gene";
 	
     $('#result_table tbody tr:visible td:first-child').each(function(index) {
         if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
-	        var protein_id = $(this).attr("epid");
+	        var protein_id = $(this).attr(data_tag);
 		    if (protein_count >= global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
 		    if ((protein_id != '') && !(protein_id in protein_dict)) {
 				protein_dict[protein_id] = true;
@@ -417,7 +419,7 @@ function get_protein_id_list_for_depenedencies(div) {
             }
 		}
     });
-    console.log("get_protein_id_list_for_depenedencies:", protein_dict, protein_count)
+    console.log("get_id_list_for_depenedencies:", protein_dict, protein_count)
 	return [dict_to_string(protein_dict,div), protein_count];
 }
 
@@ -425,7 +427,7 @@ function get_protein_id_list_for_depenedencies(div) {
 function show_cytoscape() {
 	$("#result_progress_div").html("<b><font color='red'>Fetching Cytoscape protein list for cytoscape image....</font></b>");
 
-	var protein_list_and_count = get_protein_id_list_for_depenedencies(';');
+	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
 
     var protein_list = protein_list_and_count[0];
     var protein_count = protein_list_and_count[1];
@@ -443,11 +445,53 @@ function show_cytoscape() {
 
 
 
+function show_enrichr(display_callback_function) {
+    var gene_set_library='KEGG_2015';
+	$("#result_progress_div").html("<b><font color='red'>Fetching Enrichr "+gene_set_library+" enrichment ....</font></b>");
+	
+	var gene_list_and_count = get_id_list_for_depenedencies(';', 'gene');
+
+    var gene_list = gene_list_and_count[0];
+    var gene_count = gene_list_and_count[1];
+		
+	//var protein_list = dict_to_string(protein_dict,';');
+	console.log("Enrichr send: Gene count:",gene_count, "Gene list:",gene_list);	
+	var url = global_url_for_enrichr.replace('mylibrary', gene_set_library).replace('mygenes', gene_list);  // Using semi-colon instead of return character '%0D'
+	
+	console.log("url.length:", url.length);
+    console.log("url:", url);
+    $.ajax({
+      url: url,
+      dataType: 'json',
+      })
+      .done(function(data, textStatus, jqXHR) {  // or use .always(function ...	  
+	     console.log("Received:", data);
+	  	 // display_callback_function(protein_list, protein_count);		
+		 alert(data);
+		 })
+	  .fail(function(jqXHR, textStatus, errorThrown) {
+		 alert("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");  // Just display the original list below anyway.
+         });
+		 
+//	  .always(function() {
+//	     // var protein_count = (protein_list == '') ? 0 : count_char(protein_list,';')+1;
+//		 protein_list = protein_list.split(';');
+//		 protein_count = protein_list.length;
+//		 protein_list = protein_list.join('%0D');  // as javascript's replace(';', '%0D') only replaces the first instance.
+//		 console.log("Count after removing unconnected proteins:",protein_count, "Protein list:",protein_list);
+//	     });
+		 
+	return false; // or maybe return true?
+}
+
+
+
+
 
 function set_string_form_identifiers() {
 	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
 
-	var protein_list_and_count = get_protein_id_list_for_depenedencies("\n");
+	var protein_list_and_count = get_id_list_for_depenedencies("\n", 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	
     var protein_list = protein_list_and_count[0];
     var protein_count = protein_list_and_count[1];
@@ -473,7 +517,7 @@ function show_stringdb_interactive() {
 	// NOW keeping the unconnected proteins in the interactive image as interactive alows users to do enrichment so means more if keep all proteins. 
     //	
 	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
-	var protein_list_and_count = get_protein_id_list_for_depenedencies('%0D');
+	var protein_list_and_count = get_id_list_for_depenedencies('%0D', 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	
     var protein_list = protein_list_and_count[0];
     var protein_count = protein_list_and_count[1];
@@ -491,11 +535,11 @@ function show_stringdb_interactive() {
 
 
 function show_stringdb(display_callback_function) {
-	// This to calls server to remove unconnected proteins for the list before displaying the string network image.
+	// This to calls server to remove unconnected proteins from the list before displaying the string network image.
 	
 	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
 
-	var protein_list_and_count = get_protein_id_list_for_depenedencies(';');
+	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	
     var protein_list = protein_list_and_count[0];
     var protein_count = protein_list_and_count[1];
@@ -690,10 +734,6 @@ function toggle_show_drugs(obj,drug_names,div,gene) {
 //onclick="hide_drugs(this);"
 
 
-function show_enrichr() {
-  alert("Enrichr not enabled yet");
-}
-
 function make_drug_links(drug_names,div) {
   // DBIdb paper: http://nar.oxfordjournals.org/content/44/D1/D1036.full
   var drugs = drug_names.split(div); // 'div' is comma or semi-colon
@@ -706,7 +746,7 @@ function make_drug_links(drug_names,div) {
 }
 
 function stringdb_interactive(protein_list, protein_count) {
-	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (list_of_proteins, protein_count)
+	//var protein_list = get_id_list_for_depenedencies(); // returns (list_of_proteins, protein_count)
 	if (protein_count == 0) {alert("No rows to display that have ensembl protein ids"); return false;}
 	var string_url = (protein_count == 1) ? global_url_for_stringdb_interactive_one_network : global_url_for_stringdb_interactive_networkList;
     string_url += protein_list
@@ -737,7 +777,7 @@ network_flavor
 
 function stringdb_image(protein_list,protein_count) {
     // An alternativbe to string-db is to use the stringdb links to build own cyctoscape display: http://thebiogrid.org/113894/summary/homo-sapiens/arid1a.html
-	//var protein_list = get_protein_id_list_for_depenedencies(); // returns (protein_list, protein_count)
+	//var protein_list = get_id_list_for_depenedencies(); // returns (protein_list, protein_count)
   if (protein_count == 0) {alert("No rows that have ensembl protein ids"); return false;}
   var string_url = (protein_count == 1) ? global_url_for_stringdb_one_network : global_url_for_stringdb_networkList;
   string_url += protein_list;
@@ -956,7 +996,7 @@ function populate_table(data,t0) {
 	  
 //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'+
-        '<td data-gene="'+d[igene]+'" epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
+        '<td data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
         wilcox_p_cell + 

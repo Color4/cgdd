@@ -190,7 +190,7 @@ span.title {
 /* Custom styles for jquery-ui tooltip, from: https://jqueryui.com/tooltip/#custom-style */
 .ui-tooltip, .arrow:after {
     /* background: black; */
-	background: #ffff70;  /* yellow */
+	background: #ffffc0;  /* a light yellow, was #ffff70;  */
     /* border: 2px solid white; */
 	border: 1px solid black;
 }

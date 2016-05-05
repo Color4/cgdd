@@ -70,8 +70,8 @@
 
 
   .ui-tooltip {
-    padding: 4px 4px;
-    background: #ffffd0;
+    padding: 5px 5px;
+    background: #ffffc0;
 	/*color: white; */
     border-radius: 10px;
 	z-index: 2147478001;  /* So will appear above the fancybox 2147478000*/
@@ -104,7 +104,8 @@ var global_url_for_boxplot_data = "{% url 'gendep:get_boxplot' dataformat='myfor
 
 var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
 var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
-var global_url_for_cytoscape = "{% url 'gendep:cytoscape' required_score='700' protein_list='myproteins' %}"
+var global_url_for_cytoscape = "{% url 'gendep:cytoscape' required_score='700' protein_list='myproteins' %}";
+var global_url_for_enrichr = "{% url 'gendep:enrichr' gene_set_library='mylibrary' gene_list='mygenes' %}";
 
 // String-db options:
 // The string interactive URL is now moved to the 'string_interactive_form' form at bottom of this "index.html", so need to set any options in that form's action:
@@ -685,7 +686,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <td>
 <span id="string_link"></span>
 </td><td>
-<input type="button" id="enrichr_button" value="Enrichr" onclick="show_enrichr();" />
+<input type="button" id="enrichr_button" value="Enrichr" onclick="show_enrichr('callback_to_be_added');" />
 </td>
 </tr></table>
 

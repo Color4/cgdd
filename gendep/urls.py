@@ -43,6 +43,8 @@ urlpatterns = [
     url(r'get_stringdb_interactions/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
     
     url(r'cytoscape/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.cytoscape, name='cytoscape' ),
+
+    url(r'enrichr/(?P<gene_set_library>[0-9A-Za-z_]+)/(?P<gene_list>[0-9A-Za-z\-\.;\%\r]+)/$', views.enrichr, name='enrichr' ),   # Can add optional: (?P<description>.....
     
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
 

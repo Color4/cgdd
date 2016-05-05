@@ -4,6 +4,7 @@ import math # For ceil()
 from urllib.request import Request, urlopen
 from urllib.error import  URLError
 from datetime import datetime # For get_timming()
+import requests # for Enrichr
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, render
@@ -25,6 +26,10 @@ html_mimetype = 'text/html; charset=utf-8'
 csv_mimetype  = 'text/csv; charset=utf-8' # can be called: 'application/x-csv' or 'application/csv'
 tab_mimetype  = 'text/tab-separated-values; charset=utf-8'
 plain_mimetype ='text/plain; charset=utf-8'
+
+
+ENRICHR_BASE_URL = 'http://amp.pharm.mssm.edu/Enrichr/'
+
     
 def json_error(message, status_code='0'):    
     return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), json_mimetype ) # eg: str(exception)
@@ -459,7 +464,7 @@ CDK11A
     # response = JsonResponse([1, 2, 3], safe=False)
     # ** Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution.
     # See: https://docs.djangoproject.com/en/1.9/ref/request-response/
-    
+
     return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
 
     #    context = {'dependency_list': dependency_list, 'gene': gene, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
@@ -849,6 +854,133 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
     
 
 
+    
+def enrichr(request, gene_list, gene_set_library):
+
+# success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
+    
+  # =====================================================================
+  # Using Enrichr:
+  # From: http://amp.pharm.mssm.edu/Enrichr/help#api
+  # Uses the "requests" library, which can be installed with pip.
+  # A couple API endpoints require a user specify a gene set library. A list of libraries can be found here:  http://amp.pharm.mssm.edu/Enrichr/#stats
+  # =====================================================================
+  # Analyze gene list
+  # Method	POST
+  # URL	/Enrichr/addList
+  # Returns	JSON object with unique ID for analysis results, eg: { "userListId": 363320, "shortId": "59lh" }
+  # Parameters:
+  #    list = Newline-separated list of gene symbols to enrich
+  #    description (optional)	= String describing what the gene symbols represent
+
+  #genes_str = '\n'.join([
+  #  'PHF14', 'RBM3', 'MSL1', 'PHF21A', 'ARL10', 'INSR', 'JADE2', 'P2RX7',
+  #  'LINC00662', 'CCDC101', 'PPM1B', 'KANSL1L', 'CRYZL1', 'ANAPC16', 'TMCC1',
+  #  'CDH8', 'RBM11', 'CNPY2', 'HSPA1L', 'CUL2', 'PLBD2', 'LARP7', 'TECPR2', 
+  #  'ZNF302', 'CUX1', 'MOB2', 'CYTH2', 'SEC22C', 'EIF4E3', 'ROBO2',
+  #  'ADAMTS9-AS2', 'CXXC1', 'LINC01314', 'ATF7', 'ATP5F1'
+  # ])
+  # description = 'Example gene list'
+  
+  description='CGDD query'
+  genes_str = gene_list.replace(';','\n')
+  
+  #print(genes_str)
+  
+  payload = {
+    'list': (None, genes_str),
+    'description': (None, description)
+  }
+
+  response = requests.post(ENRICHR_BASE_URL+'addList', files=payload)
+  if not response.ok:
+    return json_error("Error analyzing gene list", status_code='1')
+    # raise Exception('Error analyzing gene list')
+
+  data = json.loads(response.text)  # print(data)
+  user_list_id = data['userListId']  #user_list_id = 363320
+  
+  # =====================================================================
+  # View added gene list
+  # Method	GET
+  # URL	/Enrichr/view
+  # Returns	JSON object with unique ID for analysis results, eg: { "genes": ["PHF14", "RBM3", "MSL1", "PHF21A", etc...... ], "description": "Example gene list"}
+  #Parameters: userListId = Identifier returned from addList endpoint
+
+  # response = requests.get(ENRICHR_BASE_URL+'view?userListId=%s' % user_list_id)
+  # if not response.ok:
+  #  raise Exception('Error getting gene list')
+    
+  # data = json.loads(response.text)
+  # print(data)
+  # ...data['genes']  # I think this is just the list of genes submitted above.
+  
+  # =====================================================================
+  # Get enrichment results
+  # Method	GET
+  # URL	/Enrichr/enrich
+  # Returns: eg: { "KEGG_2015": [ [1, "ubiquitin mediated proteolysis", 0.06146387620182772,  -1.8593425456520887,  2.8168673182384705, ["CUL2"], 0.21981251622012696], [ 2, etc .....   ], etc ...]}
+  # Parameters:	
+  #    userListId = Identifier returned from addList endpoint
+  #    backgroundType = Gene set library to enrich against
+
+  # user_list_id = 363320
+  # gene_set_library = 'KEGG_2015'
+  
+  response = requests.get(
+    ENRICHR_BASE_URL+'enrich?userListId=%s&backgroundType=%s' % (user_list_id, gene_set_library)
+   )
+  if not response.ok:
+    return json_error("Error fetching enrichment results", status_code='2')
+    # raise Exception('Error fetching enrichment results')
+
+  #data = json.loads(response.text)  # print(data)
+  
+  return HttpResponse(response.text, content_type=json_mimetype) # Send the full json response back to browser for now, not just the data[gene_set_library]
+  
+  
+  # =====================================================================
+  # Find terms that contain a given gene
+  # Method	GET
+  # URL	/Enrichr/genemap
+  # Returns	Terms containing the specified gene, along with descriptions and optional categorizations, eg: {"gene": {"GeneSigDB": ["18535662-TableS2b","17671232-TableS2a", etc...],"TRANSFAC_and_JASPAR_PWMs": [...], etc...   }, "descriptions": [ .......etc
+  # Parameters	
+  #   gene = Gene to use in search for terms
+  #   json (optional) = Set "true" to return JSON rather plaintext
+  #   setup (optional) = Set "true" to category information for the libraries
+  """
+  gene = 'AKT1'
+  response = requests.get(ENRICHR_BASE_URL+'genemap?json=true&setup=true&gene=%s' % gene)
+  if not response.ok:
+    raise Exception('Error searching for terms')
+    
+  data = json.loads(response.text)
+  # print(data)
+  """
+  # =====================================================================
+  # Download file of enrichment results
+  # Method	GET
+  # URL	/Enrichr/export
+  # Returns	Text file of enrichment analysis results
+  # Parameters	
+  #   userListId = Identifier returned from addList endpoint
+  #   filename = Name of text file download
+  #   backgroundType = Gene set library for which to download results
+  """
+  # user_list_id = 363320
+  filename = 'example_enrichment'
+  gene_set_library = 'KEGG_2015'
+
+  url = ENRICHR_BASE_URL+'export?userListId=%s&filename=%s&backgroundType=&s' % (user_list_id, filename, gene_set_library)
+  response = requests.get(url, stream=True)
+
+  with open(filename + '.txt', 'wb') as f:
+    for chunk in response.iter_content(chunk_size=1024): 
+        if chunk:
+            f.write(chunk)
+  """
+  # =====================================================================    
+    
 
 #dialect = csv.Sniffer().sniff(csvfile.read(1024))
 #    csvfile.seek(0)
