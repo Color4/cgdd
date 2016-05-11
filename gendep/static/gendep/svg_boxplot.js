@@ -123,26 +123,32 @@ document.body.appendChild(svg);
 
   
 var tissue_colours = {
+   // Using "select distinct(histotype) from gendep_dependency;" found only 9 tissues in current 23 driver dependency data (plus PANCAN)
+      
+   // Using "select boxplot_data from gendep_dependency where (boxplot_data like "%LIVER%" ) limit 1;"
+   // 0 rows returned in 32527ms from: select boxplot_data from gendep_dependency where (boxplot_data like "%LIVER%" );
+   // BUT all the other tissues below do appear in the boxplot_data:
+	
    //"BONE":         "yellow",
   "OSTEOSARCOMA": "yellow", // same as BONE above
   "BREAST":       "deeppink",  // Colt only contains Breast
   "LUNG":         "darkgrey",
-  "HEADNECK":     "firebrick",  // Not in Achilles data  *** THIS "firebrick4" COLOUR NOT WORKING IN IE SVG
+  "HEADNECK":     "firebrick",  // Not in Achilles data  (*** THIS "firebrick4" COLOUR NOT WORKING IN IE SVG) - NOT in dependency data from the 23 drivers, so don't show on legend.
   "PANCREAS":     "purple",
-  "CERVICAL":     "blue",  // Not in Achilles data
+  "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependicies
   "OVARY":        "cadetblue",
   "OESOPHAGUS":   "green",
-  "ENDOMETRIUM":  "orange",
+  "ENDOMETRIUM":  "orange",     // Not in 23 driver dependency data
   "CENTRAL_NERVOUS_SYSTEM": "darkgoldenrod",  // *** THIS "darkgoldenrod4" COLOUR NOT WORKING IN IE SVG
   "HAEMATOPOIETIC_AND_LYMPHOID_TISSUE": "darkred",  // Not in Campbell
-  "INTESTINE":    "saddlebrown",  // Not in Campbell
-  "KIDNEY":       "indianred",  // Not in Campbell
-  "LIVER":        "slategray",  // Not in Campbell
-  "PROSTATE":     "turquoise",  // Not in Campbell
-  "SKIN":         "peachpuff",  // Not in Campbell
-  "SOFT_TISSUE":  "lightgrey",  // Not in Campbell
-  "STOMACH":      "black",  // Not in Campbell
-  "URINARY_TRACT":"yellowgreen"  // Not in Campbell
+  "INTESTINE":    "saddlebrown",// Not in Campbell
+  "KIDNEY":       "indianred",  // Not in Campbell,  Not in 23 driver dependency data
+  // "LIVER":        "slategray", // Not in Campbell,  Not in 23 driver dependency data, so don't display on legend
+  "PROSTATE":     "turquoise",  // Not in Campbell,  Not in 23 driver dependency data
+  "SKIN":         "peachpuff",  // Not in Campbell,  Not in 23 driver dependency data
+  "SOFT_TISSUE":  "lightgrey",  // Not in Campbell,  Not in 23 driver dependency data
+  "STOMACH":      "black",      // Not in Campbell,  Not in 23 driver dependency data
+  "URINARY_TRACT":"yellowgreen" // Not in Campbell,  Not in 23 driver dependency data
   };
     
 //var driver = "SEMG2", target = "CAMK1", wilcox_p = "1.8e-2", effect_size = "0.78", histotype="Pan cancer", study="Campbell(2016)";
@@ -169,7 +175,9 @@ var svg, xscale, yscale, Yscreen0, lines;
 var tissue_lists;
 var cellline_count;
 var collusionTestRadius=4.6;
+var wt_boxplot_elems = [], mu_boxplot_elems = [];
 
+  
 //$(function() { // on dom ready
    // draw_svg_boxplot(); // but need to wait until AJAX call returns from server with the coordinates for plotting.
 //}); // on dom ready
@@ -201,10 +209,12 @@ function draw_svg_boxplot(driver, target) {
   Yscreen0 = YscreenMin - ymin*yscale;  // is really Yscreen0 = YscreenMin + (y0 - ymin)*yscale; eg. 380+(0-2)*(-30)
  
   axes(wtxc,muxc, ymin,ymax, driver,target);
+  
   var wt_boxstats = []; for (var i=0; i<5; i++) {wt_boxstats[i] = parseFloat(col[iwtbox+i]);}
   var mu_boxstats = []; for (var i=0; i<5; i++) {mu_boxstats[i] = parseFloat(col[imubox+i]);}
-  boxplot( wtxc, boxwidth, wt_boxstats);
-  boxplot( muxc, boxwidth, mu_boxstats);
+  // Store the boxplot lines and rectangle in global array, so can adjust position later:
+  wt_boxplot_elems = boxplot( wtxc, boxwidth, wt_boxstats, wt_boxplot_elems);
+  mu_boxplot_elems = boxplot( muxc, boxwidth, mu_boxstats, mu_boxplot_elems);
   // **** An idea is variable width is proportional to square root of size of groups: https://en.wikipedia.org/wiki/Box_plot
   // https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/boxplot.html
   // range = this determines how far the plot whiskers extend out from the box. If range is positive, the whiskers extend to the most extreme data point which is no more than range times the interquartile range from the box. A value of zero causes the whiskers to extend to the data extremes.
@@ -310,6 +320,7 @@ function boxplot_stats(y) {
 // http://mathforum.org/library/drmath/view/60969.html
 
 // Or better: http://peltiertech.com/hinges/
+// http://peltiertech.com/comparison/
 
     var len = y.length;
     if (len==0) {return [];} // return empty array as no data.
@@ -461,11 +472,12 @@ function download_legend(legend_type) {
   // For modifying images maybe use:
   //    context.save();
   //    context.restore();
+  // ctx.clearRect(...)
   // ctx.globalAlpha=0.2; (0=transparent, 1=opake)
   // function updateClockImage() {
   // snapshotImageElement.src = canvas.toDataURL();   // To paste canvas into an <img> tag.
   // from: http://www.informit.com/articles/article.aspx?p=1903884&seqNum=10
-
+  // To hide shapes in canvas using animate: http://stackoverflow.com/questions/22235313/how-to-hide-an-element-after-drawing-on-canvas-with-settimeout-javascript
   
   var y = ytop;
   for (tissue in list) {	  
@@ -754,7 +766,6 @@ function generateDataURI(file) {
 	e.setAttribute("r", "5"); // Firefox and IE don't use the 'r' in the 'circle' class (whereas Chrome does)  e.r.baseVal.value = "5"; set in the 'circle' class
 	var id = "c"+i.toString();
 	e.setAttribute("id", id); // 'c' for circle or cell_line
-
 	
 	//e.setAttribute("onmouseover", "mouseOver();");
     //e.setAttribute("onmouseout", "mouseOut();"); // ="evt.target.setAttribute('opacity','1)');"/>
@@ -824,18 +835,28 @@ var mu_stats=boxplot_stats(mu_points);
 //console.log("mystats mu:",mu_stats);
 
 
-var minplot=Math.floor(Math.min(wt_stats[0],mu_stats[0]));
-var maxplot=Math.ceil(Math.max(wt_stats[6],mu_stats[6]));
+var minplot=Math.floor(Math.min(wt_stats[0],mu_stats[0])); // [0] is min extreme value in the boxplot_stats
+var maxplot=Math.ceil(Math.max(wt_stats[6],mu_stats[6]));  // [6] is max extreme value in the boxplot_stats
 //console.log("min,max:",minplot,maxplot);
 
 var mystats=[lines.length-1,minplot,maxplot];
+var col=lines[0].split(',');
+//if ( (col[0]!=lines.length-1)
+//  || (col[1]!=minplot)
+//  || (col[2]!=maxplot))
+//  {alert("Mismatch in count or min/max: "+(lines.length-1)+" "+minplot+" "+maxplot);}
+
 // a convoluted way to convert to a string with 3 deciimal places without trailing zeros:
+// alternative is: http://numeraljs.com/
 for (var i=1; i<6; i++) {mystats.push(parseFloat(wt_stats[i].toFixed(3)).toString())}
 for (var i=1; i<6; i++) {mystats.push(parseFloat(mu_stats[i].toFixed(3)).toString())}
 //console.log("mystats:",mystats);
 console.log("jsline0:",mystats.join(","));
-if (mystats.join(",") != lines[0]) {alert("Difference between R and my JS boxplot_stats() functions")}
-
+//if (mystats.join(",") != lines[0]) {alert("Difference between R and my JS boxplot_stats() functions")}
+var msg='';
+// As the current R version uses the y valueswith more than 2 decomal places for Achilles/Colt values to compute the boxplot_stats, so just check to 1 decimal place:
+for (var i=0; i<=col.length; i++) {if (Math.abs(parseFloat(col[i]-mystats[i])>0.1)) {msq += "Diff "+i+": "+col[i]+" "+mystats[i].toString()}}
+if (msg !='') {alert(msg);}
 
 
   	// Initialise the Table sorter for the legend_table:
@@ -869,8 +890,8 @@ function add_tooltips() {
   // jQuery Tipsy: http://onehackoranother.com/projects/jquery/tipsy/ (these display quickly)
   // Good info about the different types of tooltips for SVG elements.
     // $('#title').tooltip({
-  $("#mysvg").tooltip({  // was $(document).tooltip(....
-    items: "circle",
+  $("#mysvg, #plot_title").tooltip({  // was $(document).tooltip(....
+    items: "circle, [data-gene]",
 	position: { my: "left+28 center", at: "center center+10" }, // at: "right center" }
 	//position: { my: "right-200 center", at: "center center-100" }, // at: "right center" }	
 	show: false, //{ effect: "", duration: 0, delay: 0},
@@ -878,6 +899,7 @@ function add_tooltips() {
     // tooltipClass: "custom-tooltip-styling", // doesn't work :(
 	content: function(callback) {
 	  var element = $( this );
+	  		//alert("in tooltip "+element.id);
       if ( element.is( "circle" ) ) {
 	    var id = element.attr("id");
         var i = parseInt(id.substring(1)); // remove the starting 'c'
@@ -916,6 +938,32 @@ function add_tooltips() {
         // To add the mutation type, use: +(mutant!="0" ? "MutantType....<br/>" : "")
         return '<b>'+col[icellline]+'</b><br/>'+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
 	    }
+      else if ( element.is( "[data-gene]" ) ) { // To display the ncbi_summary for the driver and target genes in the boxplolt_title.
+        var gene_name = element.attr("data-gene");  // was: = element.text();
+		if (gene_name in gene_info_cache) {
+			var result = format_gene_info_for_tooltip(gene_info_cache[gene_name]);
+			callback(result);
+			}
+		else {
+            var url = global_url_gene_info_for_mygene.replace('mygene',gene_name);
+            $.ajax({
+              url: url,
+              dataType: 'json', 
+            })
+            .done(function(data, textStatus, jqXHR) {  // or use .always(...)
+              if (data['success']) {
+			  	gene_info_cache[gene_name] = data; // cache to retrieve faster next time.
+			    result = format_gene_info_for_tooltip(data);
+			    callback(result);
+				}
+			  else {callback("Error: "+data['message'])}
+		    })
+		    .fail(function(jqXHR, textStatus, errorThrown) {
+			  callback("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
+            })
+		  }
+        }
+		
 	},
 	
 	// could dynamically create the styles:  $('head').append('<style type="text/css">.novice{color:green;}</style>'); 
@@ -932,10 +980,13 @@ function add_tooltips() {
 }
 
 
-function rect(xcenter,width,ystats) {
+function rect(xcenter,width,ystats, e) {
 	// A 45 degree rotated square (a diamond) can be created using:
 	//  1  <rect x="203" width="200" height="200" style="fill:slategrey; stroke:black; stroke-width:3; -webkit-transform: rotate(45deg);"/>
-    var e = document.createElementNS(svgNS,"rect");
+	console.log("rect:",typeof e);
+    if (typeof e == "undefined") {e = document.createElementNS(svgNS,"rect");  console.log("SVGrect made");}
+	else if (e instanceof SVGRectElement) {alert("rect(): expected 'rect' for existing elem, but got: "+e.tagName)}
+		
 	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
 	var y = tohalf(Yscreen0 + ystats[3]*yscale, 1);
 	e.setAttribute("y", y);  // Note: box drawn upside down, as screen zero is top left.
@@ -949,8 +1000,11 @@ function rect(xcenter,width,ystats) {
 	return e;
 	}
 	
-function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
-    var e = document.createElementNS(svgNS,"line");
+function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
+	console.log("line:",typeof e);
+	if (typeof e == "undefined") {e = document.createElementNS(svgNS,"line"); console.log("SVGline made");}
+    else if (e instanceof SVGLineElement) {alert("line(): expected 'line' for existing elem, but got: "+e.tagName)}	
+	
     var isVertical = x1==x2;
     var isHorizontal = y1==y2;
 	
@@ -973,7 +1027,7 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
 	}
 	
 	
-function text(x,y,size,vertical,text) {
+function text(x,y,size,vertical,text, e) {
     // Fore attributes, see: http://www.w3schools.com/svg/svg_text.asp
 	// if wish to position text better, could first get size using, either:
 	// getBBox(text) -> returns x.width and x.height
@@ -999,7 +1053,10 @@ function text(x,y,size,vertical,text) {
 	// useful: http://www.hongkiat.com/blog/scalable-vector-graphics-text/
 	
 	// *** Better to position text, could use:  style="text-anchor: middle" so uses text centre for positioning text
-    var e = document.createElementNS(svgNS,"text");
+	if (typeof e == "undefined") {e = document.createElementNS(svgNS,"text")}
+    else if (e instanceof SVGTextElement) {alert("text(): expected 'text' for existing elem, but got: "+e.tagName)}	
+	
+    
     var xscreen = x*xscale;
 	e.setAttribute("x", xscreen);
 	var yscreen = Yscreen0 + y*yscale;
@@ -1013,16 +1070,59 @@ function text(x,y,size,vertical,text) {
 	}
 
 	
-function boxplot(xcenter,width,ystats) {
-    rect(xcenter,width,ystats);
-	line(xcenter-0.25*width,ystats[0], xcenter+0.25*width,ystats[0], "1px", false, "black"); // lower whisker horizontal line
-	line(xcenter,ystats[0], xcenter,ystats[1], "1px", true, "black");  // lower whisker to box dashed line
-	line(xcenter-0.5*width,ystats[2], xcenter+0.5*width,ystats[2], "3px", false, "black"); // median horizontal line
-	line(xcenter,ystats[3], xcenter,ystats[4], "1px", true, "black");  // upper whisker to box dashed line
-	line(xcenter-0.25*width,ystats[4], xcenter+0.25*width,ystats[4], "1px", false, "black"); // upper whisker horizontal line
+function boxplot(xcenter,width,ystats, elms) {
+	// if (boxplot_elems.length=0) {}
+	return [
+      rect(xcenter,width,ystats, elms[0]),
+	  line(xcenter-0.25*width,ystats[0], xcenter+0.25*width,ystats[0], "1px", false, "black", elms[1]), // lower whisker horizontal line
+	  line(xcenter,ystats[0], xcenter,ystats[1], "1px", true, "black", elms[2]),  // lower whisker to box dashed line
+	  line(xcenter-0.5*width,ystats[2], xcenter+0.5*width,ystats[2], "3px", false, "black", elms[3]), // median horizontal line
+	  line(xcenter,ystats[3], xcenter,ystats[4], "1px", true, "black", elms[4]),  // upper whisker to box dashed line
+	  line(xcenter-0.25*width,ystats[4], xcenter+0.25*width,ystats[4], "1px", false, "black", elms[5]) // upper whisker horizontal line
+	];
+	// return elms; // array of elements for each box.
+    }
+
+
+function update_boxplots() {
+  // 
+  var wt_points=[],mu_points=[];	
+  for (var i=1; i<lines.length; i++) { // corectly starts at i=1, as lines[0] is the boxplot dimensions.
+    var col = lines[i].split(",");
+    if (col[iy]=='NA') {continue;}
+	
+    // To determine if point is visible, can check the "visibility" attribute of the point:
+    // var id = "c"+i.toString();   // 'c' for circle or cell_line
+	// var elem = document.getElementById(id);
+	// if (elem.getAttribute("visibility")=="hidden") {continue} // otherwise: "visible"
+
+    // Or more directly check if that tissue checkbox is checked:
+    var tissue = col[itissue];
+	var checkbox = document.getElementById('cb_'+tissue);
+	if (! checkbox.checked) {continue}
+
+	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
+
+    if (isWT) {wt_points.push(parseFloat(col[iy]))}
+    else {mu_points.push(parseFloat(col[iy]))}
     }	
+    // Or can loop through the tissue lists, but need to check if WT or mutant:
+	// for (var i=0; i<tissue_lists[tissue].length; i++) {
+	//    var elem = tissue_lists[tissue][i];
+	//    elem.getAttribute("visibility") == "hidden") {continue} // otherwise: "visible":
+	//    }
+	// }
 
-
+  var wt_boxstats=boxplot_stats(wt_points);
+  var mu_boxstats=boxplot_stats(mu_points);
+	
+  // We have stored the boxplot lines and rectangle in two global array, so can adjust position later:
+  boxplot( wtxc, boxwidth, wt_boxstats, wt_boxplot_elems); // don't need "wt_boxplot_elems = ..." as element ids unchanged, just their positions are changed.  
+  boxplot( muxc, boxwidth, mu_boxstats, mu_boxplot_elems); // mu_boxplot_elems = 
+  
+  return true;
+  }
+	
 function showhide_cell_clicked(e) {  // elem can be a 'td' or checkbox.
 // When the checkbox is clicked: IE seems to call this checkbox code first then the 'td' click event, whereas Chrome and Firefox seem to call the 'td' event first, then the checkbox event.
     // Not using event as not passed in Firefox when inline onclick="" used
@@ -1047,18 +1147,19 @@ function showhide_cell_clicked(e) {  // elem can be a 'td' or checkbox.
    	var checkbox = document.getElementById('cb_'+tissue);
 	// checkbox.click();
 	checkbox.checked = ! checkbox.checked; // Toggle checked state, but doesn't fire the onchanged event.
-	set_tissue_visibility(tissue, checkbox.checked)
+	set_tissue_visibility(tissue, checkbox.checked, true)
     // checkbox.dispatchEvent(new Event('change')); // so need to trigger the change event.	
 // [1]: Earlier versions of IE instead only support the proprietary EventTarget.fireEvent() method.
     return false;
     }
 
 
-function set_tissue_visibility(tissue,visibile) {
+function set_tissue_visibility(tissue,visible, update_boxplots) {
 	for (var i=0; i<tissue_lists[tissue].length; i++) {
 	    var elem = tissue_lists[tissue][i];
-	    elem.setAttribute("visibility", visibile ? "visible":"hidden");
+	    elem.setAttribute("visibility", visible ? "visible":"hidden");
 	    }
+	if (update_boxplots) {update_boxplots();} // To move the boxplots to match the changes. But if clicked All/None/Toggle buttons then update at end rather than for each tissue.
 	}
 
 	
@@ -1080,7 +1181,7 @@ function showhide_tissue(e) {
 //console.log('checkbox '+checkbox.id);
 	var tissue = checkbox.id.substring(3); /// the checkbox name is the 'cb_'+tissue.
 
-	set_tissue_visibility(tissue, checkbox.checked);
+	set_tissue_visibility(tissue, checkbox.checked, true);
 	return false; // does true mean event was handled?
     }
    
@@ -1098,7 +1199,7 @@ function tissue_checkboxes(action) {
   	    case 'toggle': checkbox.checked = ! checkbox.checked; break; // Toggle checked state, but doesn't fire the onchanged event.
 		default: alert('Invalid action for tissue_checkboxes(): "'+action+'"');
       }
-	  set_tissue_visibility(tissue, checkbox.checked);
+	  set_tissue_visibility(tissue, checkbox.checked, false); // 'false' as will update boxplot once at end after this loop.
 		
       //checkbox.dispatchEvent(new Event('change')); // so need to trigger the change event.
 	  
@@ -1109,6 +1210,7 @@ function tissue_checkboxes(action) {
 // http://stackoverflow.com/questions/8206565/check-uncheck-checkbox-with-javascript
 
       }
+	update_boxplots();  
     }
 
 	
@@ -1516,7 +1618,16 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 
   var study = study_info(study_pmid);
 
-  var plot_title = '<hr/><p style="margin-top: 0; text-align: center; line-height: 1.7"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b></br>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')</p>';
+  var plot_title = '<hr/><p id="plot_title" style="margin-top: 0; text-align: center; line-height: 1.7">'
+    + '<b><span data-gene="'+driver+'">'+driver+'</span></b>'
+	+ ' altered cell lines have an increased dependency upon'
+	+ ' <b><span data-gene="'+target+'">'+target+'</span></b></br>'
+	+ ' (p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup>'
+    + ' | effect size='+effect_size+'%'
+    + ' | &Delta;Score='+zdelta_score
+	+ ' | Tissues='+ histotype_display(histotype)
+	+ ' | Source='+ study[ishortname]
+	+ ')</p>';
 
   var plot_links='';
   if (typeof target_info === 'undefined') {plot_links = 'Unable to retrieve synonyms and external links for this gene';}

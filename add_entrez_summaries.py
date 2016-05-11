@@ -16,11 +16,70 @@ from urllib.error import URLError
 #import json
 import xml.etree.ElementTree as ET
 
+# https://docs.python.org/3.5/library/xml.etree.elementtree.html#xml.etree.ElementTree.Element.find
+
+# XML parsing: There is a “gotcha” with the find() method that will eventually bite you. In a boolean context, ElementTree element objects will evaluate to False if they contain no children (i.e. if len(element) is 0). This means that if element.find('...') is not testing whether the find() method found a matching element; it’s testing whether that matching element has any child elements! To test whether the find() method returned an element, use if element.find('...') is not None.
+   # from: http://www.diveintopython3.net/xml.html
 
 
 EUTILS_URL = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 
 # epost.fcgi?db=gene&id=7173,22018,54314,403521,525013
+
+# Main info:  http://www.ncbi.nlm.nih.gov/books/NBK25500/#chapter1.Downloading_Document_Summaries
+# http://www.ncbi.nlm.nih.gov/books/NBK25501/
+
+# Python Exception handling:
+#    https://doughellmann.com/blog/2009/06/19/python-exception-handling-techniques/
+
+# Ensembl REST API:  http://rest.ensembl.org/
+#   https://www.biostars.org/p/70387/
+
+# http://www.ncbi.nlm.nih.gov/books/NBK25498/#chapter3.EPost__ESummaryEFetch
+# Download protein records corresponding to a list of GI numbers.
+"""
+$db = 'protein';
+$id_list = '194680922,50978626,28558982,9507199,6678417';
+
+#assemble the epost URL
+$base = 'http://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
+$url = $base . "epost.fcgi?db=$db&id=$id_list";
+
+#post the epost URL
+$output = get($url);
+
+#parse WebEnv and QueryKey
+$web = $1 if ($output =~ /<WebEnv>(\S+)<\/WebEnv>/);
+$key = $1 if ($output =~ /<QueryKey>(\d+)<\/QueryKey>/);
+
+### include this code for EPost-ESummary
+#assemble the esummary URL
+$url = $base . "esummary.fcgi?db=$db&query_key=$key&WebEnv=$web";
+
+#post the esummary URL
+$docsums = get($url);
+print "$docsums";
+
+### include this code for EPost-EFetch
+#assemble the efetch URL
+$url = $base . "efetch.fcgi?db=$db&query_key=$key&WebEnv=$web";
+$url .= "&rettype=fasta&retmode=text";
+
+#post the efetch URL
+$data = get($url);
+print "$data";
+**** Note: To post a large number (more than a few hundred) UIDs in a single URL, please use the HTTP POST method for the EPost call (see Application 4).
+"""
+# http://www.ncbi.nlm.nih.gov/books/NBK25498/#chapter3.Application_3_Retrieving_large
+
+
+#### *** Can crearte more complex queies using brackets:
+### http://www.ncbi.nlm.nih.gov/books/NBK3837/
+# eg: 	alive[prop] AND transporter[title] AND ("Drosophila melanogaster"[orgn] OR "Mus musculus"[orgn])
+# http://www.ncbi.nlm.nih.gov/Class/MLACourse/Modules/Entrez/complex_boolean.html
+
+### Good tips & tricks for Entrez searches: http://biochem.uthscsa.edu/~hs_lab/frames/molgen/tutor/Entrez2.html
+
 
 # http://eutils.ncbi.nlm.nih.gov/entrez/eutils/epost.fcgi?db=gene&id=1&WebEnv=NCID_1_63346644_130.14.18.34_9001_1462830382_986530756_0MetA0_S_MegaStore_F_1
 
@@ -38,6 +97,11 @@ EUTILS_URL = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 # http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term=ERBB2[GENE]+AND+9606[TID]
 # http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=gene&term=VEGFA[GENE]+AND+9606[TID]
 
+# for the full gene record, use efetch, and retmode:
+# http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gene&id=2&retmode=xml
+# More details: http://www.ncbi.nlm.nih.gov/books/NBK25499/#chapter4.EFetch
+
+
 # Retrieve gene information:
 # http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=1,2
 #&usehistory=y
@@ -46,6 +110,8 @@ EUTILS_URL = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 #asn.1, default
 
 # http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=gene&id=2064,7422
+
+# As well as seraching by [GENE], could search by: [PREF] ( Preferred symbol of the gene )
 
 #$esearch_result =~ 
 #  m|<Count>(\d+)</Count>.*<QueryKey>(\d+)</QueryKey>.*<WebEnv>(\S+)</WebEnv>|s;

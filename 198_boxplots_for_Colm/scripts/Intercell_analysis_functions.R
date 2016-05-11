@@ -978,8 +978,11 @@ if (writeheader){cat(names(results), "boxplot_data\n", file=fileConn, sep="\t")}
 #wt_quart = quantile(zscores[wt_grp_rows,results$target[i]]) # Gives: Min, 1st Quartile, Median, 3rd Quartile, Max
 #print(wt_quart)
 
-wt_boxplot = boxplot.stats( zscores[wt_grp_rows,results$target[i]], do.conf = FALSE, do.out = TRUE )
+wt_boxplot = boxplot.stats( round(zscores[wt_grp_rows,results$target[i]],2), do.conf = FALSE, do.out = TRUE )
+ # The round is so that will get same results as my javascript boxplot_stats() which uses input y values already rounded to 2 decimal places.
 wt_boxplot_stats = wt_boxplot$stats
+
+
 #wt_boxplot_outliers = wt_boxplot$out # ie. points outside the 1.5 of the boxplot limits
 
 #print(wt_boxplot)
@@ -993,7 +996,8 @@ wt_boxplot_stats = wt_boxplot$stats
 # http://rstudio-pubs-static.s3.amazonaws.com/21508_35a770dc38fa4658accef1acc4fb2fbe.html
 # *** GOOD: http://www.sr.bham.ac.uk/~ajrs/R/r-show_data.html
 # boxplot.stats: https://stat.ethz.ch/R-manual/R-devel/library/grDevices/html/boxplot.stats.html
-mutant_boxplot = boxplot.stats( zscores[func_mut_grp_rows,results$target[i]], do.conf = FALSE, do.out = TRUE )
+mutant_boxplot = boxplot.stats( round(zscores[func_mut_grp_rows,results$target[i]],2), do.conf = FALSE, do.out = TRUE )
+ # The round is so that will get same results as my javascript boxplot_stats() which uses input y values already rounded to 2 decimal places.
 mutant_boxplot_stats = mutant_boxplot$stats
 #mutant_boxplot_outliers = mutant_boxplot$out
 

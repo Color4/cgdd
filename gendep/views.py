@@ -6,7 +6,7 @@ from urllib.error import  URLError
 from datetime import datetime # For get_timming()
 import requests # for Enrichr
 
-from django.http import HttpResponse
+from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
 
@@ -30,9 +30,13 @@ plain_mimetype ='text/plain; charset=utf-8'
 
 ENRICHR_BASE_URL = 'http://amp.pharm.mssm.edu/Enrichr/'
 
+def JsonResponse(data, safe=None):
+    # Tired the Django JsonResponse but failed to return the query_info' to javascript, so using HtmlResponse for now:
+    return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
+
     
 def json_error(message, status_code='0'):    
-    return HttpResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ), json_mimetype ) # eg: str(exception)
+    return JsonResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ) ) # eg: str(exception)
 
 def is_search_by_driver(search_by):
     if   search_by == 'driver': return True
@@ -110,7 +114,7 @@ def get_drivers(request):
     
     #    data = 'fail'
 
-    return HttpResponse(data, json_mimetype)
+    return JsonResponse(data, safe=False) # safe is false as data is a Json array, not dictionary
 
 
 def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p', select_related=None):
@@ -465,8 +469,13 @@ CDK11A
     # ** Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution.
     # See: https://docs.djangoproject.com/en/1.9/ref/request-response/
 
-    return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
+    # return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
 
+    # The safe=False is needed below so can pass an list (Json array), not just a dictionary.
+    # "Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution." From: https://docs.djangoproject.com/en/1.9/ref/request-response/#jsonresponse-objects
+    return JsonResponse(data, safe=False)
+    # optional param: The "json_dumps_params={'key':'value',....}" parameter is a dictionary of keyword arguments to pass to the json.dumps() call used to generate the response.
+    
     #    context = {'dependency_list': dependency_list, 'gene': gene, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
     # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
@@ -693,7 +702,7 @@ def gene_info(request, gene_name):
         data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene), 'ncbi_summary': gene.ncbi_summary }  # 
     except ObjectDoesNotExist: # Not found by the objects.get()
         data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
-    return HttpResponse(json.dumps(data, separators=[',',':']), json_mimetype)
+    return JsonResponse(json.dumps(data, separators=[',',':']))
         
     
 def graph(request, target_id):
@@ -957,7 +966,7 @@ def enrichr(request, gene_list, gene_set_library):
 
   #data = json.loads(response.text)  # print(data)
   
-  return HttpResponse(response.text, content_type=json_mimetype) # Send the full json response back to browser for now, not just the data[gene_set_library]
+  return JsonResponse(response.text, safe=False) # Send the full json response back to browser for now, not just the data[gene_set_library]
   
   
   # =====================================================================

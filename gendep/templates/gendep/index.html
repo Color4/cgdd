@@ -272,8 +272,11 @@ $(document).ready(function() {
   	// Initialise the Dependency Table:
     $("#result_table").tablesorter({
         // debug: true, // outputs to firebug console
+		
+		initialized : function(table){console.log("result_table: initialised")}, // do something after tablesorter has initialized.
+
 		showProcessing: true,
-		delayInit: false, // true, // display table sooner
+		delayInit: false, // true, // true to display table sooner
 		theme: 'blue',
 		widgets: ["filter", "scroller"], 		
 		widthFixed : true,
@@ -310,8 +313,16 @@ $(document).ready(function() {
 	})
 	.bind('filterEnd', function(e, filter){
 	   var num_rows = ($('#result_table tbody tr:visible').length-1).toString();
+	   // test here if table populated with current searches data - maybe a global flag, after populate_table and update complete
        $("#string_link").html("for "+num_rows+" rows <span style='font-size: 70%;'>(max: "+global_max_stringdb_proteins_ids+")</span>"); // the -1 is because of the filter widget row
     });
+
+    $("#result_table").bind('refreshComplete', function(e,table) {console.log("result_table: refreshComplete")});
+    // fires after tablesorter has completed executing the refreshWidget method.
+    $("#result_table").bind('tablesorter-ready', function(e,table) {console.log("result_table: tablesorter-ready")});
+    // This event occurs after an "updateComplete" and "pagerComplete" event.
+    $("#result_table").bind('updateComplete', function(e,table) {console.log("result_table: updateComplete")});
+
 
 	
 	// Initialise the Tooltips
@@ -334,7 +345,7 @@ $(document).ready(function() {
         }
 	  },
 	  
-      content: function(callback) {  // 'callback' function is called below with the data:	  
+      content: function(callback) {  // 'callback' function is called below with the data:
         var element = $( this );
         if ( element.is( "[data-gene]" ) ) {
           var gene_name = element.attr("data-gene");  // was: = element.text();
@@ -432,13 +443,18 @@ var timings = data['timings']; for (timing in timings) {console.log(timing);}
 
 console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
 
-			show_message("result_progress_div", "Data received from server. Building results table ....", 0); // 0 means not cleared by timer event.
+			//show_message("result_progress_div", "Data received from server. Building results table ....", 0); // 0 means not cleared by timer event.
+			console.log("Data received from server. Building results table ...."); // 0 means not cleared by timer event.
+			
   	        $("#welcome_div").hide(); // hide welcome text.
 
 			show_search_info(data);
 		    t0 = populate_table(data,t0);
 console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
-			show_message("result_progress_div", "Results table built."); // message clears after 3 seconds.
+			//show_message("result_progress_div", "Results table built."); // message clears after 3 seconds.
+			console.log("Results table built."); // message clears after 3 seconds.
+			
+			show_message("result_progress_div", "Formatting table....", 5); // clear message
 			
 			$("#result_div").show();
 console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();			
