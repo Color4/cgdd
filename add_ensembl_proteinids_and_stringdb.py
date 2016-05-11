@@ -271,7 +271,7 @@ def lookup_symbol(id):
 
 symbol_to_stringdb = dict()
 def load_stringdb_protein_alias_file_into_sqlite_db():
-  print("Loading StringDB Protain alias into dictionary ...")
+  print("Loading StringDB Protein alias into sqlite db ...")
   # *** A very good Sqlite & Python: https://pymotw.com/2/sqlite3/
   
   # A good article on SQLite and python:  http://sebastianraschka.com/Articles/2014_sqlite_in_python_tutorial.html

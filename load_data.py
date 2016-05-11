@@ -68,7 +68,14 @@ Colt_separate_boxplots_dir = os.path.join(analysis_dir, "separate_histotypes_col
 
 static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
 
+def error(message, code=1):
+    # raise RuntimeError(message)
+    # or:
+	sys.stderr.write('Error:  %s\n' % message)
+	sys.exit(code)
+    
 
+    
 def make_AtoZ_subdirs(to_dir):  
   for i in range(ord('A'), ord('Z')+1):
     to_dir_subdir = to_dir + '/' + chr(i)
@@ -203,16 +210,69 @@ def load_hgnc_dictionary():
         print("*** ERROR: Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s'" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id]), "\n",hgnc[gene_name], "\n",row )
       hgnc[gene_name] = row # Store the whole row for simplicity.
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
+
+
+namefixes = {
+ 'C9orf96':      'STKLD1', # as C9orf96 is the old name.
+ 'C8orf44.SGK3': 'C8orf44-SGK3',
+ 'CTB.89H12.4':  'CTB-89H12.4',
+ 'RP11.78H18.2': 'RP11-78H18.2',
+ 'NME1.NME2':    'NME1-NME2',
+ 'RP4.592A1.2':  'RP4-592A1.2',
+ 'FPGT.TNNI3K':  'FPGT-TNNI3K',
+ 'HLA.DQA1':     'HLA-DQA1',
+ 'HLA.DPA1':     'HLA-DPA1',
+ 'HLA.DRB1':     'HLA-DRB1',
+ 'HLA.DRB4':     'HLA-DRB4',
+ 'HLA.B':        'HLA-B',
+ 'HLA.C':        'HLA-C',
+ 'HLA.G':        'HLA-G',
+ 'HLA.H':        'HLA-H',
+ 'HLA.J':        'HLA-J',
+ 'ARL2.SNX15':   'ARL2-SNX15',
+ 'ERVFRD.1':     'ERVFRD-1',
+ 'TRIM6.TRIM34': 'TRIM6-TRIM34',
+ 'CYP1B1.AS1':   'CYP1B1-AS1',
+ 'SLX1B.SULT1A4':'SLX1B-SULT1A4',
+ 'LRRC75A.AS1':  'LRRC75A-AS1',
+ 'NDUFC2.KCTD14':'NDUFC2-KCTD14',
+ 'KRTAP10.5':    'KRTAP10.5',
+ 'SRP14.AS1':    'SRP14-AS1',
+ 'LOC100499484.C9ORF174': 'LOC100499484-C9ORF174'
+}
       
 def fix_gene_name(name):
-  if len(name) > 20: print("*** ERROR: gene_name '%s' >20 characters long" %(name))
-  if   name == 'C8orf44.SGK3': return 'C8orf44-SGK3'  # as is hghc: 48354
-  elif name == 'CTB.89H12.4':  return 'CTB-89H12.4'
-  elif name == 'RP11.78H18.2': return 'RP11-78H18.2'
-  elif name == 'C9orf96':      return 'STKLD1' # as C9orf96 is the old name.
-  elif name == 'LOC100499484.C9ORF174':    
-    return 'LOC100499484-C9ORF174' # removed the '.' as is 21 characters otherwise 
-  else: return name
+  if len(name) > 25: print("*** ERROR: gene_name '%s' >20 characters long" %(name))
+  newname = ''
+  
+  if name in namefixes:
+    newname = namefixes[name]  
+    print("Changed: '%s' => '%s'" %(name,newname))
+    return newname
+
+  elif name.find('.') > -1:
+     s = name.split('.')
+     if len(s) == 2:
+       newname = "%s-%s" %(s[0],s[1])
+       if newname in hgnc:
+          print("Changed: '%s' => '%s'" %(name,newname))
+          return newname
+     elif len(s) == 3:
+       newname = "%s-%s.%s" %(s[0],s[1],s[2])
+       if newname in hgnc:
+          print("Changed: '%s' => '%s'" %(name,newname))       
+          return newname       
+       newname = "%s.%s-%s" %(s[0],s[1],s[2])
+       if newname in hgnc:
+          print("Changed: '%s' => '%s'" %(name,newname))
+          return newname
+       newname = "%s-%s-%s" %(s[0],s[1],s[2])
+       if newname in hgnc:
+          return newname
+     else:  # eg. len(s) ==1 or >3
+       error("fix_gene_name() has %d '-' in name: %s" %(len(s),name))
+
+  return name
 
 
 ATARmap = dict()
@@ -277,8 +337,9 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
   gene_name = names[0]
   entrez_id = names[1]
   if entrez_id == 'EntrezNotFound':
-    print("Entrez id='%s' for gene %s, changing to 'NoEntrezId'" (entrez_id,gene_name))
+    print("Entrez id='%s' for gene %s, changing to 'NoEntrezId'" %(entrez_id,gene_name))    
     entrez_id='NoEntrezId' # As 'EntrezNotFound' from Achilles data is too long for the 10 character entrez_id field.
+    names[1] = entrez_id
   ensembl_id = names[2]
   
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
@@ -365,7 +426,7 @@ WARNING: For gene 'RIOK3': Ensembl_id '('ENSG00000101782',)' (<class 'str'>) alr
       if len(omim_id) >= 9:
           pos = omim_id.find('|')
           if pos > -1:
-            print("%s: using only first omid_id: %s" %(gene_name,omic_id))
+            print("%s: using only first omid_id: %s" %(gene_name,omim_id))
             omim_id = omim_id[:pos]
       
       g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
@@ -987,12 +1048,13 @@ if __name__ == "__main__":
      static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
      # exit()
      
-  make_AtoZ_subdirs(static_gendep_boxplot_dir)
+  # make_AtoZ_subdirs(static_gendep_boxplot_dir)
   
   load_hgnc_dictionary()
   load_mygene_hgnc_dictionary()
   
-     
+
+  
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
     print("\nEmptying database tables")
@@ -1012,10 +1074,9 @@ if __name__ == "__main__":
     read_achilles_R_results(csv_filepathname, table_name, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
     table_name = 'S1K'
-    Campbell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
+    Campbell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
-
 
     # *** NOTE, warnings from R:
     # There were 50 or more warnings (use warnings() to see the first 50)
@@ -1024,15 +1085,15 @@ if __name__ == "__main__":
     # cannot compute exact p-value with ties
 
     table_name = ''
-    Achilles_results_pancan =  "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_30April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Achilles_results_pancan =  "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
-    ######read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)
+    read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)    
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
     table_name = ''
-    Achilles_results_bytissue = "univariate_results_Achilles_v2_for23drivers_bytissue_kinome_combmuts_30April2016witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Achilles_results_bytissue = "univariate_results_Achilles_v2_for23drivers_bytissue_kinome_combmuts_5May2016witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
-    ######read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
+    read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
     
     #** Maybe my browser memory?
     #https://www.ncbi.nlm.nih.gov/pubmed/
@@ -1045,9 +1106,9 @@ if __name__ == "__main__":
 
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
     table_name = ''
-    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_29April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
-    ######read_achilles_R_results(csv_filepathname, table_name, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
+    read_achilles_R_results(csv_filepathname, table_name, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
     
     # I downloaded: https://neellab.github.io/bfg/
     # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."

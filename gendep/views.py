@@ -554,11 +554,12 @@ def stringdb_interactions(required_score, protein_list):
     stringdb_options="network_flavor=confidence&limit=0&required_score="+required_score;  # &additional_network_nodes=0
     # The online interactive stringdb uses: "required_score" 400 and: "limit" 0 (otherwise by default will add 10 more proteins)
 
+    # http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confidence&limit=0&required_score=700&identifiers=9606.ENSP00000269571%0D9606.ENSP00000357883%0D9606.ENSP00000345083
     
     protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
-    #print(url)
+    print(url)
     
 # or maybe use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
 # import requests
@@ -575,7 +576,7 @@ def stringdb_interactions(required_score, protein_list):
         elif hasattr(e, 'code'):
             return False, 'The server couldn\'t fulfill the request. Error code:' + e.code
     else:  # everything is fine
-        return True, response
+        return True, response.read().decode('utf-8').rstrip().split("\n") # read() returns 'bytes' so need to convert to python string
 
 
 def get_stringdb_interactions(request, required_score, protein_list):
@@ -584,19 +585,36 @@ def get_stringdb_interactions(request, required_score, protein_list):
     
     if success:
         protein_dict =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
-    
+        if response=='':   # or response=="\n":
+            return HttpResponse("", content_type=plain_mimetype)
         protein_dict2 = dict()
-        for line in response:
-          # if line:
-            cols = line.decode('utf-8').rstrip().split("\t")
-            if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
+        print("response:",response)
+        for line in response: # 
+            if line == '': continue
+            cols = line.rstrip().split("\t")
+            print("cols:",cols)
+            print("line:",line.rstrip())
+            if len(cols)<2: print("Num cols = %d in line: '%s'" %(len(cols),line.rstrip()) )
+# Got error for:  http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confidence&limit=0&required_score=700&identifiers=9606.ENSP00000269571%0D9606.ENSP00000357883%0D9606.ENSP00000345083
+# Internal Server Error: /gendep/get_stringdb_interactions/700/9606.ENSP00000269571;9606.ENSP00000357883;9606.ENSP00000345083/
+# Traceback (most recent call last):
+#  File "C:\Users\HP\AppData\Local\Programs\Python\Python35\lib\site-packages\django\core\handlers\base.py", line 149, in get_response
+#    response = self.process_exception_by_middleware(e, request)
+#  File "C:\Users\HP\AppData\Local\Programs\Python\Python35\lib\site-packages\django\core\handlers\base.py", line 147, in get_response
+#    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+#  File "C:\Users\HP\Django_projects\cgdd\gendep\views.py", line 592, in get_stringdb_interactions
+#    if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
+# TypeError: Can't convert 'bytes' object to str implicitly
+# [07/May/2016 16:13:18] "GET /gendep/get_stringdb_interactions/700/9606.ENSP00000269571;9606.ENSP00000357883;9606.ENSP00000345083/ HTTP/1.1" 500 16932            
+            
+            
             protein = cols[0].replace('string:', '') # as ids start with 'string:'
             if protein in protein_dict: protein_dict2[protein] = True
-            else: print("*** Protein returned '%' is not in original list ***" %(protein))
+            else: print("*** Protein returned '%s' is not in original list ***" %(protein))
 
             protein = cols[1].replace('string:', '') # as ids start with 'string:'
             if protein in protein_dict: protein_dict2[protein] = True
-            else: print("*** Protein returned '%' is not in original list ***" %(protein))
+            else: print("*** Protein returned '%s' is not in original list ***" %(protein))
 
         protein_list2 = ';'.join(protein_dict2.keys())
             
@@ -627,7 +645,7 @@ def cytoscape(request, required_score, protein_list):
         edges = dict()   # The edges for cytoscape
         for line in response:
           # if line:
-            cols = line.decode('utf-8').rstrip().split("\t")
+            cols = line.rstrip().split("\t")
             if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
             protein1 = cols[0].replace('string:', '') # as ids start with 'string:'
             if protein1 in initial_nodes:
@@ -672,7 +690,7 @@ def qtip(tip):
 def gene_info(request, gene_name):
     try:
         gene = Gene.objects.get(gene_name=gene_name)
-        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene) }  # 
+        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene), 'ncbi_summary': gene.ncbi_summary }  # 
     except ObjectDoesNotExist: # Not found by the objects.get()
         data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
     return HttpResponse(json.dumps(data, separators=[',',':']), json_mimetype)

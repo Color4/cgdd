@@ -120,9 +120,19 @@ span.title {
 	border: 1px solid #004279;  /* same blue colour as page header */
 }
 
+#legend_table table, #legend_table  th, #legend_table  td {  
+  font-size: 75%;
+  text-align: center;
+  padding: 1px 4px;
+  border: 1px solid black;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
 .script {
   margin-left: 40px;
 }
+
 	
 /*
  .ui-autocomplete.ui-menu{fontSize: 10px, width:300px}
@@ -209,7 +219,7 @@ span.title {
     height: 20px; /* was 16px */
     overflow: hidden;
     position: absolute;
-    left: 50%; /* 40% works is track is false, was: 50% */
+    left: 50%; /* 40% works if track is false, was: 50% */
     margin-left: -35px;
     bottom: -20px;  /* was: -16px */
 }
@@ -218,7 +228,7 @@ span.title {
     bottom: auto;
 }
 .arrow.left {
-    left: 50%; /* SJB was 20% */
+    left: 35%; /* SJB was 20% */
 }
 .arrow:after {
     content: "";

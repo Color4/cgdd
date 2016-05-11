@@ -12,7 +12,7 @@ require("preprocessCore")
 require(gplots)
 require(mixtools)
 
-require(jsonlite) # Added by SJB
+# require(jsonlite) # Added by SJB - no longer needed.
 
 # Define colours used for plotting
 # "#C9DD03" green
@@ -376,7 +376,7 @@ run_univariate_tests <- function(
 #	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
 #       or change to Skip if driver mutation IS in the above list of 21 genes - as they are already processed.
 	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
-			print(paste(toString(i),"skipping:", colnames(mutations)[i]))
+			# print(paste(toString(i),"skipping:", colnames(mutations)[i]))
 			next
 		}
         work_count <- work_count + 1
@@ -599,12 +599,13 @@ run_univariate_test_bytissue <- function(x){
 	tissue <- NULL
 	#print("B")
 	for(tissue in tissue_types){
-	#	print("C")
+		print(paste("\nProcessing tissue:",tissue,"..."))
 		cellline_count <- sum(
 			x$tissues[,tissue]
 			)
 	#	print("D")
 		if(cellline_count < 5){
+		    print(paste("  Skipping tissue:",tissue,"as it has less than 5 cell lines."))
 			next
 		}
 	#	print("E")
@@ -1149,7 +1150,13 @@ for (k in 1:length(wt_rows_by_tissue)) {
   # cat(tissue,cell_line_names[k],round(x[k],2),y[k],"0;", file=fileConn, sep = ",") # "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   data_rows_count <- data_rows_count +1
   # Optionally add: (if (k==1) tissue else "")
-  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],y[k],"0", sep=",") # removed the semi colon, as will join at end using sep=';' as don't want semi-colon at end of the very last row.
+  # The round(y[k],2) is needed for Achilles and Colt data, but seems already rounded in Campbell data:
+  
+  mutation:
+  
+  mutation.classes
+  
+  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],round(y[k],2),"0", sep=",") # removed the semi colon, as will join at end using sep=';' as don't want semi-colon at end of the very last row.
   }
 #  paste(tissue,cell_line_names,y,"0", sep=",", ';') # Maybe collapse argument will combine these together more efficiently than the above loop?
 
@@ -1214,7 +1221,8 @@ for (k in 1:length(mutant_rows_by_tissue)) {
   #cat(tissue,cell_line_names[k],round(x[k],2),y[k],"1;", file=fileConn, sep = ",")# "1" for mutant. (0 for wild type) Semi-colon is our end-of-line marker, instead of new-line.
   data_rows_count <- data_rows_count +1
   # Optionally add:  (if (length(wt_rows_by_tissue)==0 && k==1) tissue else "")
-  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],y[k],"1", sep=",") # removed ';' from end.
+  # The round(y[k],2) is needed for Achilles and Colt data, but seems already rounded in Campbell data.  
+  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],round(y[k],2),"1", sep=",") # removed ';' from end.
   # or: ifelse(k==1, tissue, "")
   
   # for empty first tissue use: if k==1 ""
@@ -1288,7 +1296,7 @@ cat(file=fileConn, sep="\t", unname(unlist(results[i,])))
 cat(file=fileConn, "\t")
 cat(file=fileConn, sep = ",", cell_line_count, boxplot_range, wt_boxplot_stats, mutant_boxplot_stats)
 cat(file=fileConn, ";")
-cat(file=fileConn, sep=';', data_rows[1:data_rows_count]))  # data_rows[1:data_rows_count] is same as head(data_rows, n=data_rows_count)
+cat(file=fileConn, sep=';', data_rows[1:data_rows_count])  # data_rows[1:data_rows_count] is same as head(data_rows, n=data_rows_count)
 cat(file=fileConn, "\n")
 
 ####			dev.off()

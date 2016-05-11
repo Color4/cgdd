@@ -48,6 +48,41 @@ function sprintf( format )
 */
 
 
+// Finish this:
+function show_message(elem_id, message, waitfor) {
+    // elem_id, the span, div, or paragraph to contain the message
+    // message: text or html
+    // waitfor: in milliseconds: 0 means don't clear message; undefined means clear after 3 seconds.
+	var elem = document.getElementById(elem_id);	
+	var data_value = elem.getAttribute("data-value"); // so is a button to reset to its original text value
+	// Note: If the attribute does not exist, the return value is null or an empty string ("")
+console.log(elem_id,data_value);
+	if ((data_value !== null) && (data_value !== "")) {elem.value = message;} // for an input button.
+	else {elem.innerHTML = message;}
+
+
+	// *** Do I need to pass elem and starttime as the optional parameters - but optonal params not supported in IE9 and earlier!!  - so if not defined then don't clear message in IE9 ?? 
+    // otherwise could maybe use the timer ID returned by setTimer to set the data-counter?? - if set time can get its own id?     		
+    var timerid = "0"; // to set id to zero if no time out specified, so that any pending setTimeout won't clear this message.
+	if (typeof waitfor == "undefined") {waitfor = 3000;} // default 3 seconds.	
+	if (waitfor > 0) {
+        // Only clear message if was set by this call, as may ave subsequently been set by a second click of same button by user.		
+        // Use an anonymous function, which works in all browsers (whereas extra parameters for timeout only work in IE9+)		
+		timerid = setTimeout(function(){
+ console.log("settimeout timerid:",timerid);
+    	    if (elem.getAttribute("data-timerid") == timerid) {  // so only clears messages set by this particular show_message() call.
+				var data_value = elem.getAttribute("data-value"); // so is a button to reset to its original text value
+				if ((data_value !== null) && (data_value!=="")) {elem.value = data_value;}
+				else {elem.innerHTML="";}
+				}
+		}, waitfor);
+	  };
+    elem.setAttribute("data-timerid",timerid);
+	console.log("timerid:",timerid)
+  }
+	  
+	  
+
 // The study_info() function is part of the main "index.html" template as it needs each study from the database Study table.
 function study_url(study_pmid) {
     if (study_pmid.substring(0,7) === 'Pending') {href = global_url_for_mystudy.replace('mystudy', study_pmid);} // was: '/gendep/study/'+study_pmid+'/';
@@ -85,7 +120,8 @@ function gene_external_links(id, div, all) {
   if (id['cosmic_id'] != '') {links += div + sprintf(' <a class="tip" href="http://cancer.sanger.ac.uk/cosmic/gene/analysis?ln=%s" target="_blank">COSMIC<span>Catalogue of Somatic Mutations in Cancer: %s</span></a> ', id['cosmic_id'],id['cosmic_id']);}
   if (id['uniprot_id'] != '') {links += div + sprintf(' <a class="tip" href="https://cansar.icr.ac.uk/cansar/molecular-targets/%s/" target="_blank">CanSAR<span>CanSAR: %s</span></a> ', id['uniprot_id'],id['uniprot_id']);}  // CanSAR uses UniProt ids
   if (all && (id['uniprot_id'] != '')) {links += div + sprintf(' <a class="tip" href="http://www.uniprot.org/uniprot/%s" target="_blank">UniProtKB<span>UniProtKB: %s</span></a> ', id['uniprot_id'],id['uniprot_id']);}
-  if (all && (id['entrez_id'] != '')) {links += div + ' <a class="tip" href=" http://www.genomernai.org/v15/gene' + ( id['entrez_id']=='' ?  'Search/'+id['gene_name'] : 'details/'+id['entrez_id'] ) + '" target="_blank">GenomeRNAi<span>GenomeRNAi - phenotypes from RNA interference</span></a>';}  // as links are eg:  http://www.genomernai.org/v15/geneSearch/ERBB2 and http://www.genomernai.org/v15/genedetails/2064 
+  // Added this GenomeRNAi to boxplot in May 2016:
+  if (id['entrez_id'] != '') {links += div + ' <a class="tip" href=" http://www.genomernai.org/v15/gene' + ( id['entrez_id']=='' ?  'Search/'+id['gene_name'] : 'details/'+id['entrez_id'] ) + '" target="_blank">GenomeRNAi<span>GenomeRNAi - phenotypes from RNA interference</span></a>';}  // as links are eg:  http://www.genomernai.org/v15/geneSearch/ERBB2 and http://www.genomernai.org/v15/genedetails/2064 
    
   return links;
 }
@@ -249,7 +285,7 @@ function show_search_info(data) {
 
   var download_csv_url = global_url_for_download_csv.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
   
-  $("download_csv_button").html("Download as CSV file"); // reset as could have been set to "Downloading CSV file".
+  //$("download_csv_button").html("Download as CSV file"); // reset as could have been set to "Downloading CSV file".
   // console.log("download_url: ",download_csv_url);
   //var button_event = "window.open('" + download_url + "');"
   //console.log(button_event)
@@ -271,8 +307,8 @@ function show_search_info(data) {
    // $("#download_csv_form").attr("action", download_csv_url);
    $("#download_csv_form")
      .attr("action", download_csv_url)
-     .submit(function( event ) {
-      $("#download_csv_button").html('Downloading CSV file')
+     .submit(function( event ) {	
+		show_message("download_csv_button", "Downloading CSV file...");
 	//return true;
    });
 
@@ -370,9 +406,9 @@ function count_char(s,c) {
 	return count;
 }
 
-function get_id_list_for_depenedencies(div, idtype='protein') {
+function get_id_list_for_depenedencies(div, idtype) {
 	// returns string with proteins separated by div, and the count of number of proteins in the string
-	
+	// if idtype is undefined, set it to ='protein'
 	// could add a parameter in future: max_number_to_get
 	
 	// The following works:
@@ -406,7 +442,8 @@ function get_id_list_for_depenedencies(div, idtype='protein') {
 	// This url of corresponds to 8216 characters (see example in file: max_stringdb_url.txt)
     //console.log('first-child:')
 
-    var data_tag = idtype=='protein' ? "data-epid" : "data-gene";
+    var data_tag = "data-epid";  // default to 'protein'.
+    if (idtype=='gene') {data_tag="data-gene";}
 	
     $('#result_table tbody tr:visible td:first-child').each(function(index) {
         if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
@@ -425,7 +462,9 @@ function get_id_list_for_depenedencies(div, idtype='protein') {
 
 
 function show_cytoscape() {
-	$("#result_progress_div").html("<b><font color='red'>Fetching Cytoscape protein list for cytoscape image....</font></b>");
+	
+	show_message("cytoscape_button", "Fetching cytoscape...");
+	// was: Fetching Cytoscape protein list for cytoscape image
 
 	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
 
@@ -489,6 +528,8 @@ function enrich(options) {
 */
 
 function show_enrichr() {
+	show_message("enrichr_submit_button", "Fetching Enrichr..."); // was: "Fetching Enrichr "+gene_set_library+" enrichment ....");
+	
     var dependency_search = global_selected_gene+", "+histotype_display(global_selected_histotype)+", "+study_info(global_selected_study)[ishortname]+'.';
     var gene_list_and_count = get_id_list_for_depenedencies("\n", 'gene');
 	if (gene_list_and_count[1]==0) {
@@ -504,8 +545,9 @@ function show_enrichr() {
 
 function fetch_enrichr_data(display_callback_function) {
 	// This is using the JSON API, via the pythonanywhere server: 
+	// Not used now, as just going directly to interactive view
     var gene_set_library='KEGG_2016';
-	$("#result_progress_div").html("<b><font color='red'>Fetching Enrichr "+gene_set_library+" enrichment ....</font></b>");
+	show_message("enrichr_submit_button", "Fetching Enrichr..."); // was: "Fetching Enrichr "+gene_set_library+" enrichment ....");
 	
 	var gene_list_and_count = get_id_list_for_depenedencies(';', 'gene');
 
@@ -547,7 +589,7 @@ function fetch_enrichr_data(display_callback_function) {
 
 
 function set_string_form_identifiers() {
-	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+	show_message("string_interactive_submit_button", "Fetching String-DB...");
 
 	var protein_list_and_count = get_id_list_for_depenedencies("\n", 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	
@@ -572,9 +614,11 @@ function set_string_form_identifiers() {
 
 
 function show_stringdb_interactive() {
+	// ** This function is NOT used ***
+	
 	// NOW keeping the unconnected proteins in the interactive image as interactive alows users to do enrichment so means more if keep all proteins. 
     //	
-	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+	show_message("result_progress_div", "<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
 	var protein_list_and_count = get_id_list_for_depenedencies('%0D', 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	
     var protein_list = protein_list_and_count[0];
@@ -595,7 +639,7 @@ function show_stringdb_interactive() {
 function show_stringdb(display_callback_function) {
 	// This to calls server to remove unconnected proteins from the list before displaying the string network image.
 	
-	$("#result_progress_div").html("<b><font color='red'>Fetching String-DB protein list and image....</font></b>");
+	show_message("string_image", "Fetching String-DB...", 8000); // show this for 10 seconds as can be slow for images with many proteins
 
 	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	
@@ -643,13 +687,19 @@ function show_stringdb(display_callback_function) {
          })
 	  .always(function() {
 	     // var protein_count = (protein_list == '') ? 0 : count_char(protein_list,';')+1;
-		 protein_list = protein_list.split(';');
-		 protein_count = protein_list.length;
-		 protein_list = protein_list.join('%0D');  // as javascript's replace(';', '%0D') only replaces the first instance.
-		 console.log("Count after removing unconnected proteins:",protein_count, "Protein list:",protein_list);
-	  	 display_callback_function(protein_list, protein_count);
+		 if (protein_list=='') {
+		     protein_count = 0
+			 alert('StringDB reports zero interactions of confidence>700 between these selected proteins. Click the "StringDB interactive" button to see this.')
+		 }
+		 else {	 
+		    protein_list = protein_list.split(';');
+		    protein_count = protein_list.length;
+		    protein_list = protein_list.join('%0D');  // as javascript's replace(';', '%0D') only replaces the first instance.
+	  	    display_callback_function(protein_list, protein_count);
+		 }
+		 console.log("Count after removing unconnected proteins: "+protein_count+", Protein list: '"+ protein_list+"'" );
 	     });
-		 
+	
     return false; // Return false to the caller so won't move on the page as is called from a href="...		 
  }
 	
@@ -851,6 +901,7 @@ function stringdb_image(protein_list,protein_count) {
 
   // was: height="100%"  but that made small images too big
   var mycontent = '<center><img src="' + string_url +'" alt="Loading StringDB image...."/></center>';
+  //var mycontent = string_url
   var href = string_url;
     
 //  var box_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | Tissues='+ histotype_display(histotype) +' | Source='+ study[0] +')';
@@ -886,10 +937,10 @@ function stringdb_image(protein_list,protein_count) {
 
     // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
     // or $(...).content - Overrides content to be displayed - maybe for inline content
-	type: 'inline', // 'html', // 'iframe', // 'html', //'inline',
+	type: 'image', // type image should centre the small stringdb network images // 'inline', // 'html', // 'iframe', // 'html', //'inline',
     //content:
-    // href: href,	
-	content: mycontent,
+    href: href,	
+	//content: mycontent,
     title: box_title  //,
    });
    
@@ -988,36 +1039,51 @@ function populate_table(data,t0) {
 	  var darkgreen_UCD_logo  = '#00A548';
 	  var midgreen_SBI_logo   = '#92C747';
 	  var lightgreen_SBI_logo = '#CDF19C'; // was actually:'#ADD17C';
-	  
-	  var val = parseFloat(d[ieffect_size]); // convert to float value
-      if      (val >= 90) {bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"'}
-	  else if (val >= 80) {bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'}
-	  else if (val >= 70) {bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'}
-	  else {bgcolor = '';}
-	  var effectsize_cell = '<td'+bgcolor+'>' + d[ieffect_size] + '</td>';
 
 	  val = parseFloat(d[iwilcox_p]); // This will be in scientific format, eg: 5E-4
-      if      (val <= 0.0001) {bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"'}
-	  else if (val <= 0.001)  {bgcolor=' style="background-color:'+midgreen_SBI_logo+'"'}
-	  else if (val <= 0.01)   {bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'}
-	  else {bgcolor = '';}	  
-	  var wilcox_p_cell = '<td'+bgcolor+'>' + d[iwilcox_p].replace('e', ' x 10<sup>') + '</sup></td>';
+      if      (val <= 0.0001) {bgcolor=darkgreen_UCD_logo}
+	  else if (val <= 0.001)  {bgcolor=midgreen_SBI_logo}
+	  else if (val <= 0.01)   {bgcolor=lightgreen_SBI_logo}
+	  else {bgcolor = '';}
+	  style = "width:10%; text-align: center;";
+	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
+	  var wilcox_p_cell = '<td style="'+style+'">' + d[iwilcox_p].replace('e', ' x 10<sup>') + '</sup></td>';
+	  
+	  var val = parseFloat(d[ieffect_size]); // convert to float value
+      if      (val >= 90) {bgcolor=darkgreen_UCD_logo}
+	  else if (val >= 80) {bgcolor=midgreen_SBI_logo}
+	  else if (val >= 70) {bgcolor=lightgreen_SBI_logo}
+	  else {bgcolor = '';}
+	  var style = "width:10%; text-align: center;";
+	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
+	  var effectsize_cell = '<td style="'+style+'">' + d[ieffect_size] + '</td>';
 
+	  var val = parseFloat(d[izdelta]); // convert to float value
+      if      (val <= -2.0) {bgcolor=darkgreen_UCD_logo}
+	  else if (val <= -1.5) {bgcolor=midgreen_SBI_logo}
+	  else if (val <= -1.0) {bgcolor=lightgreen_SBI_logo}
+	  else {bgcolor = '';}
+	  var style = "width:10%; text-align: center;";
+	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
+	  var zdelta_cell = '<td style="'+style+'">' + d[izdelta] + '</td>';
+	  
 	  var interaction_cell;
-	  if (d[iinteraction] == '') {interaction_cell = '<td></td>';}
+	  var style = "width:10%; text-align: center;";
+	  if (d[iinteraction] == '') {interaction_cell = '<td style="'+style+'"></td>';}
 	  else {
 		// alert("interaction='"+d[iinteraction]+"'")
 	    var interaction = d[iinteraction].split('#'); // as contains, eg: High#ENSP00000269571 (ie protein id)
 	    switch (interaction[0]) { // This will be in scientific format, eg: 5E-4
-          case 'Highest': bgcolor=' style="background-color:'+darkgreen_UCD_logo+'"';  break;
-	      case 'High':    bgcolor=' style="background-color:'+midgreen_SBI_logo+'"';   break;
-	      case 'Medium':  bgcolor=' style="background-color:'+lightgreen_SBI_logo+'"'; break;
+          case 'Highest': bgcolor=darkgreen_UCD_logo;  break;
+	      case 'High':    bgcolor=midgreen_SBI_logo;   break;
+	      case 'Medium':  bgcolor=lightgreen_SBI_logo; break;
 	      default: bgcolor = '';
         }
-		
+	    if (bgcolor != '') {style += ' background-color: '+bgcolor;}
+
 		var string_protein = '';
 		if (interaction[1] == '') {
-		  interaction_cell = '<td'+bgcolor+'>'+interaction[0]+'</td>';
+		  interaction_cell = '<td style="'+style+'">'+interaction[0]+'</td>';
 		} else {
 		  string_protein = '9606.'+interaction[1];
 		  
@@ -1031,42 +1097,44 @@ function populate_table(data,t0) {
 		  
 	      // var string_function = "string('" + driver + comma + target + "');";
 	      // interaction_cell = '<td'+bgcolor+'><a href="javascript:void(0);" onclick="'+string_function+'">'+interaction[0]+'</a></td>';
-		  interaction_cell = '<td'+bgcolor+'><a href="'+ string_url +'" target="_blank">'+interaction[0]+'</a></td>';
+		  interaction_cell = '<td style="'+style+'"><a href="'+ string_url +'" target="_blank">'+interaction[0]+'</a></td>';
 		}
 	  }
-	  
+
+	  var style = "width:15%; text-align: center;";	  
 	  var inhibitor_cell;
-	  if (d[iinhibitors] == '') {inhibitor_cell='<td></td>';}
+	  if (d[iinhibitors] == '') {inhibitor_cell='<td style="'+style+'"></td>';}
 	  else {
 		  var drug_links = '';
 		  var onclick = '';
 		  if (d[iinhibitors].length <= 12) {drug_links = make_drug_links(d[iinhibitors],', ');}
 		  else {		  
-		    drug_links = d[iinhibitors].substr(0,8)+'...[more]';
+		    drug_links = d[iinhibitors].substr(0,7)+'...[more]';
             var onclick_function = "toggle_show_drugs(this,'"+d[iinhibitors]+"', ', ', '"+d[igene]+"');";
 			onclick = ' onclick="'+onclick_function+'"';
 		  }
 		  // removed the attribute: drug="'+d[iinhibitors]+'"
           // WAS: inhibitor_cell = '<td style="background-color: beige;"'+onclick+'>'+drug_links+'</td>';
 		  //make_drug_links(drug_names,', ')	// div is comma+space or semi-colon
-		  inhibitor_cell = '<td style="background-color: beige;"><a href="javascript:void(0);"'+onclick+'>'+drug_links+'</a></td>';
+		  inhibitor_cell = '<td style="'+style+' background-color: beige;"><a href="javascript:void(0);"'+onclick+'>'+drug_links+'</a></td>';
 	  }
+
 	  
 //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'+
-        '<td data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
+        '<td style="width:15%" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
         wilcox_p_cell + 
 		effectsize_cell +
-		'<td>' + d[izdelta] + '</td>' +
-        '<td>' + histotype_display(d[ihistotype]) + '</td>' +
-		'<td data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
+		zdelta_cell +
+        '<td style="width:10%;">' + histotype_display(d[ihistotype]) + '</td>' +
+		'<td style="width:10%;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		'<td data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' + // experiment type. The 'data-exptype=""' is use by tooltips
+		'<td style="width:10%;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' + // experiment type. The 'data-exptype=""' is use by tooltips
         interaction_cell +  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
 		
 	    inhibitor_cell +  //'<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
@@ -1162,7 +1230,7 @@ function sup10_format(num) {
 function format_gene_info_for_tooltip(data) {
   var synonyms = data['synonyms'];
   if (synonyms != '') {synonyms = ' | '+synonyms}
-  return '<b>'+data['gene_name'] + '</b>' + synonyms +'<br/><i>' + data['full_name']+'</i>';
+  return '<b>'+data['gene_name'] + '</b>' + synonyms +'<br/><i>' + data['full_name']+'</i>'+'<p style="font-size: 85%;">'+data['ncbi_summary']+'</p>';
   }
 
 function is_form_complete() {

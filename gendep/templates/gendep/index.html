@@ -40,8 +40,13 @@
         <!-- if IE -->
 		<!--script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/base64.js"></script-->
 		<script type="text/javascript" src="{% static 'gendep/SVGtoDataURL/base64.js' %}"></script>
-		<script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/rgbcolor.js"></script>
-		<script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/canvg.js"></script>
+		<!--script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/rgbcolor.js"></script-->
+		<!--script type="text/javascript" src="http://canvg.googlecode.com/svn/trunk/canvg.js"></script-->
+		<!-- Canvg Not on google code now -->
+		<script type="text/javascript" src="http://gabelerner.github.io/canvg/rgbcolor.js"></script> 
+        <!--script type="text/javascript" src="http://gabelerner.github.io/canvg/StackBlur.js"></script-->
+        <script type="text/javascript" src="http://gabelerner.github.io/canvg/canvg.js"></script> 
+		
 		<!-- endif -->
    <!--script type="text/javascript" src="gendep/static/gendep/SVGtoDataURL/svg_todataurl.js"></script-->
    <script type="text/javascript" src="{% static 'gendep/SVGtoDataURL/svg_todataurl.js' %}"></script>
@@ -268,14 +273,14 @@ $(document).ready(function() {
     $("#result_table").tablesorter({
         // debug: true, // outputs to firebug console
 		showProcessing: true,
-		delayInit: true, // display table sooner
+		delayInit: false, // true, // display table sooner
 		theme: 'blue',
 		widgets: ["filter", "scroller"], 		
 		widthFixed : true,
 
 		widgetOptions: {
 			scroller_height: 400,
-			resizable_widths: [ '16%', '12%', '12%', '12%', '12%', '12%', '12%', '12%'], // or use eg: '20px'
+			resizable_widths: [ '15%', '10%', '10%', '10%', '11%', '11%', '11%', '11%', "11%"], // or use eg: '20px'
 			filter_functions: { // 0-based column indexes:
                 1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
@@ -316,7 +321,7 @@ $(document).ready(function() {
 	  hide: false,
       track: true, // follow mouse
 	  position: {
-        my: "center bottom-20",
+        my: "center+15% bottom-20",  // this center+10% should match the ".arrow.left {left: 40%;} in 'style.css' file
         at: "center top",
 	    using: function( position, feedback ) {
           $( this ).css( position );
@@ -399,6 +404,8 @@ $(document).ready(function() {
 var t0 = performance.now();
 	
         if ( ! is_form_complete() ) {return false;}
+		show_message("search_button", "Searching..."); // So button changes for 3 seconds
+		
 		var search_by = $("#search_by").val();
         var gene = $("#gene").val();
 		global_selected_gene = gene; // Store selected driver/target as a global as needed by boxplot plot(), etc.
@@ -411,7 +418,7 @@ var t0 = performance.now();
 		
 		$("#result_div").hide();
 		$('#result_table').trigger('filterReset'); // Remove existing filter settings from the rows.
-		$("#result_progress_div").html("<b>Fetching data from server....</b>");
+		show_message("result_progress_div", "<b>Fetching data from server....</b>", 0); // 0 means not cleared by timer. 
 		
 		var url = global_url_for_dependency_search.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',histotype).replace('mystudy',study);
 		
@@ -425,20 +432,20 @@ var timings = data['timings']; for (timing in timings) {console.log(timing);}
 
 console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
 
-			$("#result_progress_div").html("Data received from server. Building results table ....");
+			show_message("result_progress_div", "Data received from server. Building results table ....", 0); // 0 means not cleared by timer event.
   	        $("#welcome_div").hide(); // hide welcome text.
 
 			show_search_info(data);
 		    t0 = populate_table(data,t0);
 console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
-			$("#result_progress_div").html("Results table built.");
+			show_message("result_progress_div", "Results table built."); // message clears after 3 seconds.
 			
 			$("#result_div").show();
 console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();			
-			//$("#result_progress_div").html("");			
+			//$("#result_progress_div").html(""); // using timeout show_message() above, as table not yet visible here. 
 		})
 		.fail(function(jqXHR, textStatus, errorThrown) {
-			$("#result_progress_div").html("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
+			show_message("result_progress_div", "Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'", 0); // 0 means not cleared by timer.
         });
 
         return false; // false prevents page refreshing.
@@ -649,7 +656,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
    </select>
 </td>
 
-<td><input type="submit" value="Search" id="search_button"/></td>
+<td><input type="submit" value="Search" data-value="Search" id="search_button" style="min-width: 90px;"/></td>
 </tr>
 
 </table>
@@ -675,15 +682,15 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 
 {# <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a> #}
-{# <input type="button" id="cytoscape" value="cytoscape" onclick="show_cytoscape();" /> #}
+{# <input type="button" id="cytoscape_button" value="cytoscape" data-value="cytoscape" onclick="show_cytoscape();" /> #}
 
 <!--  http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css -->
 <table style="padding: 10px;  border-spacing: 0; border-collapse: collapse; margin-top: 0; margin-bottom: 0; margin-right: 0; margin-left: auto;"><tr>
 <td>
   <form id="download_csv_form" method="get">
-    <button id="download_csv_button" type="submit">Download as CSV file</button>
+    <input id="download_csv_button" type="submit" value="Download as CSV file" data-value="Download as CSV file"/>
     <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->    
-    <input type="button" id="string_image" value="Stringdb Image" onclick="show_stringdb(stringdb_image);" />
+    <input type="button" id="string_image" value="Stringdb Image" data-value="Stringdb Image" onclick="show_stringdb(stringdb_image);" />
 <!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
   </form>
 </td>
@@ -696,18 +703,18 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
     <input type="hidden" name="limit" value="0"/>
     <input type="hidden" name="advanced_menu" value="yes"/>
     <input type="hidden" name="caller_identity" value="Cancer Genetic Dependency Database"/>
-    <input type="submit" id="string_interactive_submit_button" value="Stringdb Interactive" onclick="set_string_form_identifiers();"> <!-- or new HTML5 button tag: formtarget="_blank" -->
+    <input type="submit" id="string_interactive_submit_button" value="Stringdb Interactive" data-value="Stringdb Interactive" onclick="set_string_form_identifiers();"> <!-- or new HTML5 button tag: formtarget="_blank" -->
   </form>
 <td>
 <td>
-<span id="string_link"></span>
-</td><td>
   <form id="enrichr_form" method="post" action="http://amp.pharm.mssm.edu/Enrichr/enrich" target="_blank" enctype= "multipart/form-data">
     <input type="hidden" id="enrichr_list" name="list"/>
     <input type="hidden" id="enrichr_description" name="description"/>
-    <input type="submit" id="enrichr_submit_button" value="Enrichr" onclick="show_enrichr();" />
+    <input type="submit" id="enrichr_submit_button" value="Enrichr" data-value="Enrichr" onclick="show_enrichr();" />
 </td>
+<td><span id="string_link"></span></td>
 </tr></table>
+
 
 {# full string interactive URL is: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&caller_identity=CGDD&required_score=700&limit=0&advanced_menu=yes&identifiers=..... "> #}
 
@@ -720,19 +727,20 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <!-- Setting table cell widths: http://stackoverflow.com/questions/6486237/style-css-table-td -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead id="result_table_thead"><tr>
-  <th data-placeholder="Search by name" id="dependency_col_name" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
-  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" data-note="Wilcox p-value"> P-value </th>
-  <th data-placeholder=">= 65.0" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
-  <th data-placeholder="< -1" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
-  <th class="filter-select filter-onlyAvail">Tissue</th>
-  <th class="filter-select filter-onlyAvail">Study</th>
-  <th class="filter-select filter-onlyAvail">Experiment Type</th>
-  <th class="filter-select" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String Interaction</th>
-  <th class="filter-select" data-note="Inhibitors from DGIdb">Inhibitors</th>
+  <th data-placeholder="Search by name" id="dependency_col_name" style="width:15%;" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
+  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" style="width:10%;" data-note="Wilcox p-value"> P-value </th>
+  <th data-placeholder=">= 65.0" style="width:10%;" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
+  <th data-placeholder="< -1" style="width:10%;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
+  <th class="filter-select filter-onlyAvail" style="width:10%;">Tissue</th>
+  <th class="filter-select filter-onlyAvail" style="width:10%;">Study</th>
+  <th class="filter-select filter-onlyAvail" style="width:10%;">Experiment Type</th>
+  <th class="filter-select" style="width:10%;" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String Interaction</th>
+  <th class="filter-select" style="width:15%;" data-note="Inhibitors from DGIdb">Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>
 </table>
+
 
 </table>
 </div>

@@ -123,7 +123,7 @@ document.body.appendChild(svg);
 
   
 var tissue_colours = {
-  "BONE":         "yellow",
+   //"BONE":         "yellow",
   "OSTEOSARCOMA": "yellow", // same as BONE above
   "BREAST":       "deeppink",  // Colt only contains Breast
   "LUNG":         "darkgrey",
@@ -161,20 +161,18 @@ var boxplot_csv = '';
 var irange=0, iwtbox=3, imubox=8;
 var itissue=0, icellline=1, iy=2, imutant=3;  // was: ix=2, 
 var svgNS="http://www.w3.org/2000/svg"; // Name space needed for SVG.
-var YscreenMin=450, YscreenMax=10; // To allow a margin a bottom, and small margin at top
-var XscreenMin=50,  XscreenMax=490; // To allow for a margin at left
+var svgWidth=500, svgHeight=500;
+var XscreenMin=50,  XscreenMax=(svgWidth-10); // To allow for a margin of 50px at left, and 10px at right
+var YscreenMin=(svgHeight-50), YscreenMax=10; // To allow a margin of 50px at bottom, and small 10px margin at top
 var wtxc=1.6, muxc=3.8, boxwidth=1.8;
 var svg, xscale, yscale, Yscreen0, lines;
 var tissue_lists;
 var cellline_count;
 var collusionTestRadius=4.6;
 
-$(function() { // on dom ready
-
-   // draw_svg_boxplot();
-	  
-  
-}); // on dom ready
+//$(function() { // on dom ready
+   // draw_svg_boxplot(); // but need to wait until AJAX call returns from server with the coordinates for plotting.
+//}); // on dom ready
 
     
 function draw_svg_boxplot(driver, target) {
@@ -236,7 +234,7 @@ function axes(wtxc,muxc, ymin,ymax, driver, target) {
     // The svg text class is set to: text-anchor: middle.
     text(wtxc,ymin+23/yscale,18,false,"wt");
 	
-    text(muxc,ymin+23/yscale,18,false,"mutant");
+    text(muxc,ymin+23/yscale,18,false,"altered");
 
     text(0.5*(XscreenMin+XscreenMax)/xscale,ymin+45/yscale,20,false,driver+"  status");
 		
@@ -288,6 +286,17 @@ function search_rows_above_and_below(which_row,row,row_above,row_below,row_twoab
     return i;
 }
 
+function get_median(y,start,end) {
+	var len = end-start+1;
+	//console.log("get_median:",start,end,"len:",len);
+    if (len==0) {alert("Array is empty"); return;}
+	if (len % 2 !=0) { // is odd length
+	    return y[start + (len-1)/2];  // or (start+end)/2
+	}
+	else { // is even length
+	    return 0.5*(y[start + (len-2)/2] + y[start + len/2]); // or y[(start+end-1)/2] + y[(start+end+1)/2]
+	}
+}
  
 function boxplot_stats(y) {
 // for an array of input numbers (integers or floating point), returns an array of 7 numbers for:
@@ -296,56 +305,104 @@ function boxplot_stats(y) {
 // see: https://en.wikipedia.org/wiki/Box_plot#Types_of_box_plots
 // or the lowest datum still within 1.5 IQR of the lower quartile, and the highest datum still within 1.5 IQR of the upper quartile (often called the Tukey boxplot)[2][3] (as in figure 3)
 // https://en.wikipedia.org/wiki/Five-number_summary#Example_in_R
-    if (y.length==0) {return [];} // return empty array as no data.
+// http://www.ibm.com/support/knowledgecenter/SSLVMB_20.0.0/com.ibm.spss.statistics.help/alg_examine_tukey.htm
+
+// http://mathforum.org/library/drmath/view/60969.html
+
+// Or better: http://peltiertech.com/hinges/
+
+    var len = y.length;
+    if (len==0) {return [];} // return empty array as no data.
 	var sorted = y.sort(function(a, b){return a-b}); // by default sort comapres as strings, so need this compare function parameter.
-    var n = sorted.length;
-    var last = n-1; // as zero-based arrays
+    //var n = sorted.length;
+	var end = len-1;  // as zero-based arrays. Was 'last'
 	var min = sorted[0];
-	var max = sorted[last];
+	var max = sorted[end];
 	
 	// Median position: ((n+1)/2 -1) = ((last+2)/2 -1) = ((last+2-2)/2) = last/2
-	var len_is_odd = (last %2 == 0);  // same as: len %2 != 0
-    var median = len_is_odd ? sorted[last/2] : 0.5*(sorted[(last-1)/2] + sorted[(last+1)/2]);
+	//var len_is_odd = (last %2 == 0);  // same as: len %2 != 0
+    //var median = len_is_odd ? sorted[last/2] : 0.5*(sorted[(last-1)/2] + sorted[(last+1)/2]);
+
+	// Now find the lower and upper "hinges" for Tukey (ie. inclusive Hinge) method:
+	var median = get_median(y,0,end);
+	if (len %2 != 0) { // odd len, so include the middle in both halves
+	   var middle = end/2;
+	   var lower_quartile = get_median(y,0,middle);
+	   var upper_quartile = get_median(y,middle,end);
+	}
+    else {
+	   var end_of_lower_half = (len-2)/2;
+	   var start_of_upper_half = len/2;
+	   
+	   var lower_quartile = get_median(y,0,end_of_lower_half);
+	   var upper_quartile = get_median(y,start_of_upper_half,end);
+	}
+	
 	  // odd: same as (len/2)-0.5. eg. for 10,20,30: we want index (2)/1 = 1 as zero-based arrays, so 20.
       // even: eg. for 10,20,30,40 so (3-1)/2=index 1, and (3+1)/2 = index 2, so 0.5*(20+30)
 
 	// Lower quartile pos: ((n+1)/4 -1) = ((last+2)/4 -1) = ((last+2-4)/4) = ((last-2)/4)
     // Upper quartile pos: (3*(n+1)/4 -1) = (3*(last+2)/4 -1) = (3*last+6-4)/4) = ((3*last+2)/4)
 	// eg: 1,2,3,4,5,6,7,8,9,10,11, so quartiles 3,9, ie. zero-based pos 2 and 8.
+	
 	// or other ways: https://en.wikipedia.org/wiki/Quartile, eg: "Tukey's hinges
-	var median_pos_is_odd = ((last-2) % 4 == 0);
-    if (median_pos_is_odd) {
-       var lower_quartile = sorted[(last-2)/4];
-       var upper_quartile = sorted[(3*last+2)/4];
+	// Method 2:
+    //  - Use the median to divide the ordered data set into two halves.
+    //  - If there are an odd number of data points in the original ordered data set, include the median (the central value in the ordered list) in both halves.
+    //  - If there are an even number of data points in the original ordered data set, split this data set exactly in half.
+    //  - The lower quartile value is the median of the lower half of the data. The upper quartile value is the median of the upper half of the data.
+    //  - The values found by this method are also known as "Tukey's hinges".
+	/*
+	if (len_is_odd) { // then include the median in both sets:		
+	    var half_len_is_odd = ((last-2) % 4 == 0); // ie. the median position. Same as (last % 4 != 0)
+        if (half_len_pos_is_odd) {
+           var lower_quartile = sorted[last/4];
+           var upper_quartile = sorted[3*last/4];
+		}
+		else {
+           var lower_quartile = 0.5*(sorted[(last-2)/4] + sorted[(last+2)/4]);
+           var upper_quartile = 0.5*(sorted[(3*last-2)/4] + sorted[(3*last+2)/4]);
+		}
 	}
-    else {
-	   // Use floor() and ceiling() or subtract the modulus result: (last-2) % 4
+    else { // is even length overall, so split into two halves.
+	    var half_len_is_odd = ((last-3) % 4 == 0); // ie. the median position. Same as ((last-1) % 4 != 0)
+        if (half_len_pos_is_odd) {
+           var lower_quartile = sorted[last/4];
+           var upper_quartile = sorted[3*last/4];
+		}
+		else {
+           var lower_quartile = 0.5*(sorted[(last-2)/4] + sorted[(last+2)/4]);
+           var upper_quartile = 0.5*(sorted[(3*last-2)/4] + sorted[(3*last+2)/4]);
+		}
+
+	// Use floor() and ceiling() or subtract the modulus result: (last-2) % 4
 	   var mod = (last-2) % 4;
        var iq = (last-2-mod)/4;
-	consol.log("Lower mod:"+mod+" iq:"+iq);
+	console.log("Lower mod:"+mod+" iq:"+iq);
        var lower_quartile = 0.5*(sorted[iq] + sorted[iq+1]);
-       // var lower_quartile = 0.5*(sorted[Math.floor(iq)] + sorted[Math.ceiling(iq)]);
+       // var lower_quartile = 0.5*(sorted[Math.floor(iq)] + sorted[Math.ceil(iq)]);
        mod = (3*last+2) % 4;  // will be the reverse of mod above - ie. mirror image (ie. (4-mod_above)
        iq = (3*last+2-mod)/4;
 	   // iq = (3*last+2+mod)/4; // if use the above mod, then: var upper_quartile = 0.5*(sorted[iq-1] + sorted[iq]);
-	consol.log("Upper mod:"+mod+" iq:"+iq);	 
+	console.log("Upper mod:"+mod+" iq:"+iq);	 
        var upper_quartile = 0.5*(sorted[iq] + sorted[iq+1]);
-       // var upper_quartile = 0.5*(sorted[Math.floor(iq)] + sorted[Math.ceiling(iq)]);	   
+       // var upper_quartile = 0.5*(sorted[Math.floor(iq)] + sorted[Math.ceil(iq)]);	   
 	}
+	*/
 	
-	var quartile_range_15 = 1.5*(upper_quartile - lower_quartile); // as whiskers are within (1.5 of interquartile range) from the first and third quartile.
-    var lower_whisker = (lower_quartile-quartile_range_15);
-    for (var i=0; i<=last; i++) {
-		if (sorted[i]>=lower_whisker) {lower_whisker=sorted[i]; break}
+	var quartile_range_15 = 1.5*(upper_quartile - lower_quartile); // as fences are within (1.5 of interquartile range) from the lower and upper quartiles respectively.
+    var lower_fence = (lower_quartile-quartile_range_15);
+    for (var i=0; i<=end; i++) {
+		if (sorted[i]>=lower_fence) {lower_fence=sorted[i]; break}
 	}
-    var upper_whisker = (upper_quartile+quartile_range_15);
-    for (var i=last; i>=0; i--) {
-		if (sorted[i]<=upper_whisker) {upper_whisker=sorted[i]; break}
+    var upper_fence = (upper_quartile+quartile_range_15);
+    for (var i=end; i>=0; i--) {
+		if (sorted[i]<=upper_fence) {upper_fence=sorted[i]; break}
 	}
 	
 	// eg: There are eight observations, so the median is the mean of the two middle numbers, (2 + 13)/2 = 7.5. Splitting the observations either side of the median gives two groups of four observations. The median of the first group is the lower or first quartile, and is equal to (0 + 1)/2 = 0.5. The median of the second group is the upper or third quartile, and is equal to (27 + 61)/2 = 44. The smallest and largest observations are 0 and 63.
 	
-	return [ min, lower_whisker, lower_quartile, median, upper_quartile, upper_whisker, max ];
+	return [ min, lower_fence, lower_quartile, median, upper_quartile, upper_fence, max ];
 }
 
 // Process 3D:
@@ -356,14 +413,158 @@ function boxplot_stats(y) {
 
 //illustrate the relationships between objects in a process using d3.js.
 
-	   
+function download_legend(legend_type) {	
+  // Using canvas, as IE9+ supports canvas.
+  var ytop=20, xcircles=20, rad=8, xtext=40, line_height=25, font="20px Arial";
+  // maybe: font-family: sans-serif;
+ 
+  
+  var list;
+  if (legend_type=='selected') {
+    show_message("download_selected_legend", "Downloading...");
+    list = tissue_lists;
+	//for (tissue in ) {console.log(tissue_colours[tissue], tissue)}
+  }
+  else if (legend_type == 'all') {
+    show_message("download_all_legend", "Downloading...");	  
+	list = tissue_colours;	
+  }
+  
+  
+  //  http://stackoverflow.com/questions/11816431/how-to-add-a-html5-canvas-within-a-div
+
+  var canvas = document.createElement('canvas');
+  canvas.id="mycanvas"; // or:  canvas.setAttribute("id", "mycanvas");
+  // <canvas id="myCanvas" width="200" height="100"></canvas>  // Optionally: style="border:1px solid #000000;"  
+  //var canvas = document.getElementById('mycanvas');
+  
+  ctx = canvas.getContext('2d');
+  ctx.font = font;
+  // var len = Object.keys(list).length; // works in IE9+. 
+  // Otherwise: var size = 0, key; for (key in obj) {if (obj.hasOwnProperty(key)) size++;}
+  var len=0, maxtextwidth=0, tissue;
+  for (tissue in list) {
+	 if ((legend_type=='selected') && (!document.getElementById('cb_'+tissue).checked)) {continue}
+     var width = ctx.measureText(histotype_display(tissue).replace('&amp;','&')).width;
+     if (width>maxtextwidth) {maxtextwidth=width}
+	 len++;
+     }
+    
+  canvas.width  = xtext+maxtextwidth+xcircles-rad; // margin of xcircles around
+  canvas.height = ytop+(len-1)*line_height+ytop; // so margin of ytop at top and bottom
+  //canvas.style="border:1px solid #000000;" is only for display on screen, as downloaded image doesn't have this box. Need to draw a rect.
+
+  // To avoid anti-aliasing, draw lines at half-pixel positions: http://www.rgraph.net/docs/howto-get-crisp-lines-with-no-antialias.html
+  canvas_rect(ctx, 0.5,0.5, canvas.width-1, canvas.height-1, "white", "black"); // Make background white inside black rect.
+  //canvas_line(ctx, 2.5,20.5,2.5,50.5, "black");
+  // can translate the 0,0 position, eg: ctx.translate(radius, radius);
+  // For modifying images maybe use:
+  //    context.save();
+  //    context.restore();
+  // ctx.globalAlpha=0.2; (0=transparent, 1=opake)
+  // function updateClockImage() {
+  // snapshotImageElement.src = canvas.toDataURL();   // To paste canvas into an <img> tag.
+  // from: http://www.informit.com/articles/article.aspx?p=1903884&seqNum=10
+
+  
+  var y = ytop;
+  for (tissue in list) {	  
+	  if ((legend_type=='selected') && (!document.getElementById('cb_'+tissue).checked)) {continue}
+	  var mtext = histotype_display(tissue).replace('&amp;','&'); // for "Blood &amp; Lymph"	  
+      //console.log(tissue_colours[tissue], mtext); 
+	  
+	  // Add 0.5 to improve the anti-aliasing of the circle. (Adding 0.5 has no effect on the text)
+	  canvas_circle(ctx, xcircles+0.5, y-0.5, rad, tissue_colours[tissue]);
+      canvas_text(ctx, xtext, y, mtext, font);
+	  y += line_height;	  
+	  }
+
+    var filename="Legend_"+legend_type+'_'+len.toString()+'tissues.png';
+    download_data(canvas.toDataURL("image/png",1), filename);
+
+//canvas.toDataURL("image/png");
+//(defaults to PNG). The returned image is in a resolution of 96 dpi.
+//For encoderOptions Optional
+//A Number between 0 and 1 indicating image quality if the requested type is image/jpeg or image/webp.
+//If this argument is anything else, the default value for image quality is used. The default value is 0.92. Other arguments are ignored.
+
+  return false; // false prevents page refreshing.
+}
+
+
+function canvas_rect(ctx, x,y, width,height, fillcolor, strokecolor) {
+  ctx.beginPath();
+  ctx.fillStyle = fillcolor;
+  ctx.lineWidth = "1";
+  ctx.strokeStyle = strokecolor;
+  ctx.rect(x,y, width, height);
+  ctx.stroke();
+  ctx.fill();
+  ctx.closePath(); // Circles and rectangles don't actually need the path to be closed.  
+
+  // beginPath(); rect(); fill(); stroke(); closePath(); will have same effect as fillRect; strokeRect():
+  //ctx.fillStyle = fillcolor;
+  //ctx.lineWidth = "1";
+  //ctx.strokeStyle = strokecolor;
+  //ctx.strokeRect(x,y, width, height);  // ctx.strokeRect(20,20,150,100);
+  //ctx.fillRect(x,y, width, height);  // ctx.strokeRect(20,20,150,100);  
+  }
+
+function canvas_line(ctx, x1,y1,x2,y2, color) {
+  ctx.lineWidth = "1";
+  ctx.strokeStyle = color;
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2,y2);
+  ctx.stroke();  // This actually draws the line.
+  }
+
+function canvas_circle(ctx, x, y, r, fillcolor) {
+  ctx.beginPath();  // Beginning new shape
+  ctx.arc(x, y, r, 0, 2 * Math.PI); // false); // params: xcentre, ycentre, radius, startAngle, endAngle, anticlockwise(optional);
+  ctx.fillStyle = fillcolor; // OR: = 'rgba(255,255,255,0.8)';
+  ctx.fill();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "black";
+  ctx.stroke();
+  ctx.closePath(); // Circles and rectangles don't actually need the path to be closed.
+  }
+
+function canvas_text(ctx, x,y, mtext, font) {
+  ctx.font = font; // eg: "15px Arial", or "30px Comic Sans MS"; or ctx.font = radius*0.15 + "px arial";
+  ctx.fillStyle = "black";
+  // ctx.textAlign = "center";
+  ctx.textBaseline="middle";
+  ctx.fillText(mtext,x,y); // eg: ctx.fillText("Hello World", canvas.width/2, canvas.height/2); 
+  }
+
+  
+/* or:
+     <style>
+        #canvas {
+           display: none;
+        }
+
+        #snapshotImageElement {
+           position: absolute;
+           left: 10px;
+           margin: 20px;
+           border: thin solid #aaaaaa;
+        }
+*/
+
+
+
+
 function beeswarm(lines,wtx,mux,boxwidth) {
 // A beeswarm with jitter example: http://jsfiddle.net/5kc0wtfg/5/
 
-console.log(boxplot_stats([6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49]));
+// Test examples from: https://en.wikipedia.org/wiki/Quartile
+console.log(boxplot_stats([6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49])); // quartiles: 25.5, 40, 42.5
+console.log(boxplot_stats([7, 15, 36, 39, 40, 41])); // quartiles: 15, 37.5,40
+console.log(boxplot_stats([1]));
 
   tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
-
+var wt_points=[],mu_points=[];
   var wtHorizPointSpacing = 8, muHorizPointSpacing = 12;  // was 12 for horizontal point spacing, but ERBB2 vs ERBB2 points overflow the boxplot width
   var tissue_count=0;
   var wtleft=[], wtright=[], muleft=[], muright=[]; // To avoid overlapping points.
@@ -373,9 +574,15 @@ console.log(boxplot_stats([6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49]));
   for (var i=1; i<lines.length; i++) { // corectly starts at i=1, as lines[0] is the boxplot dimensions.
     var col = lines[i].split(",");
     var tissue = col[itissue];
+	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue;} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+
 	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
 	
     if (col[iy]=='NA') {console.log("Skipping "+col[icellline]+" "+tissue+" as y='"+col[iy]+"'"); NA_total++; continue;}
+
+if (isWT) {wt_points.push(parseFloat(col[iy]))}
+else {mu_points.push(parseFloat(col[iy]))}
+
     var y = tohalf(Yscreen0 + parseFloat(col[iy]) * yscale, 1);
     var Yi = Math.round(y / collusionTestRadius); // 5 is twice the circle radius.
   
@@ -560,9 +767,14 @@ function generateDataURI(file) {
 	//console.log(i,((xcenter + parseFloat(col[ix])) * xscale).toString(),(Yscreen0 + parseFloat(col[iy]) * yscale).toString());
     }
 	
-    var toggle_button = '<input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="toggle_tissue_checkboxes();">';
+    var toggle_button = '<input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="tissue_checkboxes(\'toggle\');">';
+	var all_button = '<input input type="button" id="all_checkboxes" value="All" style="font-size: 90%" onclick="tissue_checkboxes(\'all\');">';
+	var none_button = '<input input type="button" id="none_checkboxes" value="None" style="font-size: 90%" onclick="tissue_checkboxes(\'none\');">';
 	
-	var legend_thead = "<thead><tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Total<br/>cell lines</th><th>WildType<br/>cell lines</th><th>Mutant<br/>cell lines</th></tr></thead>";
+	//var legend_thead = '<thead><tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Total<br/>cell lines</th><th>WildType<br/>cell lines</th><th>Altered<br/>cell lines</th></tr></thead>';
+	
+	var legend_thead = '<thead><tr><th rowspan="2">Show</th><th rowspan="2">Tissue</th><th colspan="3">Cell lines</th></tr><tr><th>Wild type</th><th>Altered</th><th>Total</th></tr></thead>';
+  
 	
 	var legend_tbody='<tbody>';
 	var wt_total=0, mu_total=0;
@@ -571,7 +783,6 @@ function generateDataURI(file) {
 	  
 //	  $('head').append('<style type="text/css">.'+tissue+'_tooltip{background:'+colour+';}</style>'); // add the style to use later for the tooltips background colour.	  
 	  
-//	  legend += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'" onclick="showhide_cell_clicked(this);"><input type="checkbox" id="cb_'+tissue+'" checked onchange="showhide_tissue(this);" /></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td></tr>';
       if (tissue_lists[tissue].length != wt_tissue_counts[tissue]+mu_tissue_counts[tissue]) {alert("ERROR: Tissue count mismatch for tissue: '"+tissue+"'")} // Just to check my script is working correctly
 	  
 	  if (wt_tissue_counts[tissue]==0) {wt_tissue_counts[tissue]='<i>'+wt_tissue_counts[tissue].toString()+'</i>'} // To put italics on the zeros
@@ -579,11 +790,18 @@ function generateDataURI(file) {
 	  if (mu_tissue_counts[tissue]==0) {mu_tissue_counts[tissue]='<i>'+mu_tissue_counts[tissue].toString()+'</i>'}
 	  else {mu_total+=parseInt(mu_tissue_counts[tissue])}
 	  
-	  legend_tbody += '<tr><td id="td_'+tissue+'" style="text-align:center" bgcolor="'+colour+'"><input type="checkbox" id="cb_'+tissue+'" checked/></td><td>'+histotype_display(tissue)+'</td><td style="text-align:center">'+tissue_lists[tissue].length+'</td><td style="text-align:center">'+wt_tissue_counts[tissue]+'</td><td style="text-align:center">'+mu_tissue_counts[tissue]+'</td></tr>';
+	  legend_tbody += '<tr><td id="td_'+tissue+'" style="background-color:'+colour+'"><input type="checkbox" id="cb_'+tissue+'" checked/></td>'
+	   + '<td>'+histotype_display(tissue)+'</td>'
+	   + '<td>'+wt_tissue_counts[tissue]+'</td>'
+	   + '<td>'+mu_tissue_counts[tissue]+'</td>'
+	   + '<td>'+tissue_lists[tissue].length+'</td></tr>';
 	  }
     legend_tbody+='</tbody>';
 	  
-	var legend_tfoot = '<tfoot><tr><td></td><td>Totals:</td><td style="text-align:center">'+(wt_total+mu_total)+'</td><td style="text-align:center">'+wt_total+'</td><td style="text-align:center">'+mu_total+'</td></tr></tfoot>';
+	var legend_tfoot = '<tfoot><tr><td>'+all_button+none_button+'<br/>'+toggle_button+'</td>'
+	 + '<td>Totals:</td><td>'+wt_total+'</td>'
+	 + '<td>'+mu_total+'</td>'
+	 + '<td>'+(wt_total+mu_total)+'</td></tr></tfoot>';
 	  // The onchange event should also work with keyboard input, whereas onclick is only mouse clicks I think.
 
     legend = legend_thead + legend_tbody + legend_tfoot;
@@ -599,6 +817,27 @@ function generateDataURI(file) {
 		document.getElementById("cb_"+tissue).onchange=showhide_tissue;
 		}
 		
+console.log("rline0:",lines[0]);
+var wt_stats=boxplot_stats(wt_points);
+var mu_stats=boxplot_stats(mu_points);
+//console.log("mystats wt:",wt_stats);
+//console.log("mystats mu:",mu_stats);
+
+
+var minplot=Math.floor(Math.min(wt_stats[0],mu_stats[0]));
+var maxplot=Math.ceil(Math.max(wt_stats[6],mu_stats[6]));
+//console.log("min,max:",minplot,maxplot);
+
+var mystats=[lines.length-1,minplot,maxplot];
+// a convoluted way to convert to a string with 3 deciimal places without trailing zeros:
+for (var i=1; i<6; i++) {mystats.push(parseFloat(wt_stats[i].toFixed(3)).toString())}
+for (var i=1; i<6; i++) {mystats.push(parseFloat(mu_stats[i].toFixed(3)).toString())}
+//console.log("mystats:",mystats);
+console.log("jsline0:",mystats.join(","));
+if (mystats.join(",") != lines[0]) {alert("Difference between R and my JS boxplot_stats() functions")}
+
+
+
   	// Initialise the Table sorter for the legend_table:
 	// Need to add the totals as separate.
 /*
@@ -694,6 +933,8 @@ function add_tooltips() {
 
 
 function rect(xcenter,width,ystats) {
+	// A 45 degree rotated square (a diamond) can be created using:
+	//  1  <rect x="203" width="200" height="200" style="fill:slategrey; stroke:black; stroke-width:3; -webkit-transform: rotate(45deg);"/>
     var e = document.createElementNS(svgNS,"rect");
 	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
 	var y = tohalf(Yscreen0 + ystats[3]*yscale, 1);
@@ -705,6 +946,7 @@ function rect(xcenter,width,ystats) {
 	//e.setAttribute("stroke-opacity", "1.0");
 	//e.setAttribute("stroke-width", strokewidth);
     svg.appendChild(e); // or: document.documentElement.appendChild(elem);
+	return e;
 	}
 	
 function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
@@ -727,49 +969,9 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour) {
 	e.setAttribute("stroke-width", strokewidth);
 	if (dashed) {e.setAttribute("stroke-dasharray", "6,3");} // se: http://www.w3schools.com/svg/svg_stroking.asp
     svg.appendChild(e);
-	}
-/*
-function cline(xcenter,width,ystats) {
-// <canvas id="myCanvas" width="200" height="100"></canvas>  // Optionally: style="border:1px solid #000000;"
-// can translate the 0,0 position, eg: ctx.translate(radius, radius);
-//var c = document.getElementById("myCanvas");
-//var ctx = c.getContext("2d");
-    // ctx.fillStyle = "#FF0000";
-    ctx.fillRect(0,0,150,75);
-    }
-	
-function cline(x1,y1,x2,y2) {
-// Drawing on HTML 5 Canvas:
-// var c = document.getElementById("myCanvas");
-// var ctx = c.getContext("2d");
-    ctx.moveTo(x1,y1);
-    ctx.lineTo(x2,y2);
-    ctx.stroke(); // This actually draws the line.
+	return e;
 	}
 	
-function circle() {	
-	ctx.beginPath();
-ctx.arc(95,50,40,0, 2*Math.PI); // arc(x,y,r,startangle,endangle) - creates an arc/curve. To create a circle with arc(): Set start angle to 0 and end angle to 2*Math.PI. The x and y parameters define the x- and y-coordinates of the center of the circle. The r parameter defines the radius of the circle.
-ctx.stroke();
-or for filled circle:
-ctx.fillStyle = "white";
-ctx.fill();
-	}
-	
-function ctext() {
-	ctx.font = "30px Arial";
-ctx.fillText("Hello World",10,50);
-// or:
-ctx.font = "30px Comic Sans MS";
-ctx.fillStyle = "red";
-ctx.textAlign = "center";
-ctx.fillText("Hello World", canvas.width/2, canvas.height/2); 
-or:
-ctx.font = radius*0.15 + "px arial";
-ctx.textBaseline="middle";
-ctx.textAlign="center";
-	}
-*/
 	
 function text(x,y,size,vertical,text) {
     // Fore attributes, see: http://www.w3schools.com/svg/svg_text.asp
@@ -807,6 +1009,7 @@ function text(x,y,size,vertical,text) {
 	//e.setAttributeNS(null,"stroke", colour);
     e.appendChild(document.createTextNode(text));
     svg.appendChild(e);
+	return e;
 	}
 
 	
@@ -881,14 +1084,20 @@ function showhide_tissue(e) {
 	return false; // does true mean event was handled?
     }
    
-function toggle_tissue_checkboxes(e) {
+
+function tissue_checkboxes(action) {
 	//e = e || window.event;  // Need: window.event for IE <=8
 	//var checkbox = e.target || e.srcElement;   
     //var visibility = checkbox.checked ? "visible" : "hidden";
     for (tissue in tissue_lists) {
    	  var checkbox = document.getElementById('cb_'+tissue);
-	  
-	  checkbox.checked = ! checkbox.checked; // Toggle checked state, but doesn't fire the onchanged event.
+
+	  switch(action) {
+	    case 'all': checkbox.checked = true; break; 
+	    case 'none': checkbox.checked = false; break;
+  	    case 'toggle': checkbox.checked = ! checkbox.checked; break; // Toggle checked state, but doesn't fire the onchanged event.
+		default: alert('Invalid action for tissue_checkboxes(): "'+action+'"');
+      }
 	  set_tissue_visibility(tissue, checkbox.checked);
 		
       //checkbox.dispatchEvent(new Event('change')); // so need to trigger the change event.
@@ -902,7 +1111,7 @@ function toggle_tissue_checkboxes(e) {
       }
     }
 
-
+	
 	
 function download_boxplot(download_type, driver, target, histotype, study_pmid) {
    // download_type can be 'png', 'svg', or 'csv'.
@@ -981,13 +1190,15 @@ function download_boxplot(download_type, driver, target, histotype, study_pmid) 
 
 	switch (download_type) {
 	case 'svg':
-	  $("#download_message").html("Downloading SVG image ....."); // maybe warn if browser is IE
+	  show_message("download_SVG_boxplot", "Downloading..."); // maybe warn if browser is IE
 	  mysvg.toDataURL("image/svg+xml", {		  
-	    callback: function(data) {download_data('SVG image',data,filename)}
+	    callback: function(data) {download_data(data,filename)}
       });
 	  break;
+	    
+	  
     case 'png':
-	  $("#download_message").html("Downloading PNG image ....."); // maybe warn if browser is IE
+	  show_message("download_PNG_boxplot", "Downloading..."); // maybe warn if browser is IE
       var ua = window.navigator.userAgent;  // if ($.browser.msie) {alert($.browser.version);}	
       var ie = ((ua.indexOf('MSIE ') > 0) || (ua.indexOf('Trident/')>0));  // 'MSIE' for IE<=10; 'Trident/' for IE 11; || (ua.indexOf('Edge/')>0) for Edge (IE 12+)
 	  var render = ie ? "canvg" : "native";  // Using "canvg" for IE, to avoid the SECURITY_ERR in IE: canvas.toDataURL(type)	
@@ -999,7 +1210,7 @@ function download_boxplot(download_type, driver, target, histotype, study_pmid) 
       });
 	  break;
 
-    // The following might work, so will just request a download from the webserver:
+    // The following might work, but will just request a download from the webserver:
     case 'csv':
 	  saveTextAsFile(boxplot_csv,filename,"text/csv")  // or "text/plain" or "text/json"
       // The following doesn't seem to work, so will just request a download from the webserver:
@@ -1232,6 +1443,7 @@ function fetch_data(driver,target,histotype,study_pmid) {
 */  
 		   
 
+
 function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant) {
 
   // Only draw the svg after fancybox content has loaded as needs "mysvg" tag), and AJAX has retrned the data.
@@ -1246,19 +1458,24 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
   
   var download_boxplot_csv_url = global_url_for_boxplot_data.replace('myformat','download').replace('mydriver',driver).replace('mytarget',target).replace('myhistotype',histotype).replace('mystudy',study_pmid);  
 
-  var download_click = '$(\'#download_message\').html(\'Downloading CSV file .....\');'
+  var download_csv_click = 'show_message(\'download_CSV_boxplot\', \'Downloading...\');'
   
 //  $("#download_boxplot_csv_form")
 //      .attr("action", download_boxplot_csv_url)
 //      .submit(function( event ) {
-//         $("#download_message").html("Downloading CSV file ....."); // maybe warn if browser is IE       
+//         show_message("download_message", "Downloading CSV file ....."); // maybe warn if browser is IE       
 	     //return true;
 //       });
-  
-  
+// The background colour of the downloaded PNG file is transparent. To get a white background as requested, can try: http://stackoverflow.com/questions/11293026/default-background-color-of-svg-root-element  
+// <svg style='stroke-width: 0px; background-color: blue;'> </svg>  
+// but This causes all sub-element strokes to be zero-width as well, so its not a good "background" option. –
+// SVG version 1.2 has viewport-fill I'm not sure how widely implemented this property is though as most browsers are targetting SVG 1.1 at this time. Opera implements it FWIW. A more cross-browser solution currently would be to stick a <rect> element with width and height of 100% and fill="red" as the first child of the <svg> element
+// if want a box around the plot, to the "rect" can add: stroke-width:0;stroke:black;stroke-opacity:1.0
+
+// if change the sv dimensions, remember to also change the background rect dimensions:
   var mycontent = '<table align="center" style="padding:0; border-collapse: collapse; border-spacing: 0;">'
   + '<tr><td style="padding:0;">'
-  + '<svg id="mysvg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="500" height="500">'
+  + '<svg id="mysvg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="'+svgWidth.toString()+'" height="'+svgHeight.toString()+'">'
   + '<style>'
   + ' line{stroke-opacity: 1.0;}'
   + ' rect{fill: none; stroke: black; stroke-width: 1px; stroke-opacity: 1.0;}'
@@ -1266,28 +1483,40 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
   + ' circle:hover {opacity: 0.9; stroke: black;}'
   + ' text {font-family: sans-serif; word-spacing: 2; text-anchor: middle;}'
   + '</style>'
+  + '<rect x="0" y="0" width="'+svgWidth.toString()+'" height="'+svgHeight.toString()+'" style="fill:white;stroke-width:0;fill-opacity:1.0;"/>'
   + 'Sorry, your browser does not support inline SVG.'
   + '</svg>'
   + '</td><td style="vertical-align:middle; padding:0;">'
-  + ' <table id="legend_table" class="tablesorter" style="font-size: 75%; padding:1; border-collapse: collapse; border-spacing: 0;"></table>'
+  + '<table id="legend_table" class="tablesorter"></table>'
   + '<table style="padding:0; border-collapse: collapse; border-spacing: 0;"><tr><td style="font-size:80%">Download boxplot as:'
-  + '</td><td><input type="button" id="download_PNG_boxplot" value="PNG image" onclick="download_boxplot(\'png\','+parameters+');"/> '
+  + '</td><td><input type="button" id="download_PNG_boxplot" value="PNG image" data-value="PNG image" onclick="download_boxplot(\'png\','+parameters+');"/> '
   + '</td><td><form id="download_boxplot_form" method="get" action="'+download_boxplot_csv_url+'">'   
-  + '<input type="submit" id="download_CSV_boxplot" value="CSV file" onclick="'+download_click+'"/>'  
-  + '</form></td></tr></table>'
+  + '<input type="submit" id="download_CSV_boxplot" value="CSV file" data-value="CSV file" onclick="'+download_csv_click+'"/>'  
+  + '</form></td></tr></table>'  
+  + '<table style="padding:0; border-collapse: collapse; border-spacing: 0;"><tr><td style="font-size:80%">Download legend for:'  
+  + '</td><td><input type="button" id="download_selected_legend" value="Selected tissues" data-value="Selected tissues" onclick="download_legend(\'selected\');"/> '
+  + '</td><td><input type="button" id="download_all_legend" value="All tissues" data-value="All tissues" onclick="download_legend(\'all\');"/> '
+  + '</td></tr></table>'
+  
   + '<br/><span id="download_message" style="font-size: 70%;"></span>'
   + '</td></tr></table>';
   
-//    <button id="download_csv_button" type="submit">Download as CSV file</button>
+  // For testing  drawing the legend:  + '<canvas id="mycanvas">Canvas not supported</canvas>';
+
+  // The download_all_legend was previously a submit button inside a form, so would download a legend from the server, but now generating the legend in the javascript function:
+  // <form id="download_legend_form" method="get" action="">
+  // <input type="submit" id="download_all_legend" value="All tissues" data-value="All tissues" onclick="download_legend(\'all\');"/>
+  // </form>
   
-//   + ' <p style="font-size:90%">Download boxplot as:<br/>'  
-// The SVG download does work, but SVG isn't that useful in practice:  
-//  + ' <input type="button" id="download_SVG_boxplot" value="SVG image" onclick="download_boxplot(\'svg\','+parameters+');"/> '  
+// The SVG download does work, but SVG isn't that useful in practice:
+//  + '</td><td><input type="button" id="download_SVG_boxplot" value="SVG image" data-value="SVG image" onclick="download_boxplot(\'svg\','+parameters+');"/> '
+
+
 // alt="Loading boxplot image...."/
 
   var study = study_info(study_pmid);
 
-  var plot_title = '<hr/><p style="margin-top: 0; text-align: center; line-height: 1.7"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b></br>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')<p>';
+  var plot_title = '<hr/><p style="margin-top: 0; text-align: center; line-height: 1.7"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b></br>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')</p>';
 
   var plot_links='';
   if (typeof target_info === 'undefined') {plot_links = 'Unable to retrieve synonyms and external links for this gene';}
@@ -1299,7 +1528,8 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
 	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
 	  }
-  plot_title += '<p stype="text-align: center; line-height: 1.7">'+plot_links+'</p>';
+// For the following, maybe better just keep left aligned instead as refers to target gene. 	  
+  plot_title += '<p style="margin-bottom: 0; text-align: center; line-height: 1.5;">'+plot_links+'</p>';
 
 //===========================================================================
 /*

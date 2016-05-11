@@ -8,7 +8,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
 import django
 django.setup()
 
-from gendep.models import Gene, Dependency  # Study, Drug.  Removed: Histotype
+from gendep.models import Gene # Dependency, Study, Removed: Histotype, Drug.
 
 
 import requests

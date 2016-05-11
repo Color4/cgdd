@@ -51,20 +51,20 @@ else if (isCampbell) {  #### For Cambell (2016):
 
 if (isAchilles) {
   # SJB - for Achilles:
-  # For 21 drivers being focused on:
-  #uv_results_kinome_combmuts_file <- "univariate_results_Achilles_v2_for21drivers_pancan_kinome_combmuts_180312_witheffectsize.txt"
-  #uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_180312_witheffectsize.txt"
-
-  # For the rest of drivers (doesn't include the 21 drivers already processed above):
-  uv_results_kinome_combmuts_file <- "univariate_results_Achilles_v2_for_remaining_drivers_pancan_kinome_combmuts_30April2016_witheffectsize_and_zdiff.txt"
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_v2_for_remaining_drivers_bytissue_kinome_combmuts_30April2016witheffectsize_and_zdiff.txt"
+  # For 23 drivers being focused on:
+  uv_results_kinome_combmuts_file <- "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff.txt"  
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_v2_for23drivers_bytissue_kinome_combmuts_5May2016witheffectsize_and_zdiff.txt"
+  
+  # For the rest of drivers (doesn't include the 23 drivers already processed above):
+  #uv_results_kinome_combmuts_file <- "univariate_results_Achilles_v2_for_remaining_drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff.txt"
+  #uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_v2_for_remaining_drivers_bytissue_kinome_combmuts_5May2016witheffectsize_and_zdiff.txt"
   
   combined_histotypes_boxplot_dir <- "combined_histotypes_achilles/"
   separate_histotypes_boxplot_dir <- "separate_histotypes_achilles/"
 } else if (isColt) {
 
   # uv_results_kinome_combmuts_file <- "NONE"
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v1_bytissue_kinome_combmuts_29April2016_witheffectsize_and_zdiff.txt"
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff.txt"
   
   # combined_histotypes_boxplot_dir <- "NONE/"
   separate_histotypes_boxplot_dir <- "separate_histotypes_colt_allbreast/"
@@ -72,13 +72,13 @@ if (isAchilles) {
 } else {
   # For Colm/Cambell (2016)
   # ORIGINAL: uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_150202.txt"
-  uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff.txt"
+  uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff.txt"
 
   # Just one result to test boxplot printing:
   # uv_results_kinome_combmuts_file <- "one_boxplot_SEMG2_CAMK1_extracted_from_univariate_results_v26_pancan_kinome_combmuts_150202.txt"
 
   # ORIGINAL: uv_results_kinome_combmuts_bytissue_file <- "univariate_results_v26_bytissue_kinome_combmuts_150202.txt"
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff.txt"
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_v26_bytissue_kinome_combmuts_5May2016_witheffectsize_and_zdiff.txt"
   combined_histotypes_boxplot_dir <- "combined_histotypes_medium/"
   separate_histotypes_boxplot_dir <- "separate_histotypes_medium/"
 }
