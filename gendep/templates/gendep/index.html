@@ -258,8 +258,8 @@ function histotype_display(histotype) { // This is a duplicate of the one in ind
 //}
 
 
-$(document).ready(function() {
 
+function initialise_result_table_and_tooltips() {
   // Parser for the 'wilcox_p' column(eg. "4 x 10<sup>-3</sup>") to back scientific number:
   $.tablesorter.addParser({
     id: 'pvalue',
@@ -388,6 +388,7 @@ $(document).ready(function() {
       //  }		
       }    // end of 'content:'
    });  // end of tooltip
+}
 
 /*
 // Is initialised by the open() now in function plot(...)
@@ -410,6 +411,8 @@ $(document).ready(function() {
     });
 */	
 
+
+$(document).ready(function() {
 
     $("#search_button").click(function(event){
 var t0 = performance.now();
@@ -455,6 +458,12 @@ console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 			console.log("Results table built."); // message clears after 3 seconds.
 			
 			show_message("result_progress_div", "Formatting table....", 5); // clear message
+
+            initialise_result_table_and_tooltips(); // Just want to do this once, ie: for the first search.
+	
+            // OR: $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
+	// or: .trigger( 'addRows', [ $row, resort, callback ] );
+			
 			
 			$("#result_div").show();
 console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();			

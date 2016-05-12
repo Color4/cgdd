@@ -1197,7 +1197,9 @@ function populate_table(data,t0) {
      //   alert( 'update applied' );
 	 console.log("Table updated: ",performance.now()-t0); t0 = performance.now();
     };
-    $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
+
+	
+    // Moved to the index.html: $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
 	// or: .trigger( 'addRows', [ $row, resort, callback ] );
 	
 	// triggered event method:
@@ -1231,7 +1233,9 @@ function sup10_format(num) {
 function format_gene_info_for_tooltip(data) {
   var synonyms = data['synonyms'];
   if (synonyms != '') {synonyms = ' | '+synonyms}
-  return '<b>'+data['gene_name'] + '</b>' + synonyms +'<br/><i>' + data['full_name']+'</i>'+'<p style="font-size: 85%;">'+data['ncbi_summary']+'</p>';
+  return '<b>'+data['gene_name'] + '</b>' + synonyms +'<br/><i>' + data['full_name']+'</i>';
+  // Removed the entrez text from these tooltips as too large and distracting. Put into the boxplot instead.
+  // +'<p style="font-size: 85%;">'+data['ncbi_summary']+'</p>';
   }
 
 function is_form_complete() {

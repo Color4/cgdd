@@ -177,6 +177,8 @@ var cellline_count;
 var collusionTestRadius=4.6;
 var wt_boxplot_elems, mu_boxplot_elems;
 
+// Array indexes for the 7 number boxplot_stats():
+var ilowerwisker=1, ilowerhinge=2, imedian=3, iupperhinge=4, iupperwhisker=5;
   
 //$(function() { // on dom ready
    // draw_svg_boxplot(); // but need to wait until AJAX call returns from server with the coordinates for plotting.
@@ -212,9 +214,11 @@ function draw_svg_boxplot(driver, target) {
   Yscreen0 = YscreenMin - ymin*yscale;  // is really Yscreen0 = YscreenMin + (y0 - ymin)*yscale; eg. 380+(0-2)*(-30)
  
   axes(wtxc,muxc, ymin,ymax, driver,target);
-  
-  var wt_boxstats = []; for (var i=0; i<5; i++) {wt_boxstats[i] = parseFloat(col[iwtbox+i]);}
-  var mu_boxstats = []; for (var i=0; i<5; i++) {mu_boxstats[i] = parseFloat(col[imubox+i]);}
+
+  // To match my javascript boxplot_stats() which return 7 numbers, starting at position 1 (as zero should be the lowest extreme point)   
+  var wt_boxstats = []; for (var i=0; i<5; i++) {wt_boxstats[i+1] = parseFloat(col[iwtbox+i]);}
+  var mu_boxstats = []; for (var i=0; i<5; i++) {mu_boxstats[i+1] = parseFloat(col[imubox+i]);}
+    
   // Store the boxplot lines and rectangle in global array, so can adjust position later:
   wt_boxplot_elems = boxplot( wtxc, boxwidth, wt_boxstats, wt_boxplot_elems);
   mu_boxplot_elems = boxplot( muxc, boxwidth, mu_boxstats, mu_boxplot_elems);
@@ -237,6 +241,7 @@ function tohalf(x, strokewidth) {
   //return x;
   return (strokewidth % 2 == 0) ? Math.round(x) : Math.floor(x)+0.5; // if even widthy then center line on grid, else center half-way between grid lines.
   }
+
 
 function axes(wtxc,muxc, ymin,ymax, driver, target) {
     line(wtxc, ymin, muxc, ymin, "1px", false, "black"); // the horizontal axis
@@ -329,6 +334,8 @@ function boxplot_stats(y) {
     // if (len==0) {return [];} // return empty array as no data.
     if (len==0) {return [0,0,0,0,0,0,0];} // or return all zeros.	
 	
+	console.log("boxplot_stats y: len=",y.length,"   positions:",y);
+	
 	var sorted = y.sort(function(a, b){return a-b}); // by default sort comapres as strings, so need this compare function parameter.
     //var n = sorted.length;
 	var end = len-1;  // as zero-based arrays. Was 'last'
@@ -417,6 +424,7 @@ function boxplot_stats(y) {
 	}
 	
 	// eg: There are eight observations, so the median is the mean of the two middle numbers, (2 + 13)/2 = 7.5. Splitting the observations either side of the median gives two groups of four observations. The median of the first group is the lower or first quartile, and is equal to (0 + 1)/2 = 0.5. The median of the second group is the upper or third quartile, and is equal to (27 + 61)/2 = 44. The smallest and largest observations are 0 and 63.
+	console.log("boxplot_stats:",min, "lfence:",lower_fence, "lquart:",lower_quartile, "median:",median, "uquart:",upper_quartile, "ufence:",upper_fence, max );
 	
 	return [ min, lower_fence, lower_quartile, median, upper_quartile, upper_fence, max ];
 }
@@ -782,11 +790,7 @@ function generateDataURI(file) {
 	svg.appendChild(e);
 	//console.log(i,((xcenter + parseFloat(col[ix])) * xscale).toString(),(Yscreen0 + parseFloat(col[iy]) * yscale).toString());
     }
-	
-    var toggle_button = '<input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="tissue_checkboxes(\'toggle\');">';
-	var all_button = '<input input type="button" id="all_checkboxes" value="All" style="font-size: 90%" onclick="tissue_checkboxes(\'all\');">';
-	var none_button = '<input input type="button" id="none_checkboxes" value="None" style="font-size: 90%" onclick="tissue_checkboxes(\'none\');">';
-	
+		
 	//var legend_thead = '<thead><tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Total<br/>cell lines</th><th>WildType<br/>cell lines</th><th>Altered<br/>cell lines</th></tr></thead>';
 	
 	var legend_thead = '<thead><tr><th rowspan="2">Show</th><th rowspan="2">Tissue</th><th colspan="3">Cell lines</th></tr><tr><th>Wild type</th><th>Altered</th><th>Total</th></tr></thead>';
@@ -813,8 +817,16 @@ function generateDataURI(file) {
 	   + '<td>'+tissue_lists[tissue].length+'</td></tr>';
 	  }
     legend_tbody+='</tbody>';
-	  
-	var legend_tfoot = '<tfoot><tr><td>'+all_button+none_button+'<br/>'+toggle_button+'</td>'
+
+
+	var all_button = '<input input type="button" id="all_checkboxes" value="All" style="font-size: 90%" onclick="tissue_checkboxes(\'all\');">';
+	var none_button = '<input input type="button" id="none_checkboxes" value="None" style="font-size: 90%" onclick="tissue_checkboxes(\'none\');">';
+	
+    // Disabled the toggle button:
+    //var toggle_button = '<br/><input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="tissue_checkboxes(\'toggle\');">';	
+    // var legend_tfoot = '<tfoot><tr><td>'+all_button+none_button+toggle_button+'</td>'
+	
+	var legend_tfoot = '<tfoot><tr><td>'+all_button+none_button+'</td>'
 	 + '<td>Totals:</td><td>'+wt_total+'</td>'
 	 + '<td>'+mu_total+'</td>'
 	 + '<td>'+(wt_total+mu_total)+'</td></tr></tfoot>';
@@ -993,10 +1005,12 @@ function rect(xcenter,width,ystats, e) {
 	else if (!(e instanceof SVGRectElement)) {alert("rect(): expected 'rect' for existing elem, but got: "+e.tagName)}
 		
 	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
-	var y = tohalf(Yscreen0 + ystats[3]*yscale, 1);
+	var y = tohalf(Yscreen0 + ystats[iupperhinge]*yscale, 1);
+console.log("*** RECT: ",Yscreen0, ystats[iupperhinge], yscale, y);
+
 	e.setAttribute("y", y);  // Note: box drawn upside down, as screen zero is top left.
     e.setAttribute("width", Math.round(width*xscale) );	
-	e.setAttribute("height", Math.round( (Yscreen0+ystats[1]*yscale)-y) );	// yscale is -ive. Slightly more accurate than (ystats[1]-ystats[3])*yscale, as ystats[3]*yscale has been moved slightly by the tohalf.
+	e.setAttribute("height", Math.round( (Yscreen0+ystats[ilowerhinge]*yscale)-y) );	// yscale is -ive. Slightly more accurate than (ystats[1]-ystats[3])*yscale, as ystats[3]*yscale has been moved slightly by the tohalf.
 	//e.setAttribute("fill", "none"); // set by the CSS
 	//e.setAttribute("stroke", "black");
 	//e.setAttribute("stroke-opacity", "1.0");
@@ -1020,6 +1034,7 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
     //if (isVertical) {console.log("tohalf x"+x2+" => "+x);}
 
 	var y = isHorizontal ? tohalf(Yscreen0 + y1*yscale, strokewidth) : Yscreen0 + y1*yscale;
+console.log("*** line:", Yscreen0, y1, yscale, y);
 	e.setAttribute("y1", y);	
 	e.setAttribute("y2", (isHorizontal ? y : Yscreen0 + y2*yscale) );
     //if (isHorizontal) {console.log("tohalf y"+y2+" => "+y);}
@@ -1076,13 +1091,14 @@ function text(x,y,size,vertical,text, e) {
 	
 function boxplot(xcenter,width,ystats, elms) {
 	// if (boxplot_elems.length=0) {}
+	console.log("*** BOXPLOT STATS LENGTH:",ystats.length);	
 	return [
       rect(xcenter,width,ystats, elms[0]),
-	  line(xcenter-0.25*width,ystats[0], xcenter+0.25*width,ystats[0], "1px", false, "black", elms[1]), // lower whisker horizontal line
-	  line(xcenter,ystats[0], xcenter,ystats[1], "1px", true, "black", elms[2]),  // lower whisker to box dashed line
-	  line(xcenter-0.5*width,ystats[2], xcenter+0.5*width,ystats[2], "3px", false, "black", elms[3]), // median horizontal line
-	  line(xcenter,ystats[3], xcenter,ystats[4], "1px", true, "black", elms[4]),  // upper whisker to box dashed line
-	  line(xcenter-0.25*width,ystats[4], xcenter+0.25*width,ystats[4], "1px", false, "black", elms[5]) // upper whisker horizontal line
+	  line(xcenter-0.25*width,ystats[ilowerwisker], xcenter+0.25*width,ystats[ilowerwisker], "1px", false, "black", elms[1]), // lower whisker horizontal line
+	  line(xcenter,ystats[ilowerwisker], xcenter,ystats[ilowerhinge], "1px", true, "black", elms[2]),  // lower whisker to box dashed line
+	  line(xcenter-0.5*width,ystats[imedian], xcenter+0.5*width,ystats[imedian], "3px", false, "black", elms[3]), // median horizontal line
+	  line(xcenter,ystats[iupperhinge], xcenter,ystats[iupperwhisker], "1px", true, "black", elms[4]),  // upper whisker to box dashed line
+	  line(xcenter-0.25*width,ystats[iupperwhisker], xcenter+0.25*width,ystats[iupperwhisker], "1px", false, "black", elms[5]) // upper whisker horizontal line
 	];
 	// return elms; // array of elements for each box.
     }
@@ -1119,9 +1135,13 @@ function update_boxplots() {
 	//    elem.getAttribute("visibility") == "hidden") {continue} // otherwise: "visible":
 	//    }
 	// }
-
+//console.log("wt_points.length: ",wt_points.length);
+//console.log("mu_points.length: ",mu_points.length);
   var wt_boxstats=boxplot_stats(wt_points);
   var mu_boxstats=boxplot_stats(mu_points);
+  
+//  console.log(wt_boxstats);
+//  console.log(mu_boxstats);
 	
   // We have stored the boxplot lines and rectangle in two global array, so can adjust position later:
   boxplot( wtxc, boxwidth, wt_boxstats, wt_boxplot_elems); // don't need "wt_boxplot_elems = ..." as element ids unchanged, just their positions are changed.  
