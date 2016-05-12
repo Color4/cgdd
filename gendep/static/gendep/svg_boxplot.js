@@ -175,7 +175,7 @@ var svg, xscale, yscale, Yscreen0, lines;
 var tissue_lists;
 var cellline_count;
 var collusionTestRadius=4.6;
-var wt_boxplot_elems = [], mu_boxplot_elems = [];
+var wt_boxplot_elems, mu_boxplot_elems;
 
   
 //$(function() { // on dom ready
@@ -188,6 +188,9 @@ function draw_svg_boxplot(driver, target) {
   if ((drawing_svg) || (boxplot_csv=='') || (!svg_fancybox_loaded)) {return true;} // returning 'true' so fancybox will display its content
   drawing_svg = true; // To prevent drawing twice if both callback happened as same time.
 
+  wt_boxplot_elems=[];
+  mu_boxplot_elems=[];
+  
 //console.log("DRAWING SVG****");
   lines = boxplot_csv.split(";"); // 'lines' is global as is used by the tooltip on hoover
   var col = lines[0].split(","); // y-axis range and wt & mu boxes
@@ -323,7 +326,9 @@ function boxplot_stats(y) {
 // http://peltiertech.com/comparison/
 
     var len = y.length;
-    if (len==0) {return [];} // return empty array as no data.
+    // if (len==0) {return [];} // return empty array as no data.
+    if (len==0) {return [0,0,0,0,0,0,0];} // or return all zeros.	
+	
 	var sorted = y.sort(function(a, b){return a-b}); // by default sort comapres as strings, so need this compare function parameter.
     //var n = sorted.length;
 	var end = len-1;  // as zero-based arrays. Was 'last'
@@ -586,7 +591,7 @@ var wt_points=[],mu_points=[];
   for (var i=1; i<lines.length; i++) { // corectly starts at i=1, as lines[0] is the boxplot dimensions.
     var col = lines[i].split(",");
     var tissue = col[itissue];
-	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue;} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
 
 	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
 	
@@ -907,7 +912,7 @@ function add_tooltips() {
 		
      	//var y = tohalf(Yscreen0 + parseFloat(col[iy]) * yscale, 1);
         //var Yi = Math.round(y / collusionTestRadius); // 5 is twice the circle radius.
-        var tissue = col[itissue];
+        var tissue = col[itissue]; // 	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
 		var mutant = col[imutant];
 		// the following is background, not backgroundColor:
 //		this.style.background=tissue_colours[tissue];  // eg: element.style.backgroundColor = "red";
@@ -984,8 +989,8 @@ function rect(xcenter,width,ystats, e) {
 	// A 45 degree rotated square (a diamond) can be created using:
 	//  1  <rect x="203" width="200" height="200" style="fill:slategrey; stroke:black; stroke-width:3; -webkit-transform: rotate(45deg);"/>
 	console.log("rect:",typeof e);
-    if (typeof e == "undefined") {e = document.createElementNS(svgNS,"rect");  console.log("SVGrect made");}
-	else if (e instanceof SVGRectElement) {alert("rect(): expected 'rect' for existing elem, but got: "+e.tagName)}
+    if (typeof e == "undefined") { e = document.createElementNS(svgNS,"rect");  console.log("SVGrect made");}
+	else if (!(e instanceof SVGRectElement)) {alert("rect(): expected 'rect' for existing elem, but got: "+e.tagName)}
 		
 	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
 	var y = tohalf(Yscreen0 + ystats[3]*yscale, 1);
@@ -1002,8 +1007,8 @@ function rect(xcenter,width,ystats, e) {
 	
 function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
 	console.log("line:",typeof e);
-	if (typeof e == "undefined") {e = document.createElementNS(svgNS,"line"); console.log("SVGline made");}
-    else if (e instanceof SVGLineElement) {alert("line(): expected 'line' for existing elem, but got: "+e.tagName)}	
+	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"line"); console.log("SVGline made"); }
+    else if (!(e instanceof SVGLineElement)) {alert("line(): expected 'line' for existing elem, but got: "+e.tagName)}	
 	
     var isVertical = x1==x2;
     var isHorizontal = y1==y2;
@@ -1053,10 +1058,9 @@ function text(x,y,size,vertical,text, e) {
 	// useful: http://www.hongkiat.com/blog/scalable-vector-graphics-text/
 	
 	// *** Better to position text, could use:  style="text-anchor: middle" so uses text centre for positioning text
-	if (typeof e == "undefined") {e = document.createElementNS(svgNS,"text")}
-    else if (e instanceof SVGTextElement) {alert("text(): expected 'text' for existing elem, but got: "+e.tagName)}	
+	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"text"); }
+    else if (!(e instanceof SVGTextElement)) {alert("text(): expected 'text' for existing elem, but got: "+e.tagName)}	
 	
-    
     var xscreen = x*xscale;
 	e.setAttribute("x", xscreen);
 	var yscreen = Yscreen0 + y*yscale;
@@ -1098,7 +1102,10 @@ function update_boxplots() {
 
     // Or more directly check if that tissue checkbox is checked:
     var tissue = col[itissue];
+	// 	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+	console.log("tissue:", tissue);
 	var checkbox = document.getElementById('cb_'+tissue);
+	console.log("checkbox",checkbox);
 	if (! checkbox.checked) {continue}
 
 	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
@@ -1154,12 +1161,12 @@ function showhide_cell_clicked(e) {  // elem can be a 'td' or checkbox.
     }
 
 
-function set_tissue_visibility(tissue,visible, update_boxplots) {
+function set_tissue_visibility(tissue,visible, updateboxplots) {
 	for (var i=0; i<tissue_lists[tissue].length; i++) {
 	    var elem = tissue_lists[tissue][i];
 	    elem.setAttribute("visibility", visible ? "visible":"hidden");
 	    }
-	if (update_boxplots) {update_boxplots();} // To move the boxplots to match the changes. But if clicked All/None/Toggle buttons then update at end rather than for each tissue.
+	if (updateboxplots) {update_boxplots();} // To move the boxplots to match the changes. But if clicked All/None/Toggle buttons then update at end rather than for each tissue.
 	}
 
 	
