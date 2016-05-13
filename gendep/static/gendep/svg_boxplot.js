@@ -1000,13 +1000,13 @@ function add_tooltips() {
 function rect(xcenter,width,ystats, e) {
 	// A 45 degree rotated square (a diamond) can be created using:
 	//  1  <rect x="203" width="200" height="200" style="fill:slategrey; stroke:black; stroke-width:3; -webkit-transform: rotate(45deg);"/>
-	console.log("rect:",typeof e);
-    if (typeof e == "undefined") { e = document.createElementNS(svgNS,"rect");  console.log("SVGrect made");}
+	//console.log("rect:",typeof e);
+    if (typeof e == "undefined") { e = document.createElementNS(svgNS,"rect");  } // console.log("SVGrect made");
 	else if (!(e instanceof SVGRectElement)) {alert("rect(): expected 'rect' for existing elem, but got: "+e.tagName)}
 		
 	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
 	var y = tohalf(Yscreen0 + ystats[iupperhinge]*yscale, 1);
-console.log("*** RECT: ",Yscreen0, ystats[iupperhinge], yscale, y);
+//console.log("*** RECT: ",Yscreen0, ystats[iupperhinge], yscale, y);
 
 	e.setAttribute("y", y);  // Note: box drawn upside down, as screen zero is top left.
     e.setAttribute("width", Math.round(width*xscale) );	
@@ -1020,8 +1020,8 @@ console.log("*** RECT: ",Yscreen0, ystats[iupperhinge], yscale, y);
 	}
 	
 function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
-	console.log("line:",typeof e);
-	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"line"); console.log("SVGline made"); }
+	//console.log("line:",typeof e);
+	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"line"); } // console.log("SVGline made");
     else if (!(e instanceof SVGLineElement)) {alert("line(): expected 'line' for existing elem, but got: "+e.tagName)}	
 	
     var isVertical = x1==x2;
@@ -1034,7 +1034,7 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
     //if (isVertical) {console.log("tohalf x"+x2+" => "+x);}
 
 	var y = isHorizontal ? tohalf(Yscreen0 + y1*yscale, strokewidth) : Yscreen0 + y1*yscale;
-console.log("*** line:", Yscreen0, y1, yscale, y);
+//console.log("*** line:", Yscreen0, y1, yscale, y);
 	e.setAttribute("y1", y);	
 	e.setAttribute("y2", (isHorizontal ? y : Yscreen0 + y2*yscale) );
     //if (isHorizontal) {console.log("tohalf y"+y2+" => "+y);}
@@ -1074,7 +1074,7 @@ function text(x,y,size,vertical,text, e) {
 	
 	// *** Better to position text, could use:  style="text-anchor: middle" so uses text centre for positioning text
 	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"text"); }
-    else if (!(e instanceof SVGTextElement)) {alert("text(): expected 'text' for existing elem, but got: "+e.tagName)}	
+    else if (!(e instanceof SVGTextElement)) {alert("text(): expected 'text' for existing elem, but got: "+e.tagName); }	
 	
     var xscreen = x*xscale;
 	e.setAttribute("x", xscreen);
@@ -1091,7 +1091,7 @@ function text(x,y,size,vertical,text, e) {
 	
 function boxplot(xcenter,width,ystats, elms) {
 	// if (boxplot_elems.length=0) {}
-	console.log("*** BOXPLOT STATS LENGTH:",ystats.length);	
+	//console.log("*** BOXPLOT STATS LENGTH:",ystats.length);	
 	return [
       rect(xcenter,width,ystats, elms[0]),
 	  line(xcenter-0.25*width,ystats[ilowerwisker], xcenter+0.25*width,ystats[ilowerwisker], "1px", false, "black", elms[1]), // lower whisker horizontal line
@@ -1119,9 +1119,9 @@ function update_boxplots() {
     // Or more directly check if that tissue checkbox is checked:
     var tissue = col[itissue];
 	// 	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
-	console.log("tissue:", tissue);
+//	console.log("tissue:", tissue);
 	var checkbox = document.getElementById('cb_'+tissue);
-	console.log("checkbox",checkbox);
+//	console.log("checkbox",checkbox);
 	if (! checkbox.checked) {continue}
 
 	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
@@ -1660,11 +1660,15 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
   if (typeof target_info === 'undefined') {plot_links = 'Unable to retrieve synonyms and external links for this gene';}
   else {
       if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] );}
-	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
 	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
 	  var target_synonyms   = target_info['synonyms'];
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
-	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
+	  
+	  var ncbi_summary = target_info['ncbi_summary'];
+	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%; margin-top:0; margin-bottom:0;"><b>Entrez Summary for '+target+':</b> '+ncbi_summary+'</p>'}
+	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
+	  
+	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name +'<br/>'+target+' Links: '+target_external_links + ncbi_summary;
 	  }
 // For the following, maybe better just keep left aligned instead as refers to target gene. 	  
   plot_title += '<p style="margin-bottom: 0; text-align: center; line-height: 1.5;">'+plot_links+'</p>';

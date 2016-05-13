@@ -99,9 +99,9 @@
     display:block;
 }
 */
-  </style>
-	
+
 </style>
+
 
 <script type="text/javascript">
 
@@ -258,6 +258,12 @@ function histotype_display(histotype) { // This is a duplicate of the one in ind
 //}
 
 
+// Column filtering for DataTables: http://stackoverflow.com/questions/17629060/how-to-place-datatables-column-filter-on-top
+// Older version: https://datatables.net/forums/discussion/5033/datatables-column-filter-add-on-for-the-data-table
+// https://datatables.net/reference/api/column().search()
+
+// ***Like this (except at top: https://datatables.net/examples/api/multi_filter.html
+// https://datatables.net/development/filtering
 
 function initialise_result_table_and_tooltips() {
   // Parser for the 'wilcox_p' column(eg. "4 x 10<sup>-3</sup>") to back scientific number:
@@ -278,12 +284,15 @@ function initialise_result_table_and_tooltips() {
 		showProcessing: true,
 		delayInit: false, // true, // true to display table sooner
 		theme: 'blue',
-		widgets: ["filter", "scroller"], 		
-		widthFixed : true,
+		widgets: ["filter"], // , "scroller"],
+		widthFixed: true, // false,
 
 		widgetOptions: {
-			scroller_height: 400,
-			resizable_widths: [ '15%', '10%', '10%', '10%', '11%', '11%', '11%', '11%', "11%"], // or use eg: '20px'
+////			scroller_height: 400,
+			// In tablesorter v2.19.0 the scroll bar width is auto-detected
+      // add a value here to override the auto-detected setting
+      //scroller_barWidth : null,
+			//resizable_widths: [ '15%', '10%', '10%', '10%', '11%', '11%', '11%', '11%', "11%"], // or use eg: '20px'
 			filter_functions: { // 0-based column indexes:
                 1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
@@ -460,6 +469,12 @@ console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 			show_message("result_progress_div", "Formatting table....", 5); // clear message
 
             initialise_result_table_and_tooltips(); // Just want to do this once, ie: for the first search.
+	
+  $("#result_table").trigger("update"); 
+  
+// set sorting column and direction, this will sort on the first and third column 
+ var sorting = [[2,1],[0,0]];   // sort on the first column 
+ $("#result_table").trigger("sorton",[sorting]); 	
 	
             // OR: $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
 	// or: .trigger( 'addRows', [ $row, resort, callback ] );
@@ -641,7 +656,7 @@ $.ajax({
 {# (Select search type ("Driver gene" or "Target gene"). Then in the driver/target search box, #}
 In the 'Driver gene' search box, typing two letters of a gene name will display a menu of matching gene names. The 'Tissue' and 'Study' menu options will be updated depending on gene selected.)</p>
 </div>
-<table align="center" id="searchbox_table">
+<table id="searchbox_table" style="margin-left:auto; margin-right:auto;">
 <tr>
 <td>Search filter:</td>
 <td>
@@ -692,7 +707,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <div id ="result_progress_div"> &nbsp; <br/> &nbsp; <br/> &nbsp; <br/> &nbsp; <br/> </div>
 
 <div id="result_div" style="display:none;"> 
-<table align="center" id="info_result_table">
+<table id="info_result_table" style="margin-left:auto; margin-right:auto;">
 <tr><td>
 
 <p><b><span id="gene_search_by"></span> gene: <span id="gene_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="gene_synonyms"></span></p>
@@ -728,14 +743,15 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
     <input type="hidden" name="limit" value="0"/>
     <input type="hidden" name="advanced_menu" value="yes"/>
     <input type="hidden" name="caller_identity" value="Cancer Genetic Dependency Database"/>
-    <input type="submit" id="string_interactive_submit_button" value="Stringdb Interactive" data-value="Stringdb Interactive" onclick="set_string_form_identifiers();"> <!-- or new HTML5 button tag: formtarget="_blank" -->
+    <input type="submit" id="string_interactive_submit_button" value="Stringdb Interactive" data-value="Stringdb Interactive" onclick="set_string_form_identifiers();"/> <!-- or new HTML5 button tag: formtarget="_blank" -->
   </form>
-<td>
+</td>
 <td>
   <form id="enrichr_form" method="post" action="http://amp.pharm.mssm.edu/Enrichr/enrich" target="_blank" enctype= "multipart/form-data">
     <input type="hidden" id="enrichr_list" name="list"/>
     <input type="hidden" id="enrichr_description" name="description"/>
     <input type="submit" id="enrichr_submit_button" value="Enrichr" data-value="Enrichr" onclick="show_enrichr();" />
+  </form>	
 </td>
 <td><span id="string_link"></span></td>
 </tr></table>
@@ -747,20 +763,21 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 {# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
 
+<!-- In Chrome the total width of all the <th> elements is 985px, so make these add up -->
 <!-- was: data-placeholder="< 0.05" data-placeholder="&le; 0.05" data-value="T" "\u2264 0.05"  just using '<' for simplicity instead of '&le;' -->
 <!-- data-placeholder=">= 65.0" -->
 <!-- Setting table cell widths: http://stackoverflow.com/questions/6486237/style-css-table-td -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead id="result_table_thead"><tr>
-  <th data-placeholder="Search by name" id="dependency_col_name" style="width:15%;" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
-  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" style="width:10%;" data-note="Wilcox p-value"> P-value </th>
-  <th data-placeholder=">= 65.0" style="width:10%;" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
-  <th data-placeholder="< -1" style="width:10%;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
-  <th class="filter-select filter-onlyAvail" style="width:10%;">Tissue</th>
-  <th class="filter-select filter-onlyAvail" style="width:10%;">Study</th>
-  <th class="filter-select filter-onlyAvail" style="width:10%;">Experiment Type</th>
-  <th class="filter-select" style="width:10%;" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String Interaction</th>
-  <th class="filter-select" style="width:15%;" data-note="Inhibitors from DGIdb">Inhibitors</th>
+  <th data-placeholder="Search" id="dependency_col_name" style="width:135px;" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
+  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" style="width:100px; text-align:center;" data-note="Wilcox p-value"> P-value </th>
+  <th data-placeholder=">= 65.0" style="width:100px; text-align:center;" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
+  <th data-placeholder="< -1" style="width:10%; text-align:center;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
+  <th class="filter-select filter-onlyAvail" style="width:100px; text-align:center;">Tissue</th>
+  <th class="filter-select filter-onlyAvail" style="width:100px; text-align:center;">Study</th>
+  <th class="filter-select filter-onlyAvail" style="width:100px; text-align:center;">Experiment</br>Type</th>
+  <th class="filter-select" style="width:100px; text-align:center;" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String<br>Interaction</th>
+  <th class="filter-select" style="width:150px; text-align:center;" data-note="Inhibitors from DGIdb">Inhibitors</th>
 </tr></thead>
 <tbody id="result_table_tbody">
 </tbody>
@@ -788,7 +805,7 @@ Old code:
   <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.min.js' %}"></script>
   <!-- script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.js' %}"></script -->
   <script type="text/javascript" src="{% static 'gendep/tablesorter/js/jquery.tablesorter.widgets.min.js' %}"></script>
-  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.min.js' %}"></script>
+  <script type="text/javascript" src="{% static 'gendep/tablesorter/js/widgets/widget-scroller.js' %}"></script>
   
   {# Fancybox: #}
   <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>

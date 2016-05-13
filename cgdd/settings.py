@@ -108,10 +108,12 @@ MIDDLEWARE_CLASSES = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
-if DEVELOPMENT:
-    INSTALLED_APPS.append('django_extensions')  # Added for the runserver_plus: http://django-extensions.readthedocs.org/en/latest/runserver_plus.html
-    INSTALLED_APPS.append('livereload') # For the livereload server
-    MIDDLEWARE_CLASSES.append('livereload.middleware.LiveReloadScript')
+#if DEVELOPMENT:
+# Disabled runserver_plus for now:
+#    INSTALLED_APPS.append('django_extensions')  # Added for the runserver_plus: http://django-extensions.readthedocs.org/en/latest/runserver_plus.html
+# Disabling livereload for now:
+#    INSTALLED_APPS.append('livereload') # For the livereload server
+#    MIDDLEWARE_CLASSES.append('livereload.middleware.LiveReloadScript')
     # *** This automatic setup of the debug toolbar is NOT compatible with GZipMiddleware (use the explicit setup for debug toolbar)
     # Slow and doesn't seem to monitor Ajax: INSTALLED_APPS.append('debug_toolbar') # For monitoring SQL etc. Needs: DEBUG = True, and staticfiles setup correctly.  See: http://django-debug-toolbar.readthedocs.org/en/1.4/installation.html#quick-setup
     # LIVERELOAD_PORT = 

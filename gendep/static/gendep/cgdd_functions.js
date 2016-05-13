@@ -1017,9 +1017,14 @@ function populate_table(data,t0) {
 	// igene can be either driver or target depending on 'search_by'.
 	var igene=0, iwilcox_p=1, ieffect_size=2, izdelta=3, ihistotype=4, istudy_pmid=5, iinteraction=6, iinhibitors=7, itarget_variant=8; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
 	// In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
-	
+
+var stopat=20;	// To stop table early for testing.
+
+// In Chrome the total width of all the <th> elements is 985px, so make these add up -->
+
 	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list	  
-	  d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
+//if (i>stopat) {break;}
+      d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
 
 	  var study = study_info(d[istudy_pmid]); // name,type,summary,details for 'study_pmid'
 	  // perhaps 'map ......join' might be more efficient?
@@ -1046,7 +1051,7 @@ function populate_table(data,t0) {
 	  else if (val <= 0.001)  {bgcolor=midgreen_SBI_logo}
 	  else if (val <= 0.01)   {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  style = "width:10%; text-align: center;";
+	  style = "width:100px; text-align: center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var wilcox_p_cell = '<td style="'+style+'">' + d[iwilcox_p].replace('e', ' x 10<sup>') + '</sup></td>';
 	  
@@ -1055,7 +1060,7 @@ function populate_table(data,t0) {
 	  else if (val >= 80) {bgcolor=midgreen_SBI_logo}
 	  else if (val >= 70) {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  var style = "width:10%; text-align: center;";
+	  var style = "width:100px; text-align: center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var effectsize_cell = '<td style="'+style+'">' + d[ieffect_size] + '</td>';
 
@@ -1064,12 +1069,12 @@ function populate_table(data,t0) {
 	  else if (val <= -1.5) {bgcolor=midgreen_SBI_logo}
 	  else if (val <= -1.0) {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  var style = "width:10%; text-align: center;";
+	  var style = "width:100px; text-align: center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var zdelta_cell = '<td style="'+style+'">' + d[izdelta] + '</td>';
 	  
 	  var interaction_cell;
-	  var style = "width:10%; text-align: center;";
+	  var style = "width:100px; text-align: center;";
 	  if (d[iinteraction] == '') {interaction_cell = '<td style="'+style+'"></td>';}
 	  else {
 		// alert("interaction='"+d[iinteraction]+"'")
@@ -1102,44 +1107,50 @@ function populate_table(data,t0) {
 		}
 	  }
 
-	  var style = "width:15%; text-align: center;";	  
+	  var style = "width:150px; text-align: center;";	  
 	  var inhibitor_cell;
 	  if (d[iinhibitors] == '') {inhibitor_cell='<td style="'+style+'"></td>';}
 	  else {
-		  var drug_links = '';
-		  var onclick = '';
-		  if (d[iinhibitors].length <= 12) {drug_links = make_drug_links(d[iinhibitors],', ');}
+		  var onclick_or_alink = '';
+		  if (d[iinhibitors].length <= 12) {
+			  // create individual <a...> links for each drug
+			  onclick_or_alink = make_drug_links(d[iinhibitors],', ');			  
+			  }
 		  else {		  
-		    drug_links = d[iinhibitors].substr(0,7)+'...[more]';
+		    cell_text = d[iinhibitors].substr(0,7)+'..<span style="font-size:80%">[more]</span>';
+			// create a onclick to open fancybox:
             var onclick_function = "toggle_show_drugs(this,'"+d[iinhibitors]+"', ', ', '"+d[igene]+"');";
-			onclick = ' onclick="'+onclick_function+'"';
+			onclick_or_alink = '<a href="javascript:void(0);" onclick="'+onclick_function+'">'+cell_text+'</a>';
 		  }
 		  // removed the attribute: drug="'+d[iinhibitors]+'"
           // WAS: inhibitor_cell = '<td style="background-color: beige;"'+onclick+'>'+drug_links+'</td>';
 		  //make_drug_links(drug_names,', ')	// div is comma+space or semi-colon
-		  inhibitor_cell = '<td style="'+style+' background-color: beige;"><a href="javascript:void(0);"'+onclick+'>'+drug_links+'</a></td>';
+		  inhibitor_cell = '<td style="'+style+' background-color: beige;">'+onclick_or_alink+'</td>';
 	  }
 
-	  
-//	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
-	  html += '<tr>'+
-        '<td style="width:15%" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' + // was class="tipright" 
+	  //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
+	  html += '<tr>'
+        + '<td style="width:135px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
+        //+ '<td style="width:100px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'">AB</td>' // was class="tipright" 
+		
 		// In future could use the td class - but need to add on hoover colours, etc....
-		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>' +
-        wilcox_p_cell + 
-		effectsize_cell +
-		zdelta_cell +
-        '<td style="width:10%;">' + histotype_display(d[ihistotype]) + '</td>' +
-		'<td style="width:10%;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' + // but extra text in the table, and extra on hover events so might slow things down.
+		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>'
+        + wilcox_p_cell
+		+ effectsize_cell
+		+ zdelta_cell
+        + '<td style="width:100px;">' + histotype_display(d[ihistotype]) + '</td>'
+		+ '<td style="width:100px;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		'<td style="width:10%;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' + // experiment type. The 'data-exptype=""' is use by tooltips
-        interaction_cell +  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
+		+ '<td style="width:100px;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' // experiment type. The 'data-exptype=""' is use by tooltips
 		
-	    inhibitor_cell +  //'<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
-		'</tr>';  // The newline cahracter was removed from end of each row, as the direct trigger update method complains about undefined value.
+        + interaction_cell  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
+		
+	    + inhibitor_cell  //'<td>' + d[iinhibitors] + '</td>' +  // 'inhibitors'
+		
+		+ '</tr>';  // The newline cahracter was removed from end of each row, as the direct trigger update method complains about undefined value.
 /*
 	  html += '<tr>'+
 		'<td>A</td>' +
@@ -1308,15 +1319,21 @@ function show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 //console.log(target_ids);
     
   var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')';
+  
+//console.log("target_info:", target_info);
 
   if (typeof target_info === 'undefined') {plot_title += '<br/>Unable to retrieve synonyms and external links for this gene';}
   else {
       if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] );}
+	  var target_full_name = '<i>'+target_info['full_name']+'</i>';
+	  var target_synonyms  = target_info['synonyms'];
+	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;} // To prefix with a '|'
+
+	  var ncbi_summary = target_info['ncbi_summary'];
+	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%;">'+ncbi_summary+'</p>'}
 	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
-	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
-	  var target_synonyms   = target_info['synonyms'];
-	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
-	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name+'<br/>'+target+' Links: '+target_external_links;
+
+	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name + ncbi_summary +'</br>'+ target+' Links: '+target_external_links;
 	  }
   plot_title += '</p>';
   
