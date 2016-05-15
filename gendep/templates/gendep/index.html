@@ -269,8 +269,6 @@ function histotype_display(histotype) { // This is a duplicate of the one in ind
 //   **** http://stackoverflow.com/questions/16368345/columns-width-with-tablesorterfilter
 //      https://github.com/Mottie/tablesorter/issues/296
 
-blog.brianddouglas.me
-
 /*
 // http://stackoverflow.com/questions/22274379/table-not-building
 Maybe better to use:
@@ -421,11 +419,11 @@ function initialise_result_table_and_tooltips() {
 		showProcessing: true,
 		delayInit: false, // true, // true to display table sooner
 		theme: 'blue',
-		widgets: ["filter"], // , "scroller"],
+		widgets: ["filter", "scroller"],
 		widthFixed: true, // false,
 
 		widgetOptions: {
-////			scroller_height: 400,
+			scroller_height: 400,
 			// In tablesorter v2.19.0 the scroll bar width is auto-detected
       // add a value here to override the auto-detected setting
       //scroller_barWidth : null,
