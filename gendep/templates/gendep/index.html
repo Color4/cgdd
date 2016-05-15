@@ -265,6 +265,143 @@ function histotype_display(histotype) { // This is a duplicate of the one in ind
 // ***Like this (except at top: https://datatables.net/examples/api/multi_filter.html
 // https://datatables.net/development/filtering
 
+// *** Good info about setting column widths in tablesorter:
+//   **** http://stackoverflow.com/questions/16368345/columns-width-with-tablesorterfilter
+//      https://github.com/Mottie/tablesorter/issues/296
+
+blog.brianddouglas.me
+
+/*
+// http://stackoverflow.com/questions/22274379/table-not-building
+Maybe better to use:
+ applyTable(dataArr);
+ 
+function applyTable(arrayIn) {
+    $('#topdiv').tablesorter({
+        theme: 'default',
+        //widgets : ['zebra','columns'],
+        widgetOptions: {
+            build_source: arrayIn,
+            build_headers: {
+                rows: 1,
+                widths: ['33%', '33%', '33%']
+            }
+        }
+    });
+}
+
+**** Use thie json object mewthod to build the table:
+https://mottie.github.io/tablesorter/docs/example-widget-build-table.html
+
+as json object can include classes and dat-info for the td tags...
+'data-info'
+eg:
+
+$(function() {
+  // object or JSON
+  var dataObject = {
+    headers : [
+      [
+        // each object/string is a cell
+        { text: 'First Name', class: 'fname', width: '10%' }, // row 0 cell 1
+        'Last Name',                                          // row 0 cell 2
+        { text: 'Age', class: 'age', 'data-sorter' : false }, // row 0 cell 3
+        'Total',                                              // row 0 cell 4
+        { text: 'Discount', class : 'sorter-false' },         // row 0 cell 5
+        { text: 'Date', class : 'date' }                      // row 0 cell 6
+      ]
+    ],
+    footers : 'clone', // clone headers or assign array like headers
+    rows : [
+      // TBODY 1
+      [ 'Peter', 'Parker',   28, '$9.99',   '20%', 'Jul 6, 2006 8:14 AM'   ], // row 1
+      [ 'John',  'Hood',     33, '$19.99',  '25%', 'Dec 10, 2002 5:14 AM'  ], // row 2
+      [ 'Clark', 'Kent',     18, '$15.89',  '44%', 'Jan 12, 2003 11:14 AM' ], // row 3
+
+      // TBODY 2
+      { newTbody: true, class: 'tablesorter-infoOnly' },
+      { cells : [ { html: '<strong>Info Row</strong>', colSpan: 6 } ] },      // row 4
+
+      // TBODY 3
+      { newTbody: true },
+      [ 'Bruce', 'Evans',    22, '$13.19',  '11%', 'Jan 18, 2007 9:12 AM'  ], // row 5
+      [ 'Bruce', 'Almighty', 45, '$153.19', '44%', 'Jan 18, 2001 9:12 AM'  ], // row 6
+
+      { class: 'specialRow',                                                  // row 7
+        cells: [
+          // each object/string is a cell
+          { text: 'Fred', class: 'fname' },                                   // row 7 cell 1
+          { text: 'Smith', class: 'lname' },                                  // row 7 cell 2
+          { text: 18, class: 'age', 'data-info': "fake ID!, he's only 16" },  // row 7 cell 3
+          { text: '$22.44', class: 'total' },                                 // row 7 cell 4
+          '8%',                                                               // row 7 cell 5
+          { text: 'Aug 20, 2012 10:15 AM', class: 'date' }                    // row 7 cell 6
+        ],
+        'data-info' : 'This row likes turtles'
+      }
+    ]
+  };
+
+  $('#object2Table').tablesorter({
+    theme: 'blue',
+    widgets: ['zebra'],
+    data : dataObject, // same as using build_source (build_source would override this)
+    widgetOptions : {
+      // *** build object options ***
+      build_objectRowKey    : 'rows',    // object key containing table rows
+      build_objectCellKey   : 'cells',   // object key containing table cells (within the rows object)
+      build_objectHeaderKey : 'headers', // object key containing table headers
+      build_objectFooterKey : 'footers'  // object key containing table footers
+    }
+  });
+
+});
+
+
+only double quotes (") can be used to wrap attributes, all keys must be wrapped in quotes, no comments, etc.
+Always verify that the JSON is valid (use JSONLint) and realize that browsers like Chrome will not allow you to access locally hosted (desktop) JSON files. Test it with Firefox instead.
+
+-- see the json object on webpage for more details
+
+eg: if I build json file like:
+{"headers":[....
+ "rows": [....
+   {cells:[
+          { text: 'Fred', class: 'fname' },                                   // row 7 cell 1
+          { text: 'Smith', class: 'lname' },                                  // row 7 cell 2
+          { text: 18, class: 'age', 'data-info': "fake ID!, he's only 16" },  // row 7 cell 3
+          { text: '$22.44', class: 'total' },                                 // row 7 cell 4
+          '8%',                                                               // row 7 cell 5
+          { text: 'Aug 20, 2012 10:15 AM', class: 'date' }                    // row 7 cell 6
+        ],
+        'data-info' : 'This row likes turtles'
+      },
+	  [
+	  
+	  ]
+	]
+	
+}
+*/
+
+// Resizable columns: http://mottie.github.io/tablesorter/docs/example-widget-resizable.html
+
+// although Mottie says the scroller widget has a lot of issues:
+// http://stackoverflow.com/questions/26955168/header-messed-on-applying-tablesorter-plugin
+//  What ended up working for me is to get rid of fixed column widths and use percentages set in the header like: <th style="width:10%"> for the first couple of columns, then the rest seemed to line up okay.
+
+// or use overflow: td {  max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+// The main issue with this would be the overflowed text would be hidden, so if you want the user to be able to read all the text, one idea would be to add it to the td's title attribute.
+// Or, use css3 word-break: break-all (browser support & demo):
+// td {  max-width: 100px; word-break: break-all; }
+//    http://stackoverflow.com/questions/32868982/how-to-set-fixed-table-widthnot-cell-in-table-sorter
+// and can use the overflow tooltip: https://github.com/mitchogaard/jquery-overflow-tooltip
+
+// Scroller demo: https://mottie.github.io/tablesorter/docs/example-widget-scroller.html
+// https://github.com/Mottie/tablesorter/issues/634
+//  https://github.com/Mottie/tablesorter/blob/master/docs/example-widget-scroller.html
+// https://github.com/Mottie/tablesorter/issues/215
+
 function initialise_result_table_and_tooltips() {
   // Parser for the 'wilcox_p' column(eg. "4 x 10<sup>-3</sup>") to back scientific number:
   $.tablesorter.addParser({

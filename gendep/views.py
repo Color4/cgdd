@@ -49,7 +49,7 @@ def get_timing(start_time, name, time_array=None):
     # To print timings, and optionally build an array of timings that can then be sent to webbrowser console via json.
     # The start_time should be obtained from: datetime.now()
     duration = datetime.now() - start_time
-    print( "%s: %s msec" %(name,str(duration)))  # or use: duration.total_seconds()
+    #print( "%s: %s msec" %(name,str(duration)))  # or use: duration.total_seconds()
     if time_array is not None:
         #if name in time_dict: print("WARNING: Key '%s' is already in the time_dict" %(name))
         time_array.append({name: str(duration)}) # Uses an array so will preserve the order, rather than a dictionary.
@@ -236,8 +236,8 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
     ajax_results_cache_version = '1' # version of the data in the database and of this json format. Increment this on updates that change the db or this json format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
 
     search_by_driver = is_search_by_driver(search_by) # otherwise is by target
-    if search_by_driver: print("***** search_by_driver is TRUE")
-    else: print("***** search_by_driver is FALSE")
+    #if search_by_driver: print("***** search_by_driver is TRUE")
+    #else: print("***** search_by_driver is FALSE")
     
     # Avoid storing a 'None' on the cache as then can't tell if if cache miss or is value of the key
     cache_key = search_by+'_'+gene_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
@@ -422,7 +422,7 @@ CDK11A
                   }
                 # study.weblink|safe
                 
-    print(timing_array)
+    #print(timing_array)
     data = json.dumps({
         'success': True,
         'timings': timing_array,
@@ -568,7 +568,7 @@ def stringdb_interactions(required_score, protein_list):
     protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
-    print(url)
+    #print(url)
     
 # or maybe use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
 # import requests
@@ -597,12 +597,12 @@ def get_stringdb_interactions(request, required_score, protein_list):
         if response=='':   # or response=="\n":
             return HttpResponse("", content_type=plain_mimetype)
         protein_dict2 = dict()
-        print("response:",response)
+        #print("response:",response)
         for line in response: # 
             if line == '': continue
             cols = line.rstrip().split("\t")
-            print("cols:",cols)
-            print("line:",line.rstrip())
+            # print("cols:",cols)
+            # print("line:",line.rstrip())
             if len(cols)<2: print("Num cols = %d in line: '%s'" %(len(cols),line.rstrip()) )
 # Got error for:  http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confidence&limit=0&required_score=700&identifiers=9606.ENSP00000269571%0D9606.ENSP00000357883%0D9606.ENSP00000345083
 # Internal Server Error: /gendep/get_stringdb_interactions/700/9606.ENSP00000269571;9606.ENSP00000357883;9606.ENSP00000345083/
@@ -638,7 +638,7 @@ def get_stringdb_interactions(request, required_score, protein_list):
         #print(protein_list2)
         return HttpResponse(protein_list2, content_type=plain_mimetype) # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
     else:
-        print(response)
+        #print(response)
         return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
     # Maybe handle any exception - eg. server doesn't respond
 
@@ -686,7 +686,7 @@ def cytoscape(request, required_score, protein_list):
 
         # return HttpResponse(protein_list2, content_type=plain_mimetype) # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data 
     else:
-        print(response)
+        #print(response)
         return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
     # Maybe handle any exception - eg. server doesn't respond
 
