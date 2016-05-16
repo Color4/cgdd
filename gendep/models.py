@@ -10,6 +10,12 @@ from django.conf.urls import url
 # ALTER TABLE gendep_dependency MODIFY driver varchar(20) NOT NULL;
 
 
+# mysql -u cgenetics -h cgenetics.mysql.pythonanywhere-services.com
+# use cgenetics$gendep
+
+# delete from django_migrations where app='gendep'; 
+
+
 # Information about each gene:
 class Gene(models.Model):
     gene_name   = models.CharField('Gene name', max_length=25, primary_key=True, db_index=True)  # This is a ForeignKey for Target driver AND target
@@ -21,7 +27,7 @@ class Gene(models.Model):
     ensembl_id  = models.CharField('Ensembl Gene Id', max_length=20, blank=True) # Ensembl gene
     ensembl_protein_id  = models.CharField('Ensembl Protein Id', max_length=20, blank=True) # Ensembl protein
     entrez_id   = models.CharField('Entrez Id', max_length=10, blank=True)  # Entrez
-    cosmic_id   = models.CharField('COSMIC Id', max_length=10, blank=True) # Same as gene_name, or empty if not in COSMIC
+    cosmic_id   = models.CharField('COSMIC Id', max_length=25, blank=True) # Same as gene_name, or empty if not in COSMIC, so can be 15 or more charactes long, eg: "TNFSF12-TNFSF13"
     cancerrxgene_id = models.CharField('CancerRxGene Id', max_length=10, blank=True) # Not available yet
     omim_id     = models.CharField('OMIM Id', max_length=10, blank=True) # Online Mendelian Inheritance in Man
     uniprot_id  = models.CharField('UniProt Ids', max_length=20, blank=True) # UniProt protein Ids.
@@ -154,7 +160,25 @@ class Dependency(models.Model):
         # This 'histotype' needed added to this unique_together otherwise when the S1K table is added to the S1I table there is a conflict.
         # The 'target_variant' is no longer part of unique key, as only keeping the variant with the lowest wilcox_p value
         verbose_name_plural = "Dependencies" # Otherwise the Admin page just adds a 's', ie. 'Dependencys'
-
++----------------+-------------+------+-----+---------+----------------+
+| Field          | Type        | Null | Key | Default | Extra          |
++----------------+-------------+------+-----+---------+----------------+
+| id             | int(11)     | NO   | PRI | NULL    | auto_increment |
+Y| mutation_type  | varchar(10) | NO   |     | NULL    |                |
+Y| wilcox_p       | double      | NO   | MUL | NULL    |                |
+Y| effect_size    | double      | NO   | MUL | NULL    |                |
+Y| interaction    | varchar(10) | NO   |     | NULL    |                |
+Y| study_table    | varchar(10) | NO   |     | NULL    |                |
+Y| histotype      | varchar(35) | NO   | MUL | NULL    |                |
+| **driver         | varchar(20)?? | NO   | MUL | NULL    |                |
+Y| pmid           | varchar(30) | NO   | MUL | NULL    |                |
+| **target         | varchar(20) ?? | NO   | MUL | NULL    |                |
+Y|  target_variant | varchar(2)  | NO   |     | NULL    |                |
+Y| za             | double      | NO   | MUL | NULL    |                |
+Y| zb             | double      | NO   | MUL | NULL    |                |
+Y| zdiff          | double      | NO   | MUL | NULL    |                |
++----------------+-------------+------+-----+---------+----------------+
+boxplot_data
     driver      = models.ForeignKey(Gene, verbose_name='Driver gene', db_column='driver', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target_variant = models.CharField('Achilles gene variant_number', max_length=2, blank=True) # As Achilles has some genes entered with 2 or 3 variants.

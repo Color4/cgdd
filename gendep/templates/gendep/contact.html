@@ -2,6 +2,34 @@
 {% load staticfiles %}
 {% block content %}   
 <b>Contacts</b>
-<p>Colm Ryan at Systems Biology Ireland, email: .....</p>
 
+<p>Colm Ryan at Systems Biology Ireland, email: colm.ryan[AT]ucd.ie</p>
+
+
+
+
+<b>Feedback form:</b> <i>This feedback form below isn't enabled yet:</i>
+
+<table align="center">
+<tr><td>
+<form name="form" id="form" action="...">
+<label for="name">Your name:</label><br/>
+<input type="text" size="80" name="name" id="name" placeholder="Your name" required disabled />
+<br/>
+<label for="email">Your email:</label><br/>
+<input type="email" size="80" name="email" id="email" placeholder="Your email" disabled />
+<br/>
+<label for="interest">Your area of interest:</label><br/>
+<textarea rows="3" cols="81" name="interest" id="interest" placeholder="Your area of interest" disabled></textarea>
+<br/>
+<label for="feedback">Your feedback:</label><br/>
+<textarea rows="10" cols="81" name="feedback" id="feedback" placeholder="Your feedback and ideas" required disabled ></textarea>
+<br/>
+<label for="human">To confirm that you aren't a web-spam-robot, please give answer as a figure, eg. 8:</label><br/>
+five plus two is: <input type="text" size="10" name="human" id="human" placeholder="Your answer" required disabled />
+<br/>
+<input type="submit" name="feedback_button" id="feedback_button" disabled />
+</form>
+</td></tr>
+</table>  
 {% endblock%}
