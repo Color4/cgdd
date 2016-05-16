@@ -898,16 +898,16 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 {# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
 
-<!-- In Chrome the total width of all the <th> elements is 985px, so make these add up -->
+<!-- In Chrome the total width of all the <th> elements is 975px, so make these add up -->
 <!-- was: data-placeholder="< 0.05" data-placeholder="&le; 0.05" data-value="T" "\u2264 0.05"  just using '<' for simplicity instead of '&le;' -->
 <!-- data-placeholder=">= 65.0" -->
 <!-- Setting table cell widths: http://stackoverflow.com/questions/6486237/style-css-table-td -->
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead id="result_table_thead"><tr>
-  <th data-placeholder="Search" id="dependency_col_name" style="width:135px;" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
+  <th data-placeholder="Search" id="dependency_col_name" style="width:125px;" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
   <th data-placeholder="<0.05" class="filter-select sorter-pvalue" style="width:100px; text-align:center;" data-note="Wilcox p-value"> P-value </th>
   <th data-placeholder=">= 65.0" style="width:100px; text-align:center;" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
-  <th data-placeholder="< -1" style="width:10%; text-align:center;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
+  <th data-placeholder="< -1" style="width:100px; text-align:center;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
   <th class="filter-select filter-onlyAvail" style="width:100px; text-align:center;">Tissue</th>
   <th class="filter-select filter-onlyAvail" style="width:100px; text-align:center;">Study</th>
   <th class="filter-select filter-onlyAvail" style="width:100px; text-align:center;">Experiment</br>Type</th>

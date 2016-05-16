@@ -444,18 +444,25 @@ function get_id_list_for_depenedencies(div, idtype) {
     //console.log('first-child:')
 
     var data_tag = "data-epid";  // default to 'protein'.
-    if (idtype=='gene') {data_tag="data-gene";}
-	
-    $('#result_table tbody tr:visible td:first-child').each(function(index) {
-        if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
+    if (idtype=='gene') {data_tag="data-gene";}	
+//    $('#result_table tbody tr:visible td:first-child').each(function(index) {
+	// In order to catch the 'remove-me' class of the space <tr> used for the scroller, need to loop through the rows
+    $('#result_table tbody tr:visible').each(function(index) {
+		if ($(this).hasClass("remove-me")) {console.log("Skipping 'remove-me'",index); return true;} // in the each() loop returning 'true' is same effect as 'continue' in a for(..) loop
+		//var cell = ., $(this)
+		
+	    var protein_id = $("td:first-child", $(this)).attr(data_tag);
+		var gene_id    = $("td:first-child", $(this)).attr('data-gene');
+		console.log(index," : ",gene_id," : ",protein_id);
+        //if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
-	        var protein_id = $(this).attr(data_tag);
-		    if (protein_count >= global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
-		    if ((protein_id != '') && !(protein_id in protein_dict)) {
-				protein_dict[protein_id] = true;
-                protein_count++;
-            }
-		}
+
+		if (protein_count >= global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
+		if ((protein_id != '') && !(protein_id in protein_dict)) {
+			protein_dict[protein_id] = true;
+            protein_count++;
+        }
+		//}
     });
     console.log("get_id_list_for_depenedencies:", protein_dict, protein_count)
 	return [dict_to_string(protein_dict,div), protein_count];
@@ -1130,7 +1137,7 @@ var stopat=20;	// To stop table early for testing.
 
 	  //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'
-        + '<td style="width:135px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
+        + '<td style="width:125px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
         //+ '<td style="width:100px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'">AB</td>' // was class="tipright" 
 		
 		// In future could use the td class - but need to add on hoover colours, etc....

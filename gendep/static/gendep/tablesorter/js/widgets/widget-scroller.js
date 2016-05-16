@@ -399,27 +399,32 @@
 				// code from https://github.com/jmosbech/StickyTableHeaders
 				if ( $this.css( 'box-sizing' ) === 'border-box' ) {
 					setWidth = $this.outerWidth();
+//console.log("SJB A:",setWidth);
 				} else {
 					if ( $this.css( 'border-collapse' ) === 'collapse' ) {
 						if ( $this.length && window.getComputedStyle ) {
 							setWidth = parseFloat( window.getComputedStyle( $this[ 0 ], null ).width );
+//console.log("B:",setWidth);							
 						} else {
 							// ie8 only
 							setWidth = $this.outerWidth() - parseFloat( $this.css( 'padding-left' ) ) -
 								parseFloat( $this.css( 'padding-right' ) ) -
 								( parseFloat( $this.css( 'border-width' ) ) || 0 );
+//console.log("C:",setWidth);								
 						}
 					} else {
 						setWidth = $this.width();
+//console.log("D:",setWidth);						
 					}
 				}
 				row += '<td data-column="' + index + '" style="padding:0;margin:0;border:0;height:0;max-height:0;' +
 					'min-height:0;width:' + setWidth + 'px;min-width:' + setWidth + 'px;max-width:' + setWidth + 'px"></td>';
 
 				// save current widths
-				wo.scroller_calcWidths[ index ] = setWidth;
+				wo.scroller_calcWidths[ index ] = setWidth;				
 			}
 			row += '</tr>';
+//console.log("SJB resize:",row);
 			c.$tbodies.eq(0).prepend( row ); // tbody
 			$hdr.children( 'thead' ).append( row );
 			$foot.children( 'tfoot' ).append( row );
