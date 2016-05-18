@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.conf.urls import url
-
+from datetime import datetime # For Comment datetime.
 
 # To manually modify field to match the changed Gene gene_name increased to 20 characters.
 # mysql -u sbridgett -h sbridgett.mysql.pythonanywhere-services.com
@@ -160,25 +160,7 @@ class Dependency(models.Model):
         # This 'histotype' needed added to this unique_together otherwise when the S1K table is added to the S1I table there is a conflict.
         # The 'target_variant' is no longer part of unique key, as only keeping the variant with the lowest wilcox_p value
         verbose_name_plural = "Dependencies" # Otherwise the Admin page just adds a 's', ie. 'Dependencys'
-+----------------+-------------+------+-----+---------+----------------+
-| Field          | Type        | Null | Key | Default | Extra          |
-+----------------+-------------+------+-----+---------+----------------+
-| id             | int(11)     | NO   | PRI | NULL    | auto_increment |
-Y| mutation_type  | varchar(10) | NO   |     | NULL    |                |
-Y| wilcox_p       | double      | NO   | MUL | NULL    |                |
-Y| effect_size    | double      | NO   | MUL | NULL    |                |
-Y| interaction    | varchar(10) | NO   |     | NULL    |                |
-Y| study_table    | varchar(10) | NO   |     | NULL    |                |
-Y| histotype      | varchar(35) | NO   | MUL | NULL    |                |
-| **driver         | varchar(20)?? | NO   | MUL | NULL    |                |
-Y| pmid           | varchar(30) | NO   | MUL | NULL    |                |
-| **target         | varchar(20) ?? | NO   | MUL | NULL    |                |
-Y|  target_variant | varchar(2)  | NO   |     | NULL    |                |
-Y| za             | double      | NO   | MUL | NULL    |                |
-Y| zb             | double      | NO   | MUL | NULL    |                |
-Y| zdiff          | double      | NO   | MUL | NULL    |                |
-+----------------+-------------+------+-----+---------+----------------+
-boxplot_data
+
     driver      = models.ForeignKey(Gene, verbose_name='Driver gene', db_column='driver', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
     target_variant = models.CharField('Achilles gene variant_number', max_length=2, blank=True) # As Achilles has some genes entered with 2 or 3 variants.
@@ -243,8 +225,18 @@ boxplot_data
        # This is needed for the download csv function (although is duplicated in the javascript to display the boxplots):
        return self.driver.gene_name + "_" + self.target.gene_name+self.target_variant + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
 
-   
-       
+# For logging feedback (comments and queries) from the "Contact" page:
+class Comment(models.Model):
+    name        = models.CharField('Name', max_length=50)   # help_text="Please use the following format: <em>YYYY-MM-DD</em>."
+    email       = models.CharField('Email', max_length=50) # eg. 'A' for Achilles, for faster transfer to webbrowser.
+    # interest    = models.TextField('Interest') # Area of interest of person making the comment
+    comment     = models.TextField('Comment')
+    ip          = models.CharField('IP address', max_length=30) # To help block/blacklist any spam messages.
+    # date        = models.DateTimeField('Date', auto_now_add=True, blank=True)
+    date        = models.DateTimeField('Date', default=datetime.now, editable=False,)  # or default=timezone.now  # blank=True
+    #             use: django.utils.timezone.now() and set USE_TZ=True
+
+
 # NOTES:
 # =====
 # For ForeignKeys:

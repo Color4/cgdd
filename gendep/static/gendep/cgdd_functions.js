@@ -447,13 +447,19 @@ function get_id_list_for_depenedencies(div, idtype) {
     if (idtype=='gene') {data_tag="data-gene";}	
 //    $('#result_table tbody tr:visible td:first-child').each(function(index) {
 	// In order to catch the 'remove-me' class of the space <tr> used for the scroller, need to loop through the rows
+	// "remove-me": https://github.com/Mottie/tablesorter/issues/1143
+	// which is the "tablesorter-scroller-spacer" row.
+	
     $('#result_table tbody tr:visible').each(function(index) {
 		if ($(this).hasClass("remove-me")) {console.log("Skipping 'remove-me'",index); return true;} // in the each() loop returning 'true' is same effect as 'continue' in a for(..) loop
 		//var cell = ., $(this)
 		
+// first-child selector: http://stackoverflow.com/questions/1045926/jquery-selector-for-every-row-except-the-first-on-every-table-except-first		
+// https://github.com/Mottie/tablesorter/wiki/Summary
+// https://mottie.github.io/tablesorter/docs/index.html#selectorremove
 	    var protein_id = $("td:first-child", $(this)).attr(data_tag);
-		var gene_id    = $("td:first-child", $(this)).attr('data-gene');
-		console.log(index," : ",gene_id," : ",protein_id);
+//		var gene_id    = $("td:first-child", $(this)).attr('data-gene');
+//		console.log(index," : ",gene_id," : ",protein_id);
         //if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
 

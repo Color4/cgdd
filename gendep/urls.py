@@ -26,6 +26,8 @@ urlpatterns = [
 
     url(r'^get_drivers/', views.get_drivers, name='get_drivers'),    
     
+    url(r'^log_comment/', views.log_comment, name='log_comment'),
+    
     url(r'^get_dependencies/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_dependencies, name='get_dependencies'), 
     # '\_' is needed to match ALL_STUDIES and ALL_HISTOTYPES
 
@@ -47,7 +49,7 @@ urlpatterns = [
     url(r'enrichr/(?P<gene_set_library>[0-9A-Za-z_]+)/(?P<gene_list>[0-9A-Za-z\-\.;\%\r]+)/$', views.enrichr, name='enrichr' ),   # Can add optional: (?P<description>.....
     
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
-
+    
     # url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/gene_name/    
     url(r'^(?P<search_by>(?:driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
 

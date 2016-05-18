@@ -109,7 +109,7 @@ SVGElement.prototype.toDataURL = function(type, options) {
 	}
 
 	
-    function image_onload_timeout(canvas,ctx,svg_img) {  // SJB
+    function image_onload_timeout(canvas,ctx,svg_img,type) {  // SJB
 			debug("exported image size: " + [svg_img.width, svg_img.height])			
 			canvas.width = svg_img.width;
 			canvas.height = svg_img.height;
@@ -126,10 +126,15 @@ SVGElement.prototype.toDataURL = function(type, options) {
 			// Will see if the IE update fixes this: https://www.microsoft.com/en-us/download/details.aspx?id=51031
 
 			// SECURITY_ERR WILL HAPPEN NOW
-			try {  // SJB added this try .... catch based on idea from 'saveSVGAsPng.js'
+			if (type=="canvas") {
+				if (options.callback) options.callback( canvas );
+			    else debug("WARNING: no callback set, so nothing happens.");
+			}
+			else {		
+			  try {  // SJB added this try .... catch based on idea from 'saveSVGAsPng.js'
 				var png_dataurl = canvas.toDataURL(type);
 				debug(type + " length: " + png_dataurl.length);
-			} catch (e) {
+			  } catch (e) {
 				if ((typeof SecurityError !== 'undefined' && e instanceof SecurityError) || e.name == "SecurityError") {
 				console.error("Rendered SVG images cannot be downloaded in this browser.");
 				alert('Rendered SVG to PNG images cannot be downloaded using this button in this browser, due to an issue with the browser\'s "canvas.toDataURL()" function.\n\nInstead if you are using Internet Explorer: with mouse pointer on the boxplot image, click the RIGHT mouse button, then from the popup menu choose "Save picture as...", then in the save dialog that appears, for the "Save as type" choose "PNG (*.png)", then "Save". If that doesn\'t work, then then try Firefox, Opera, Chrome or Safari browsers.');
@@ -137,10 +142,11 @@ SVGElement.prototype.toDataURL = function(type, options) {
 				} else {
 					throw e;
 				}
-			}
+			  }
 				
-			if (options.callback) options.callback( png_dataurl );
-			else debug("WARNING: no callback set, so nothing happens.");
+			  if (options.callback) options.callback( png_dataurl );
+			  else debug("WARNING: no callback set, so nothing happens.");
+			}  
     }
 	
 	
@@ -155,7 +161,7 @@ SVGElement.prototype.toDataURL = function(type, options) {
 		svg_img.src = base64dataURLencode(svg_xml);
 
 		svg_img.onload = function() {
-		    setTimeout(function() {image_onload_timeout(canvas,ctx,svg_img);}, 50); // SJB: To try to overcome the error in IE 
+		    setTimeout(function() {image_onload_timeout(canvas,ctx,svg_img,type);}, 50); // SJB: To try to overcome the error in IE 
 		}
 		
 		svg_img.onerror = function() {
@@ -190,15 +196,18 @@ SVGElement.prototype.toDataURL = function(type, options) {
 			scaleHeight: keepBB ? bb.height+bb.y : undefined,
 			renderCallback: function() {
 				debug("exported image dimensions " + [canvas.width, canvas.height]);
+				if (type=="canvas") // Added by SJB
+					if (options.callback) options.callback( canvas );
+				else {
 				var png_dataurl = canvas.toDataURL(type);
 				debug(type + " length: " + png_dataurl.length);
-	
 				if (options.callback) options.callback( png_dataurl );
+				}
 			}
 		});
 
 		// NOTE: return in addition to callback
-		return canvas.toDataURL(type);
+		return type=="canvas" ? canvas : canvas.toDataURL(type);
 	}
 
 	// BEGIN MAIN
@@ -216,7 +225,7 @@ SVGElement.prototype.toDataURL = function(type, options) {
 
 		case "image/png":
 		case "image/jpeg":
-
+		case "canvas": // Added by SJB, as IE can convert the returned canvas to a Blob (whereas todataURL can't be downloaded in IE using download)
 			if (!options.renderer) {
 				if (window.canvg) options.renderer = "canvg";
 				else options.renderer="native";

@@ -419,15 +419,25 @@ function initialise_result_table_and_tooltips() {
 		showProcessing: true,
 		delayInit: false, // true, // true to display table sooner
 		theme: 'blue',
-		widgets: ["filter", "scroller"],
+		widgets: ["filter", "resizable", "scroller"],
+		// jquery.tablesorter.widgets.js (includes the jQuery UI theme, columns styling, resizable columns, filter, sticky header and save sort widgets).
 		widthFixed: true, // false,
-
+// if add paging:
+// ajaxProcessing	Function	null	This function is required to return the ajax data obtained from your server into a useable format for tablesorter to apply to the table (v2.1, v2.17.3).		
+		
 		widgetOptions: {
 			scroller_height: 400,
 			// In tablesorter v2.19.0 the scroll bar width is auto-detected
-      // add a value here to override the auto-detected setting
-      //scroller_barWidth : null,
-			//resizable_widths: [ '15%', '10%', '10%', '10%', '11%', '11%', '11%', '11%', "11%"], // or use eg: '20px'
+            // add a value here to override the auto-detected setting
+            //scroller_barWidth : null,
+			
+// maybe: $.tablesorter.fixColumnWidth( table );
+// resizable	Boolean	true	// Resizable widget: If this option is set to false, resized column widths will not be saved. Previous saved values will be restored on page reload (v2.4).
+//resizable_addLastColumn	Boolean	false	Resizable widget: If this option is set to true, a resizing anchor will be included in the last column of the table (v2.8.3).	Example
+//resizable_targetLast	Boolean	false	Resizable widget: When true, the last column will be targeted for resizing (v2.21.3).	
+//resizable_throttle	Boolean	false	Resizable widget: Set this option to throttle the resizable events (v2.17.4).	  
+            // headers widths applied at initialization & resizable reset - this setting includes any non-resizable cells (resizable-false)	  
+			resizable_widths: [ '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%', "15%"], // or use eg: '20px'
 			filter_functions: { // 0-based column indexes:
                 1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)

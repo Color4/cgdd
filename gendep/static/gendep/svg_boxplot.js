@@ -505,8 +505,16 @@ function download_legend(legend_type) {
 	  }
 
     var filename="Legend_"+legend_type+'_'+len.toString()+'tissues.png';
-    download_data(canvas.toDataURL("image/png",1), filename);
-
+	if (canvas.msToBlob) { //for IE
+            window.navigator.msSaveBlob(canvas.msToBlob(), filename);
+        }
+	else { //other browsers
+	    download_data(canvas.toDataURL("image/png",1), filename);	
+        //link.href = canvas.toDataURL();
+        //link.download = filename;
+        }
+	
+	
 //canvas.toDataURL("image/png");
 //(defaults to PNG). The returned image is in a resolution of 96 dpi.
 //For encoderOptions Optional
@@ -739,7 +747,7 @@ function generateDataURI(file) {
 	     }
 */
 	   }
-	else { // is Mutant
+	else { // is Altered (Mutant)
 	  for (var j=-2; j<=2; j++) {
 	    if (typeof muleft[Yi+j] === 'undefined') {if (typeof muright[Yi+j] !== 'undefined') {alert("muright defined Yi+'+j+' "+Yi)}; muleft[Yi+j]=[]; muright[Yi+j]=[true];}
 	  }
@@ -1325,15 +1333,80 @@ function download_boxplot(download_type, driver, target, histotype, study_pmid) 
       });
 	  break;
 	    
-	  
+/*
+var svgString = new XMLSerializer().serializeToString(document.querySelector('svg'));
+
+var canvas = document.getElementById("canvas");
+var ctx = canvas.getContext("2d");
+var DOMURL = self.URL || self.webkitURL || self;
+var img = new Image();
+var svg = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
+var url = DOMURL.createObjectURL(svg);
+img.onload = function() {
+    ctx.drawImage(img, 0, 0);
+    var png = canvas.toDataURL("image/png");
+    document.querySelector('#png-container').innerHTML = '<img src="'+png+'"/>';
+    DOMURL.revokeObjectURL(png);
+};
+img.src = url;
+
+The download_data() below doesn't work in IE, but the above Blob might work (which is from: http://bl.ocks.org/biovisualize/8187844 )
+
+or better: http://www.timvasil.com/blog14/post/2014/02/06/How-to-convert-an-SVG-image-into-a-static-image-with-only-JavaScript.aspx
+   
+    // Converts an SVG element to an IMG element with the same dimensions
+    // and same visual content. The IMG src will have a temporary blob URL.
+    // Works in Webkit and Firefox and IE10+.
+    $.fn.toImage = function() {
+        $(this).each(function() {
+            var svg$ = $(this);
+            var width = svg$.width();
+            var height = svg$.height();
+
+            // Create a blob from the SVG data
+            var svgData = new XMLSerializer().serializeToString(this);
+            var blob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
+
+            // Get the blob's URL
+            var blobUrl = (self.URL || self.webkitURL || self).createObjectURL(blob);
+
+            // Load the blob into an image
+            $('<img />')
+                .width(width)
+                .height(height)
+                .on('load', function() {
+                    // Overwrite the SVG tag with the img tag
+                    svg$.replaceWith(this);
+                })
+                .attr('src', blobUrl);
+        });
+    };
+
+etc ........
+
+
+and https://blogs.msdn.microsoft.com/ie/2012/01/27/creating-files-through-blobbuilder/
+
+along with the msSaveBlob() (that I used for downloading the legends)
+*/
+		
     case 'png':
 	  show_message("download_PNG_boxplot", "Downloading..."); // maybe warn if browser is IE
       var ua = window.navigator.userAgent;  // if ($.browser.msie) {alert($.browser.version);}	
       var ie = ((ua.indexOf('MSIE ') > 0) || (ua.indexOf('Trident/')>0));  // 'MSIE' for IE<=10; 'Trident/' for IE 11; || (ua.indexOf('Edge/')>0) for Edge (IE 12+)
 	  var render = ie ? "canvg" : "native";  // Using "canvg" for IE, to avoid the SECURITY_ERR in IE: canvas.toDataURL(type)	
-      mysvg.toDataURL("image/png", {
-  	    callback: function(data) {
-		    download_data(data,filename)
+//      mysvg.toDataURL("image/png", {
+	// The following works in IE 11 (and probably in IE 10 which introduced msToBlob()):
+      mysvg.toDataURL("canvas", {	// "canvas" was added by SJB to return a canvas for IE msToBlob().
+  	    callback: function(canvas) {
+			if (canvas.msToBlob) { //for IE  
+              window.navigator.msSaveBlob(canvas.msToBlob(), filename); // msToBlob() returns canvas as a PNG image
+            }
+	        else { //other browsers
+              download_data(canvas.toDataURL("image/png",1), filename);
+            }
+			
+//		    download_data(data,filename)
 			},
 		renderer: render 
       });
@@ -1572,6 +1645,17 @@ function fetch_data(driver,target,histotype,study_pmid) {
 */  
 		   
 
+function show_ncbi_summary() {
+	if ($("#boxplot_ncbi_summary").css("display") == "none") {
+	  $("#boxplot_ncbi_summary_more").css("display", "none");
+      $("#boxplot_ncbi_summary").css("display", "inline");
+	}
+	else {	  
+	  $("#boxplot_ncbi_summary_more").css("display", "inline");
+      $("#boxplot_ncbi_summary").css("display", "none");
+	}  
+}	
+
 
 function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant) {
 
@@ -1665,14 +1749,17 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
 	  
 	  var ncbi_summary = target_info['ncbi_summary'];
-	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%; margin-top:0; margin-bottom:0;"><b>Entrez Summary for '+target+':</b> '+ncbi_summary+'</p>'}
+	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%; margin-top:0; margin-bottom:0;"><b><a href="javascript:void(0);" onclick="show_ncbi_summary();">Entrez Summary for '+target+':</b> <span id="boxplot_ncbi_summary_more"> ....[more]</span></a> <span id="boxplot_ncbi_summary" style="display:none;">'+ncbi_summary+'</span></p>'}
 	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
 	  
-	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name +'<br/>'+target+' Links: '+target_external_links + ncbi_summary;
+	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name +'<br/>'+target+' Links: '+target_external_links + 
+	  ncbi_summary;
+	  console.log(ncbi_summary);
+	  console.log(plot_links);	  
 	  }
 // For the following, maybe better just keep left aligned instead as refers to target gene. 	  
   plot_title += '<p style="margin-bottom: 0; text-align: center; line-height: 1.5;">'+plot_links+'</p>';
-
+  
 //===========================================================================
 /*
 // From the original png boxplot function:

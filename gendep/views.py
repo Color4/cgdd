@@ -3,8 +3,9 @@ import json # For ajax for the jquery autocomplete search box
 import math # For ceil()
 from urllib.request import Request, urlopen
 from urllib.error import  URLError
-from datetime import datetime # For get_timming()
-import requests # for Enrichr
+from datetime import datetime # For get_timming() and log_comment()
+import requests # for Enrichr and mailgun email server
+import ipaddress # For is_valid_ip()
 
 from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -13,7 +14,7 @@ from django.core.cache import cache  # To cache previous results. "To provide th
 #Is this image comple as was locked by R:
 #    SEMG2_CAMK1_PANCAN__PMID26947069.png
  
-from .models import Study, Gene, Dependency  # Removed: Histotype,
+from .models import Study, Gene, Dependency, Comment  # Removed: Histotype,
 
 # This django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
 #import logging
@@ -117,6 +118,159 @@ def get_drivers(request):
     return JsonResponse(data, safe=False) # safe is false as data is a Json array, not dictionary
 
 
+
+def is_valid_ip(ip_address):
+    """ Check Validity of an IP address """
+    try:
+        ip = ipaddress.ip_address(u'' + ip_address)
+        return True
+    except ValueError as e:
+        return False
+    
+def get_ip_address_from_request(request):
+    """ Makes the best attempt to get the client's real IP or return the loopback """
+    # From: http://stackoverflow.com/questions/4581789/how-do-i-get-user-ip-address-in-django
+    # which is based on: "easy_timezones.utils.get_ip_address_from_request": https://github.com/Miserlou/django-easy-timezones
+    # or alternatively: https://github.com/un33k/django-ipware
+    
+    # IP addresses can be spoofed so isn't reliable.
+    
+    # "If your application server is behind a proxy, request.META["REMOTE_ADDR"] will likely return the proxy server's IP, not the client's IP. The proxy server will usually provide the client's IP in the HTTP_X_FORWARDED_FOR header. 
+    
+    # Could use "GeoIP" to plot location of requests, eg: http://dev.maxmind.com/geoip/legacy/geolite/
+    # GeoLocation2: https://docs.djangoproject.com/en/1.9/ref/contrib/gis/geoip2/
+    
+    # On PythonAnywhere:  https://help.pythonanywhere.com/pages/WebAppClientIPAddresses/
+    # when you access the remote_addr field, which is where the client IP address normally goes, you'll get the internal IP address of the load-balancer. Our loadbalancer puts the real IP address that we received the request from into the X-Real-IP header, which you can access like this in Django: request.META.get('HTTP_X_REAL_IP')   We also pass along the X-Forwarded-For header, which contains a comma-separated list of IP addresses which should be a list of all proxies that have handled the client's request, with the client's IP address first and the one we received it from last.
+    
+    PRIVATE_IPS_PREFIX = ('10.', '172.', '192.', '127.')
+    ip_address = ''
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if x_forwarded_for and ',' not in x_forwarded_for:
+        if not x_forwarded_for.startswith(PRIVATE_IPS_PREFIX) and is_valid_ip(x_forwarded_for):
+            ip_address = x_forwarded_for.strip()
+    else:
+        ips = [ip.strip() for ip in x_forwarded_for.split(',')]
+        for ip in ips:
+            if ip.startswith(PRIVATE_IPS_PREFIX):
+                continue
+            elif not is_valid_ip(ip):
+                continue
+            else:
+                ip_address = ip
+                break
+    if not ip_address:
+        x_real_ip = request.META.get('HTTP_X_REAL_IP', '') # PythonAnywhere load-balancer puts the real IP in this 'HTTP_X_REAL_IP'.
+        if x_real_ip:
+            if not x_real_ip.startswith(PRIVATE_IPS_PREFIX) and is_valid_ip(x_real_ip):
+                ip_address = x_real_ip.strip()
+    if not ip_address:
+        remote_addr = request.META.get('REMOTE_ADDR', '') # On PythonAnywhere this is the load-balancer addres.
+        if remote_addr:
+            if not remote_addr.startswith(PRIVATE_IPS_PREFIX) and is_valid_ip(remote_addr):
+                ip_address = remote_addr.strip()
+    if not ip_address:
+        ip_address = '127.0.0.1'
+    return ip_address
+    
+    
+
+
+    
+def send_an_email(emailfrom, emailto, emailreplyto, subject, text):
+    # Uses mailgun.com (for as free  PythonAnywhere accounts don't have SMTP access)
+    # mailgun records email in your logs: https://mailgun.com/cp/log .  You can send up to 300 emails/day from this sandbox server..."
+    # http://gexos.org/send-email-through-mailgun-with-python-and-pythonanywhere/
+    # MailGun API: https://documentation.mailgun.com/api-sending.html#sending
+    response = requests.post(
+        "https://api.mailgun.net/v3/sandboxfb49cd4805584358bdd5ee8d96240a09.mailgun.org/messages",
+        auth=("api", "key-ff52850192b21b271260779529ebd491"),
+        data={"from": emailfrom, # "Mailgun Sandbox <postmaster@sandboxfb49cd4805584358bdd5ee8d96240a09.mailgun.org>",
+              "to": emailto,  # "Stephen <sbridgett@gmail.com>",
+              "h:Reply-To": emailreplyto,
+              "subject": subject,
+              "text": text
+              })
+              
+    # Alternatively to use SMTP on the non-free PythonAnywhere account: http://stackoverflow.com/questions/6367014/how-to-send-email-via-django
+    # https://docs.djangoproject.com/en/1.9/topics/email/
+    """
+    Add SMTP config to settings.py
+    from django.core.mail import send_mail, BadHeaderError
+    from django.http import HttpResponse, HttpResponseRedirect
+
+    subject = request.POST.get('subject', '')
+    message = request.POST.get('message', '')
+    from_email = request.POST.get('from_email', '')
+    if subject and message and from_email:
+        try:
+            send_mail(subject, message, from_email, ['admin@example.com'])
+        except BadHeaderError:
+            return HttpResponse('Invalid header found.')
+        return HttpResponseRedirect('/contact/thanks/')
+    else:
+        # In reality we'd use a form class
+        # to get proper validation errors.
+        return HttpResponse('Make sure all fields are entered and valid.')
+    """
+    
+    return response.ok
+          
+              
+def log_comment(request):
+    # Log and email comments/queries from the 'contacts' page. 
+    name = request.POST.get('name', '')
+    emailreplyto = request.POST.get('email', '')
+    comment = request.POST.get('comment', '')
+    # interest = request.POST.get('interest', '')
+    # human = request.POST.get('human', '')
+    date = datetime.now() # can add the timezone as parameter, or alternatively use: django.utils.timezone.now() and set USE_TZ=True: https://docs.djangoproject.com/en/1.9/_modules/django/utils/timezone/
+    # can format date time using: https://docs.djangoproject.com/en/1.9/ref/templates/builtins/#date
+    # eg: D (for day, eg: Fri), d (day of month, eg: 04), M (eg. Jan), Y (year, eg: 1999) H (24 hour times) (or h for 12 hour, and A for AM/PM), i (minutes), e (timezone), T (Time zone of this machine).
+    # eg: {{ value|date:"D d M Y" }}
+    ip = get_ip_address_from_request(request)
+        
+    c = Comment.objects.create(name=name, email=emailreplyto, comment=comment, ip=ip, date=date)
+        
+    # Should probably check for header injection attacks:  https://www.reddit.com/r/Python/comments/15n6dw/sending_emails_through_python_and_gmail/
+    # But mailgun probably checks for this.
+    
+    emailfrom="sbridgett@gmail.com"
+    emailto="cgenetics@ucd.ie"
+    #emailto="sbridgett@gmail.com"
+    subject="Cgenetics Comment/Query: "+str(c.id)
+    # Datetime formatting: https://docs.python.org/3.5/library/datetime.html#strftime-strptime-behavior
+    text = "From: "+name+" "+emailreplyto+"\nDate: "+date.strftime("%a %d %b %Y at %H %Z") +"\n\n"+comment
+    
+    email_sent = "Email sent to cgenetics" if send_an_email(emailfrom=emailfrom, emailto=emailto, emailreplyto=emailreplyto, subject=subject, text=text) else "Failed to send email, but your message was saved in our comments database."
+    # Could add: interest=interest
+
+    
+    # Sending email from PythonAnywhere free account: https://help.pythonanywhere.com/pages/SMTPForFreeUsers/
+    # Use MailGun (or Gmail): http://www.mailgun.com/
+
+    #             use: django.utils.timezone.now() and set USE_TZ=True
+    
+    """ Alternatively in the model use:
+    date = models.DateTimeField(default=datetime.now(), blank=True)
+Django has a feature to accomplish what you are trying to do already:
+
+date = models.DateTimeField(auto_now_add=True, blank=True)
+or default=timezone.now
+http://stackoverflow.com/questions/2771676/django-datetime-issues-default-datetime-now
+date = models.DateTimeField(default=datetime.now, blank=True)
+date = models.DateTimeField(default=datetime.now, editable=False,)
+Make sure, if your trying to represent this in an Admin page, that you list it as 'read_only' and reference the field name
+
+read_only = 'date'
+
+More info on Django timezones: https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
+    """
+    
+    context = {'name': name, 'email': emailreplyto, 'comment': comment, 'date': date, 'email_sent': email_sent}
+    return render(request, 'gendep/log_comment.html', context, content_type=html_mimetype)
+    
+    
 def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p', select_related=None):
     error_msg = ""
     
