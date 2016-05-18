@@ -234,10 +234,15 @@ def log_comment(request):
     # Should probably check for header injection attacks:  https://www.reddit.com/r/Python/comments/15n6dw/sending_emails_through_python_and_gmail/
     # But mailgun probably checks for this.
     
-    emailfrom="sbridgett@gmail.com"
-    emailto="cgenetics@ucd.ie"
+    #emailfrom="sbridgett@gmail.com"
+    
+    emailfrom=emailreplyto # Needs to be a valid email address or might give an exception?
+    
+    emailto="cancergenetics@ucd.ie"
     #emailto="sbridgett@gmail.com"
+
     subject="Cgenetics Comment/Query: "+str(c.id)
+
     # Datetime formatting: https://docs.python.org/3.5/library/datetime.html#strftime-strptime-behavior
     text = "From: "+name+" "+emailreplyto+"\nDate: " + date.strftime("%a %d %b %Y at %H:%M %Z") + "\n\n"+comment
     # https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
