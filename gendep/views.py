@@ -10,9 +10,7 @@ import ipaddress # For is_valid_ip()
 from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
-
-#Is this image comple as was locked by R:
-#    SEMG2_CAMK1_PANCAN__PMID26947069.png
+from django.utils import timezone # For log_comment(), with USE_TZ=True in settings.py, and istall "pytz"
  
 from .models import Study, Gene, Dependency, Comment  # Removed: Histotype,
 
@@ -224,7 +222,8 @@ def log_comment(request):
     comment = request.POST.get('comment', '')
     # interest = request.POST.get('interest', '')
     # human = request.POST.get('human', '')
-    date = datetime.now() # can add the timezone as parameter, or alternatively use: django.utils.timezone.now() and set USE_TZ=True: https://docs.djangoproject.com/en/1.9/_modules/django/utils/timezone/
+    # date = datetime.now() # can add the timezone as parameter, or alternatively use: django.utils.timezone.now() and set USE_TZ=True: https://docs.djangoproject.com/en/1.9/_modules/django/utils/timezone/
+    date = timezone.now()
     # can format date time using: https://docs.djangoproject.com/en/1.9/ref/templates/builtins/#date
     # eg: D (for day, eg: Fri), d (day of month, eg: 04), M (eg. Jan), Y (year, eg: 1999) H (24 hour times) (or h for 12 hour, and A for AM/PM), i (minutes), e (timezone), T (Time zone of this machine).
     # eg: {{ value|date:"D d M Y" }}
@@ -236,11 +235,12 @@ def log_comment(request):
     # But mailgun probably checks for this.
     
     emailfrom="sbridgett@gmail.com"
-    emailto="cgenetics@ucd.ie"
-    #emailto="sbridgett@gmail.com"
+    #emailto="cgenetics@ucd.ie"
+    emailto="sbridgett@gmail.com"
     subject="Cgenetics Comment/Query: "+str(c.id)
     # Datetime formatting: https://docs.python.org/3.5/library/datetime.html#strftime-strptime-behavior
-    text = "From: "+name+" "+emailreplyto+"\nDate: "+date.strftime("%a %d %b %Y at %H %Z") +"\n\n"+comment
+    text = "From: "+name+" "+emailreplyto+"\nDate: " + date.strftime("%a %d %b %Y at %H %Z") + "\n\n"+comment
+    # https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
     
     email_sent = "Email sent to cgenetics" if send_an_email(emailfrom=emailfrom, emailto=emailto, emailreplyto=emailreplyto, subject=subject, text=text) else "Failed to send email, but your message was saved in our comments database."
     # Could add: interest=interest

@@ -1,7 +1,8 @@
 from django.db import models
 from django.core.urlresolvers import reverse
 from django.conf.urls import url
-from datetime import datetime # For Comment datetime.
+# from datetime import datetime # For Comment datetime.
+from django.utils import timezone # For Comment() table, with USE_TZ=True in settings.py, and "pip install pytz" https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
 
 # To manually modify field to match the changed Gene gene_name increased to 20 characters.
 # mysql -u sbridgett -h sbridgett.mysql.pythonanywhere-services.com
@@ -233,8 +234,7 @@ class Comment(models.Model):
     comment     = models.TextField('Comment')
     ip          = models.CharField('IP address', max_length=30) # To help block/blacklist any spam messages.
     # date        = models.DateTimeField('Date', auto_now_add=True, blank=True)
-    date        = models.DateTimeField('Date', default=datetime.now, editable=False,)  # or default=timezone.now  # blank=True
-    #             use: django.utils.timezone.now() and set USE_TZ=True
+    date        = models.DateTimeField('Date', default=timezone.now, editable=False,)  # or default=datetime.now or default=timezone.now  # blank=True               use: django.utils.timezone.now() and set USE_TZ=True
 
 
 # NOTES:

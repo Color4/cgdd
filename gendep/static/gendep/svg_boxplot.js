@@ -1647,11 +1647,11 @@ function fetch_data(driver,target,histotype,study_pmid) {
 
 function show_ncbi_summary() {
 	if ($("#boxplot_ncbi_summary").css("display") == "none") {
-	  $("#boxplot_ncbi_summary_more").css("display", "none");
-      $("#boxplot_ncbi_summary").css("display", "inline");
+	  //$("#boxplot_ncbi_summary_more").css("display", "none");
+      $("#boxplot_ncbi_summary").css("display", "block"); // is a paragraph so display as block, rather than inline.
 	}
 	else {	  
-	  $("#boxplot_ncbi_summary_more").css("display", "inline");
+	  //$("#boxplot_ncbi_summary_more").css("display", "inline");
       $("#boxplot_ncbi_summary").css("display", "none");
 	}  
 }	
@@ -1747,15 +1747,22 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
 	  var target_synonyms   = target_info['synonyms'];
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
+
+	  var ncbi_summary = target_info['ncbi_summary']; // Not all genes have a summary in Entrez
 	  
-	  var ncbi_summary = target_info['ncbi_summary'];
-	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%; margin-top:0; margin-bottom:0;"><b><a href="javascript:void(0);" onclick="show_ncbi_summary();">Entrez Summary for '+target+':</b> <span id="boxplot_ncbi_summary_more"> ....[more]</span></a> <span id="boxplot_ncbi_summary" style="display:none;">'+ncbi_summary+'</span></p>'}
-	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
+	  var ncbi_summary_link='',ncbi_summary_text='';
+	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {
+		ncbi_summary_link = '<a href="javascript:void(0);" onclick="show_ncbi_summary();">(Gene Description)</a>';
+		ncbi_summary_text='<p id="boxplot_ncbi_summary" style="display:none; font-size:90%; margin-top:0; margin-bottom:0;"><b>Entrez summary for '+target+':</b> '+ncbi_summary+'</span></p>';
+      }
+		
+	  var target_external_links = '<p style="margin-top: 0; margin-bottom: 0; text-align: center;">'+target+' Links: '+gene_external_links(target_info['ids'], '|', false)+'</p>'; // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
 	  
-	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name +'<br/>'+target+' Links: '+target_external_links + 
-	  ncbi_summary;
-	  console.log(ncbi_summary);
-	  console.log(plot_links);	  
+	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name + ' ' + ncbi_summary_link + ncbi_summary_text	  
+	  + target_external_links;
+	  //console.log(ncbi_summary_link);
+	  //console.log(ncbi_summary_text);	  
+	  //console.log(plot_links);	  
 	  }
 // For the following, maybe better just keep left aligned instead as refers to target gene. 	  
   plot_title += '<p style="margin-bottom: 0; text-align: center; line-height: 1.5;">'+plot_links+'</p>';
@@ -1859,6 +1866,13 @@ return false;
 // closeBtn : '<a title="Close" class="fancybox-item fancybox-close" href="javascript:;"></a>'
 // }
 
+// Might be better to set a max width and height for users screen, eg: 
+//        txt += "Document width/height: " + $(document).width();
+//        txt += "x" + $(document).height() + "\n";
+//        txt += "Window width/height: " + $(window).width();
+//        txt += "x" + $(window).height();
+// whereas screen.width and screen.availWidth are the screen, not the browser window.
+		
   $.fancybox.open({
     // href: url_boxplot,
     preload: 0, // Number of gallary images to preload
