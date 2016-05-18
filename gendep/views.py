@@ -235,11 +235,11 @@ def log_comment(request):
     # But mailgun probably checks for this.
     
     emailfrom="sbridgett@gmail.com"
-    #emailto="cgenetics@ucd.ie"
-    emailto="sbridgett@gmail.com"
+    emailto="cgenetics@ucd.ie"
+    #emailto="sbridgett@gmail.com"
     subject="Cgenetics Comment/Query: "+str(c.id)
     # Datetime formatting: https://docs.python.org/3.5/library/datetime.html#strftime-strptime-behavior
-    text = "From: "+name+" "+emailreplyto+"\nDate: " + date.strftime("%a %d %b %Y at %H %Z") + "\n\n"+comment
+    text = "From: "+name+" "+emailreplyto+"\nDate: " + date.strftime("%a %d %b %Y at %H:%M %Z") + "\n\n"+comment
     # https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
     
     email_sent = "Email sent to cgenetics" if send_an_email(emailfrom=emailfrom, emailto=emailto, emailreplyto=emailreplyto, subject=subject, text=text) else "Failed to send email, but your message was saved in our comments database."

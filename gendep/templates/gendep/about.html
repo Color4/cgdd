@@ -1,13 +1,8 @@
 {% extends 'gendep/base.html' %}
 {% load staticfiles %}
 {% block content %}   
-<b>About CGDD</b>
-<p>The Cancer Genetic Dependencies Database (CGDD) is ........</p>
-
-<p>siRNA (small interfering RNA) or shRNA (short hairpin RNA) were used to knockdown/silence target gene expression...Analysed using R for significance.</p>
-
-<p>Database is a searchable collection from data published in <a href="{% url 'gendep:studies' %}" title="Studies">serveral studies</a> of <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver genes</a>, dependences with Wilcox p-value &le; 0.05 and effect size(CLES) &ge; 65%.</p>
+<h1>About CGDD</h1>
+<p>The Cancer Genetic Dependencies Database (CGDD) provides a searchable collection of experimental data published in <a href="{% url 'gendep:studies' %}" title="Studies">serveral studies</a> of <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver genes</a> dependences. The experiments used siRNA (small interfering RNA) or shRNA (short hairpin RNA) to knockdown/silence target gene expression. The dependencies were statistically investigated using R to obtain <a href="{% url 'gendep:faq' %}" title="FAQ">Wilcox p-value and effect size(CLES)</a>. The database contains dependencies with Wilcox p-value &le; 0.05 and effect size(CLES) &ge; 65%, for 23 <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver genes</a></p>.
 
 <p>This project was supported by funding from <a href="http://www.hrb.ie/">The Health Research Board, Ireland</a>.</p>
-
 {% endblock%}

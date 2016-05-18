@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   {% load staticfiles %}
-  {% block title %}<title>*** {{ current_url }}Cancer Genetic Dependencies Database</title>{% endblock %}
+  {% block title %}<title>Cancer Genetic Dependencies Database (CGDD)</title>{% endblock %}
   {% block links_top %}{% endblock %} {# Putting non-essential scripts at bottom can speedup display of webpage #}
   {# Need to call my style sheet after jQuery one, so that mine overwrites the jquery defaults #}
   <link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
