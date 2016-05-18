@@ -876,6 +876,11 @@ write_box_dot_plot_data <- function(
 	tissue_actual_names,
 	response_type="Z-score"
 	){
+	
+#print(head(mutation.classes,n=2))
+#print(head(zscores,n=2))
+#print(head(mutations,n=2))
+
 
 # Using cat() as does less conversion than print() so should be faster: https://stat.ethz.ch/R-manual/R-devel/library/base/html/cat.html
 #fileConn<-file("boxplot_dataA_test.txt", open="w") # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
@@ -925,7 +930,7 @@ if (writeheader){cat(names(results), "boxplot_data\n", file=fileConn, sep="\t")}
 			wt_mut_grps_strings[which(exclusions[,results$marker[i]] == 1)] <- "non-rec. mut."
 #print(wt_mut_grps_strings)
 			# set the recurrent/functional mutations
-			wt_mut_grps_strings[which(mutations[,results$marker[i]] == 1)] <- "rec. mut."
+			wt_mut_grps_strings[which(mutations[,results$marker[i]] == 1)] <- "rec. mut."						
 #print(wt_mut_grps_strings)
 			wt_grp_rows <- which(wt_mut_grps_strings == "wt")
 			nonfunc_mut_grp_rows <- which(wt_mut_grps_strings == "non-rec. mut.")
@@ -1113,7 +1118,9 @@ data_rows_count <- 0  # Index for the 'data_rows' vector, which is number of cel
 					#x <- jitter(rep(1,times=length(wt_rows_by_tissue)), amount=0.33)
 					y <- zscores[wt_rows_by_tissue,results$target[i]]
 					cell_lines <- row.names(tissues)[wt_rows_by_tissue] # Added by SJB
-					
+
+mutant_types <- mutation.classes[wt_rows_by_tissue,results$marker[i]] # Added by SJB - should all be 0 for wt.
+
 					cell_line_tissues <- sub("^(.*?)_","",cell_lines) # the part after the first "_"
 #					print(cell_line_tissues)
 					if(length(which(cell_line_tissues != tissue)) > 0){
@@ -1156,10 +1163,7 @@ for (k in 1:length(wt_rows_by_tissue)) {
   # Optionally add: (if (k==1) tissue else "")
   # The round(y[k],2) is needed for Achilles and Colt data, but seems already rounded in Campbell data:
   
-  mutation:
-  
-  mutation.classes
-  
+  if (mutant_types[k]!=0) {stop(paste("ERROR: for k=",k,", mutant_types[k]=",mutant_types[k], "!= 0"))}
   data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],round(y[k],2),"0", sep=",") # removed the semi colon, as will join at end using sep=';' as don't want semi-colon at end of the very last row.
   }
 #  paste(tissue,cell_line_names,y,"0", sep=",", ';') # Maybe collapse argument will combine these together more efficiently than the above loop?
@@ -1182,6 +1186,7 @@ for (k in 1:length(wt_rows_by_tissue)) {
 					# plot at 2
 					#x <- jitter(rep(2,times=length(mutant_rows_by_tissue)), amount=0.33)
 					y <- zscores[mutant_rows_by_tissue,results$target[i]]
+mutant_types <- mutation.classes[mutant_rows_by_tissue,results$marker[i]] # Added by SJB - should be non-zeros.
 					cell_lines <- row.names(tissues)[mutant_rows_by_tissue] # Added by SJB
 					#print(c(round(x,2),y,cell_lines)) # ,tissue_cols[j] # Added by SJB
 					#for(k in 1:length(mutant_rows_by_tissue)) {print(sprintf("x:%.2f,y:%.2f,c:%s",x[k],y[k],cell_lines[k]), quote = FALSE)}
@@ -1226,7 +1231,8 @@ for (k in 1:length(mutant_rows_by_tissue)) {
   data_rows_count <- data_rows_count +1
   # Optionally add:  (if (length(wt_rows_by_tissue)==0 && k==1) tissue else "")
   # The round(y[k],2) is needed for Achilles and Colt data, but seems already rounded in Campbell data.  
-  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],round(y[k],2),"1", sep=",") # removed ';' from end.
+  if (mutant_types[k]<=0) {stop(paste("ERROR: for k=",k,", mutant_types[k]=",mutant_types[k], "<= 0"))}
+  data_rows[data_rows_count] <- paste(tissue,cell_line_names[k],round(y[k],2),mutant_types[k], sep=",") # removed ';' from end.
   # or: ifelse(k==1, tissue, "")
   
   # for empty first tissue use: if k==1 ""

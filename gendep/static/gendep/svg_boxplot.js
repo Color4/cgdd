@@ -1892,7 +1892,18 @@ return false;
     aspectRatio: true,
     //fitToView: true,
 	autoCenter: true,
-    arrows: false,
+    arrows: true, // false, (next/prev arrows)
+	
+	loop : false,
+    afterLoad: function(current, previous) {
+        console.info( 'Current: ' + current.href );        
+        console.info( 'Previous: ' + (previous ? previous.href : '-') );
+
+        if (previous) {
+            console.info( 'Navigating: ' + (current.index > previous.index ? 'right' : 'left') );     
+        }
+    },
+	
 	closeEffect : 'none',
     helpers: {
         title: {

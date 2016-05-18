@@ -1034,6 +1034,9 @@ function populate_table(data,t0) {
 var stopat=20;	// To stop table early for testing.
 
 // In Chrome the total width of all the <th> elements is 985px, so make these add up -->
+var width100=""; // "width:100px; ";
+var width125=""; // "width:125px; ";
+var width150=""; // "width:150px; ";
 
 	for (var i=0; i<results.length; i++) {   // for dependency in dependency_list	  
 //if (i>stopat) {break;}
@@ -1064,7 +1067,7 @@ var stopat=20;	// To stop table early for testing.
 	  else if (val <= 0.001)  {bgcolor=midgreen_SBI_logo}
 	  else if (val <= 0.01)   {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  style = "width:100px; text-align: center;";
+	  style = width100+"text-align: center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var wilcox_p_cell = '<td style="'+style+'">' + d[iwilcox_p].replace('e', ' x 10<sup>') + '</sup></td>';
 	  
@@ -1073,7 +1076,7 @@ var stopat=20;	// To stop table early for testing.
 	  else if (val >= 80) {bgcolor=midgreen_SBI_logo}
 	  else if (val >= 70) {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  var style = "width:100px; text-align: center;";
+	  var style = width100+"text-align: center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var effectsize_cell = '<td style="'+style+'">' + d[ieffect_size] + '</td>';
 
@@ -1082,12 +1085,12 @@ var stopat=20;	// To stop table early for testing.
 	  else if (val <= -1.5) {bgcolor=midgreen_SBI_logo}
 	  else if (val <= -1.0) {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  var style = "width:100px; text-align: center;";
+	  var style = width100+"text-align: center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var zdelta_cell = '<td style="'+style+'">' + d[izdelta] + '</td>';
 	  
 	  var interaction_cell;
-	  var style = "width:100px; text-align: center;";
+	  var style = width100+"text-align: center;";
 	  if (d[iinteraction] == '') {interaction_cell = '<td style="'+style+'"></td>';}
 	  else {
 		// alert("interaction='"+d[iinteraction]+"'")
@@ -1120,7 +1123,7 @@ var stopat=20;	// To stop table early for testing.
 		}
 	  }
 
-	  var style = "width:150px; text-align: center;";	  
+	  var style = width150+"text-align: center;";	  
 	  var inhibitor_cell;
 	  if (d[iinhibitors] == '') {inhibitor_cell='<td style="'+style+'"></td>';}
 	  else {
@@ -1143,7 +1146,7 @@ var stopat=20;	// To stop table early for testing.
 
 	  //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'
-        + '<td style="width:125px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
+        + '<td style="'+width125+'text-align: left;" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
         //+ '<td style="width:100px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'">AB</td>' // was class="tipright" 
 		
 		// In future could use the td class - but need to add on hoover colours, etc....
@@ -1151,13 +1154,13 @@ var stopat=20;	// To stop table early for testing.
         + wilcox_p_cell
 		+ effectsize_cell
 		+ zdelta_cell
-        + '<td style="width:100px;">' + histotype_display(d[ihistotype]) + '</td>'
-		+ '<td style="width:100px;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' // but extra text in the table, and extra on hover events so might slow things down.
+        + '<td style="'+width100+'text-align: center;">' + histotype_display(d[ihistotype]) + '</td>'
+		+ '<td style="'+width100+'text-align: center;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		+ '<td style="width:100px;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' // experiment type. The 'data-exptype=""' is use by tooltips
+		+ '<td style="'+width100+'text-align: center;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' // experiment type. The 'data-exptype=""' is use by tooltips
 		
         + interaction_cell  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
 		

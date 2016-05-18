@@ -419,9 +419,9 @@ function initialise_result_table_and_tooltips() {
 		showProcessing: true,
 		delayInit: false, // true, // true to display table sooner
 		theme: 'blue',
-		widgets: ["filter", "resizable", "scroller"],
+		widgets: ["filter", "scroller"], // "resizable", 
 		// jquery.tablesorter.widgets.js (includes the jQuery UI theme, columns styling, resizable columns, filter, sticky header and save sort widgets).
-		widthFixed: true, // false,
+		//widthFixed: true, // false,
 // if add paging:
 // ajaxProcessing	Function	null	This function is required to return the ajax data obtained from your server into a useable format for tablesorter to apply to the table (v2.1, v2.17.3).		
 		
@@ -437,7 +437,7 @@ function initialise_result_table_and_tooltips() {
 //resizable_targetLast	Boolean	false	Resizable widget: When true, the last column will be targeted for resizing (v2.21.3).	
 //resizable_throttle	Boolean	false	Resizable widget: Set this option to throttle the resizable events (v2.17.4).	  
             // headers widths applied at initialization & resizable reset - this setting includes any non-resizable cells (resizable-false)	  
-			resizable_widths: [ '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%', "15%"], // or use eg: '20px'
+			// resizable_widths: [ '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%', "15%"], // or use eg: '20px'
 			filter_functions: { // 0-based column indexes:
                 1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
@@ -908,10 +908,29 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 {# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
 
+{% comment %}
 <!-- In Chrome the total width of all the <th> elements is 975px, so make these add up -->
 <!-- was: data-placeholder="< 0.05" data-placeholder="&le; 0.05" data-value="T" "\u2264 0.05"  just using '<' for simplicity instead of '&le;' -->
 <!-- data-placeholder=">= 65.0" -->
 <!-- Setting table cell widths: http://stackoverflow.com/questions/6486237/style-css-table-td -->
+<table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
+<thead id="result_table_thead"><tr>
+  <th data-placeholder="Search" id="dependency_col_name" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
+  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" style="text-align:center;" data-note="Wilcox p-value"> P-value </th>
+  <th data-placeholder=">= 65.0" style="text-align:center;" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
+  <th data-placeholder="< -1" style="text-align:center;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
+  <th class="filter-select filter-onlyAvail" style="text-align:center;">Tissue</th>
+  <th class="filter-select filter-onlyAvail" style="text-align:center;">Study</th>
+  <th class="filter-select filter-onlyAvail" style="text-align:center;">Experiment</br>Type</th>
+  <th class="filter-select" style="text-align:center;" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String<br>Interaction</th>
+  <th class="filter-select" style="text-align:center;" data-note="Inhibitors from DGIdb">Inhibitors</th>
+</tr></thead>
+<tbody id="result_table_tbody">
+</tbody>
+</table>
+
+{% endcomment %}
+
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead id="result_table_thead"><tr>
   <th data-placeholder="Search" id="dependency_col_name" style="width:125px;" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>

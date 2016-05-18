@@ -16,7 +16,7 @@ setwd("C:/Users/HP/Django_projects/cgdd/198_boxplots_for_Colm/analyses/") # was:
 
 combmuts_func_file <- "../data_sets/func_mut_calls/combined_exome_cnv_func_muts_150225.txt"
 combmuts_all_file <- "../data_sets/func_mut_calls/combined_exome_cnv_all_muts_150225.txt"
-combmuts_classes_file <- "../data_sets/func_mut_calls/combined_exome_cnv_mut_classes_150225.txt"
+combmuts_classes_file <- "../data_sets/func_mut_calls/combined_exome_cnv_mut_classes_150225.txt" # contains the mutation types (1 to 5)
 
 # ----------------------------- #
 # Analysis specific input files #
@@ -211,7 +211,7 @@ write_box_dot_plot_data(
 			),]
 		),
 	zscores=kinome_combmuts$rnai,
-	mutation.classes=kinome_combmuts$mut_classes,
+	mutation.classes=kinome_combmuts$mut_classes, # SJB - I think this is the mutation types.
 	mutations=kinome_combmuts$func_muts,
 	exclusions=kinome_combmuts$all_muts,
 	tissues=kinome_combmuts$tissues,
