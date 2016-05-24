@@ -8,6 +8,7 @@
 <li><a href="#boxplots">How should I interpret the box plots?</a></li>
 <li><a href="#dependencies">What dependencies are included?</a></li>
 <li><a href="#gene_altered">When is a driver gene considered 'altered'?</a></li>
+<li><a href="#genotyping">Where does the genotyping data come from?</a></li>
 <li><a href="#json">How can I access this data from scripts, as JSON web service</a></li>
 </ul>
 
@@ -36,6 +37,9 @@
 
 <p>We attempt to identify likely 'functional' alterations in driver genes using the same approach as in <a href="http://www.cell.com/cell-reports/fulltext/S2211-1247(16)30126-7">Campbell, Ryan <i>et al</i>, Cell Reports, 2016</a>. Briefly, for oncogenes we consider a functional alteration to be either a focal amplification or a mutation in a recurrently mutated site. For tumour suppressor genes we consider a functional alteration to be a homozygous gene deletion, a likely loss-of-function mutation (frameshift, nonsense or splice site alteration), or a mutation to a recurrently mutated site. For a site within a gene to be considered 'recurrently mutated' it must be mutated in ~3% of all samples that feature a mutation in that gene. For example, if there are 1,000 reported mutations to the KRAS gene in our database and 300 of them alter residue 13 then residue 13 is considered recurrently mutated (300/1,000 = 30%). In contrast if residue 27 is mutated two times then it is not considered recurrently mutated (2/1,000 = 0.2%). Our source database for detecting recurrence is <a href="http://www.ncbi.nlm.nih.gov/pubmed/24183448">Davoli <i>et al</i>, Cell, 2013</a>.</p>
 
+<a name="genotyping"><h2>Where does the genotyping data come from?</h2></a>
+
+<p> Copy number profiling is currently taken from the <a href="http://www.broadinstitute.org/ccle/" title="CCLE">Cancer Cell Line Encyclopedia</a> while exome data is primarily taken from the <a href="http://cancer.sanger.ac.uk/cell_lines">COSMIC Cell Lines Project</a>. For 11 ovarian cancer cell lines the exome data was obtained from <a href="http://www.cell.com/cell-reports/fulltext/S2211-1247(16)30126-7">Campbell, Ryan <i>et al</i>, Cell Reports, 2016</a> </p>
 
 <a name="json"><h2>How can I access this data from scripts as a JSON web service?</h2></a>
 
