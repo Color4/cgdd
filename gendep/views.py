@@ -876,6 +876,9 @@ def show_study(request, study_pmid):
 def about(request):
     return render(request, 'gendep/about.html')
 
+def tutorial(request):
+    return render(request, 'gendep/tutorial.html')
+
 def drivers(request):
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     context = {'driver_list': driver_list}

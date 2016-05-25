@@ -10,9 +10,9 @@ app_name = 'gendep'
 
 urlpatterns = [
    # url(r'^$', cache_page(60 * 15)(views.index), name='home'),
-    url(r'^$', views.index, name='home'),
-    
+    url(r'^$', views.index, name='home'),  
     url(r'^about/$', views.about, name='about'),
+    url(r'^tutorial/$', views.tutorial, name='tutorial'),
     url(r'^drivers/$', views.drivers, name='drivers'),
     url(r'^targets/$', views.targets, name='targets'),
     url(r'^tissues/$', views.tissues, name='tissues'),
