@@ -1030,7 +1030,67 @@ function populate_table(data,t0) {
 	// igene can be either driver or target depending on 'search_by'.
 	var igene=0, iwilcox_p=1, ieffect_size=2, izdelta=3, ihistotype=4, istudy_pmid=5, iinteraction=6, iinhibitors=7, itarget_variant=8; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
 	// In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
+/*	
+============================
+	$(".fancybox").fancybox({
+    loop : false,
+    afterLoad: function(current, previous) {
+        console.info( 'Current: ' + current.href );        
+        console.info( 'Previous: ' + (previous ? previous.href : '-') );
+        
+        if (previous) {
+            console.info( 'Navigating: ' + (current.index > previous.index ? 'right' : 'left') );     
+        }
+    }
+});
 
+tpl	Object containing various templates	
+Object; Default value:
+{
+	wrap     : '<div class="fancybox-wrap" tabIndex="-1"><div class="fancybox-skin"><div class="fancybox-outer"><div class="fancybox-inner"></div></div></div></div>',
+	image    : '<img class="fancybox-image" src="{href}" alt="" />',
+	iframe   : '<iframe id="fancybox-frame{rnd}" name="fancybox-frame{rnd}" class="fancybox-iframe" frameborder="0" vspace="0" hspace="0"' + ($.browser.msie ? ' allowtransparency="true"' : '') + '></iframe>',
+	error    : '<p class="fancybox-error">The requested content cannot be loaded.<br/>Please try again later.</p>',
+	closeBtn : '<a title="Close" class="fancybox-item fancybox-close" href="javascript:;"></a>',
+	next     : '<a title="Next" class="fancybox-nav fancybox-next" href="javascript:;"><span></span></a>',
+	prev     : '<a title="Previous" class="fancybox-nav fancybox-prev" href="javascript:;"><span></span></a>'
+}
+
+*/
+
+/*	// Get the current a link colour (by creating an element with this class and append it to the DOM)
+// Not working for 'a' links due to privacy - so wouldn't know which sites are visited.
+// So just set it in css class instead.
+    var eleToGetColor = $('<a style="display: none;">').appendTo('body');
+	console.log(eleToGetColor);
+    //get the color of the element
+    var a_color = eleToGetColor.css('color');	
+    alert(a_color);
+    var alink_color = eleToGetColor.css('link:color');
+    alert(alink_color);
+	//var elem = document.getElementById("test");
+	if (window.getComputedStyle) {  /// from: http://javascript.info/tutorial/styles-and-classes-getcomputedstyle
+	   var alink_color = getComputedStyle(eleToGetColor, 'link').getPropertyValue("color"); // only works in IE9+
+	} else {
+      alink_color = eleToGetColor.currentStyle.color; // in IE only.
+    }   
+    alert(alink_color);
+    eleToGetColor.remove(); //remove the element from the DOM
+*/	
+	// :visited is no longer detectable by getComputedStyle.
+
+/*	
+  var a = document.createElement('a');
+  // a.href = a.textContent = url;
+  document.body.appendChild(a);
+  alert(document.defaultView.getComputedStyle(a, null).color);
+  document.body.removeChild(a);
+  // document.getElementById("myBtn").hasAttribute("onclick");
+  
+//getLinkColor('http://stackoverflow.com/questions/5394099/detect-visited-link-in-chrome');
+//getLinkColor('http://stackoverflow.com/some-fake-path');
+*/
+	
 var stopat=20;	// To stop table early for testing.
 
 // In Chrome the total width of all the <th> elements is 985px, so make these add up -->
@@ -1042,6 +1102,8 @@ var width150=""; // "width:150px; ";
 //if (i>stopat) {break;}
       d = results[i]; // d is just a reference to the array, not a copy of it, so should be more efficient and tidier than repeatidly using results[i]
 
+	  var id="dtd"+(i+1).toString(); // id for the dependency table first cell in each row
+	  
 	  var study = study_info(d[istudy_pmid]); // name,type,summary,details for 'study_pmid'
 	  // perhaps 'map ......join' might be more efficient?
 	  var comma = "', '";  // ie. is:  ', '
@@ -1051,7 +1113,8 @@ var width150=""; // "width:150px; ";
       if (search_by_driver) {target = d[igene];}
       else {driver = d[igene];}
 		
-	  var plot_function = "plot('" + driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[izdelta] +comma+ d[itarget_variant] +"');";
+	  // The "this"	parameter correctly doesn't have quotes:
+	  var plot_function = "plot('"+ id +comma+ driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[izdelta] +comma+ d[itarget_variant] +"');";
 
       // Another way to pouplatte table is using DocumentFragment in Javascript:
       //      https://www.w3.org/TR/DOM-Level-2-Core/core.html#ID-B63ED1A3
@@ -1067,7 +1130,7 @@ var width150=""; // "width:150px; ";
 	  else if (val <= 0.001)  {bgcolor=midgreen_SBI_logo}
 	  else if (val <= 0.01)   {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  style = width100+"text-align: center;";
+	  style = width100+"text-align:center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var wilcox_p_cell = '<td style="'+style+'">' + d[iwilcox_p].replace('e', ' x 10<sup>') + '</sup></td>';
 	  
@@ -1076,7 +1139,7 @@ var width150=""; // "width:150px; ";
 	  else if (val >= 80) {bgcolor=midgreen_SBI_logo}
 	  else if (val >= 70) {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  var style = width100+"text-align: center;";
+	  var style = width100+"text-align:center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var effectsize_cell = '<td style="'+style+'">' + d[ieffect_size] + '</td>';
 
@@ -1085,7 +1148,7 @@ var width150=""; // "width:150px; ";
 	  else if (val <= -1.5) {bgcolor=midgreen_SBI_logo}
 	  else if (val <= -1.0) {bgcolor=lightgreen_SBI_logo}
 	  else {bgcolor = '';}
-	  var style = width100+"text-align: center;";
+	  var style = width100+"text-align:center;";
 	  if (bgcolor != '') {style += ' background-color: '+bgcolor;}
 	  var zdelta_cell = '<td style="'+style+'">' + d[izdelta] + '</td>';
 	  
@@ -1146,21 +1209,29 @@ var width150=""; // "width:150px; ";
 
 	  //	  var interaction_cell = (d[iinteraction] === 'Y') ? '<td style="background-color:'+darkgreen_UCD_logo+'">Yes</td>' : '<td></td>';
 	  html += '<tr>'
-        + '<td style="'+width125+'text-align: left;" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
-        //+ '<td style="width:100px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'">AB</td>' // was class="tipright" 
+
+	  // + '<td id="'+id+'" style="'+width125+'text-align: left; display:block;" data-gene="'+d[igene]+'" data-epid="'+string_protein+'"><a href="javascript:void(0);" onclick="'+plot_function+'">' + d[igene] + '</a></td>' // was class="tipright" 
+	  
+	  // http://stackoverflow.com/questions/10070232/how-to-make-a-cell-of-table-hyperlink
+	  // <td><a href="..." style="display:block;">&nbsp;</a></td>
+
+	  // can just use the td's onclick - unless popup blocker would block this?
+	  + '<td id="'+id+'" style="'+width125+'text-align:left; cursor:pointer;" data-gene="'+d[igene]+'" data-epid="'+string_protein+'" onclick="'+plot_function+'">' + d[igene] + '</td>' // was class="tipright" 
+
+        //+ '<td id="'+id+'" style="width:100px" data-gene="'+d[igene]+'" data-epid="'+string_protein+'">AB</td>' // was class="tipright"
 		
 		// In future could use the td class - but need to add on hoover colours, etc....
 		// '<td class="tipright" onclick="plot(\'' + d[0] + '\', \'' + d[4] + '\', \'' + d[3] +'\');">' + d[0] + '</td>'
         + wilcox_p_cell
 		+ effectsize_cell
 		+ zdelta_cell
-        + '<td style="'+width100+'text-align: center;">' + histotype_display(d[ihistotype]) + '</td>'
-		+ '<td style="'+width100+'text-align: center;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' // but extra text in the table, and extra on hover events so might slow things down.
+        + '<td style="'+width100+'text-align:center;">' + histotype_display(d[ihistotype]) + '</td>'
+		+ '<td style="'+width100+'text-align:center;" data-study="'+d[istudy_pmid]+'">' + study_weblink(d[istudy_pmid],study) + '</td>' // but extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study_weblink(d[istudy_pmid], study) + '</td>' + // but this is extra text in the table, and extra on hover events so might slow things down.
 		// '<td>' + study[0] + '</td>' + // study_weblink
 		//'<td>' + study[1] + '</td>' +  // <a href="#" class="tipleft"> ...+'<span>' + study_summary + '</span>
 		//'<td><a href="#" class="tipleft">' + study[1] + '<span>' + study[2] + '</span></td>' +
-		+ '<td style="'+width100+'text-align: center;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' // experiment type. The 'data-exptype=""' is use by tooltips
+		+ '<td style="'+width100+'text-align:center;" data-exptype="'+d[istudy_pmid]+'">' + study[iexptype] + '</td>' // experiment type. The 'data-exptype=""' is use by tooltips
 		
         + interaction_cell  // '<td>' + d[iinteraction] + '</td>' +  // 'interaction'
 		
@@ -1345,11 +1416,12 @@ function show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 	  var target_synonyms  = target_info['synonyms'];
 	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;} // To prefix with a '|'
 
-	  var ncbi_summary = target_info['ncbi_summary'];
-	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%;">'+ncbi_summary+'</p>'}
+	  // 'ncbi_summary' is not part of the standard gene_info returned by AJAX
+	  // var ncbi_summary = target_info['ncbi_summary'];
+	  // if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%;">'+ncbi_summary+'</p>'}
 	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
 
-	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name + ncbi_summary +'</br>'+ target+' Links: '+target_external_links;
+	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name +'</br>'+ target+' Links: '+target_external_links;
 	  }
   plot_title += '</p>';
   
@@ -1392,19 +1464,86 @@ function show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
   
 
 
-//function plot(index) { // The index number of the dependency in the array
+function next_dependency(this_td) {
+  if (this_td.tagName != "TD") {alert("next_dependency this_td, expected TD, but got "+this_td.tagName)}
+  var row=this_td.parentNode;
+  if (row.tagName != "TR") {alert("next_dependency this row, expected TR, but got "+row.tagName)}  
+  for (row = row.nextSibling; row!=null; row = row.nextSibling) {   // go to the next row
+    if ($(row).hasClass("remove-me") || $(row).hasClass("filtered") || (row.nodeType!=1)) {continue;} // to skip hidden or special rows (such as the hidden row at top of scroller table)
+	// Node.ELEMENT_NODE	1	An Element node such as <p> or <div>.
+	if (row.tagName != "TR") {alert("next_dependency row, expected TR, but got "+row.tagName)}
+  // console.log("next:",row,row.firstChild);
+	return row.firstChild; // should be the first td in this tr
+    }  
+  return null;
+  
+  // Alternatively could use jquery for this:
 
+  //console.log($(this_td).closest('tr')); // .attr('id')
+  //console.log(this_td.parentNode); // .attr('id')
+  
+  //or $(this_td).closest("tr").prev().find("a[id*=DLTue]")
+  
+// $curRow.prev('tr'); Should get you the previous row
+  
+// var row = $(this).closest('tr');
+// var idInput = row.find(':input');
+// var nextInput = idInput.closest('td').next('td').find(':input');  
+    
+  // The difference between this property and previousElementSibling, is that previousSibling returns the previous sibling node as an element node, a text node or a comment node, while previousElementSibling returns the previous sibling node as an element node (ignores text and comment nodes).
+  // "previousElementSibling" is not supported before IE9, whereas previousSibling is.:
+  //console.log("prev:",this_td.parentNode.previousElementSibling); // or: $( row ).prev()[0]; [0] is used to "unwrap the jQuery object", to get the DOM reference to that row. If you want to perform jQuery methods on that row, you can just leave it inside, like $( row ).prev().addClass( '...' ); and in that case you don't need a new variable.)
+  //console.log("next:",this_td.parentNode.nextElementSibling);
+
+  //console.log("childNodes:",this_td.childNodes);
+  // http://stackoverflow.com/questions/12820724/javascript-this-reference-for-onclick-event-not-working	
+  
+  //console.log("firstChild:",this_td.firstChild);
+  
+  //$('#result_table tbody tr:visible').each(function(index) {
+  //	if ($(this).hasClass("remove-me")) {
+  // if don't want jquery, then use: if (!el.className) {
+  //	if (!el.className) {return false}
+  // else {return (' '+el.className+' ').indexOf(' '+clsName+' ') !== -1;}
+  }
+  
+function previous_dependency(this_td) {
+  if (this_td.tagName != "TD") {
+	  alert("previous_dependency this_td, expected TD, but got "+this_td.tagName);
+	  // console.log("previous_dependency this_td, expected TD, but got ",this_td)
+	  }
+  var row=this_td.parentNode; // or use: $( "li.third-item" ).prev()
+  if (row.tagName != "TR") {
+	  alert("previous_dependency this row, expected TR, but got "+row.tagName);
+      //console.log("previous_dependency this row, expected TR, but got:",row);
+      } 
+  for (row=row.previousSibling; row!=null; row=row.previousSibling) {    
+    if ($(row).hasClass("remove-me") || $(row).hasClass("filtered") || (row.nodeType!=1)) {continue;}
+	if (row.tagName != "TR") {
+		alert("previous_dependency, expected TR, but got "+row.tagName);
+	    //console.log("previous_dependency, expected TR, but got",row);
+	    }
+    //console.log("previous:",row,row.firstChild);
+	return row.firstChild; // the td
+    }
+  return null;
+  }
+
+
+function plot(dependency_td_id, driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_variant) { // The index number of the dependency in the array
+//console.log(target);
+//  var target_info;
+//  if (target in gene_info_cache) {
+//	target_info = gene_info_cache[target];
+//function plot(index) { // The index number of the dependency in the array
 
 // onclick="show_svg_boxplot('ERBB2','DGKG', 'PANCAN','26947069');"
 
-function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_variant) { // The index number of the dependency in the array
-//console.log(target);
-  var target_info;
-  if (target in gene_info_cache) {
-	target_info = gene_info_cache[target];
-	
-	show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant);
+
+  show_svg_boxplot_in_fancybox(dependency_td_id, driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_variant); // the 'target_info' (including 'ncbi_summary') is now retrieved with the boxplot_data.
+//console.log("In plot():",dependency_td_id, driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_variant)	
 	// Previously for PNG images:  show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant);	
+/*
 	}
   else {
 	// The target_info will usually have already been retreived by hoovering over the target in table, but if user clicked fast, then might not have been retreived yet.
@@ -1431,7 +1570,7 @@ function plot(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdel
 		 
 	     });
     }
-	
+*/	
     return false; // Return false to the caller so won't move on the page as is called from a href="...
 }
 

@@ -103,7 +103,7 @@ def fetch_boxplot(from_dir, to_dir, old_driver_name, driver_name, old_target_nam
   file_util.copy_file(from_filename, to_filename, preserve_mode=1, preserve_times=1, update=1, dry_run=0) 
 
 
-def add_study(pmid, code, short_name, title, authors, abstract, summary, experiment_type, journal, pub_date):
+def find_or_add_study(pmid, code, short_name, title, authors, abstract, summary, experiment_type, journal, pub_date):
   s, created = Study.objects.get_or_create( pmid=pmid, defaults={'code': code, 'short_name': short_name, 'title': title, 'authors': authors, 'abstract': abstract, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
   return s
 
@@ -361,16 +361,22 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
       
     # Test if ensemble_id is same:
     g_entrez_id = g.entrez_id
-    if entrez_id != '' and g_entrez_id != entrez_id:
-      if g.entrez_id != '':
-        print("WARNING: For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the Excel file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
-      else:
+    if entrez_id != '' and g_entrez_id != entrez_id:    
+      if g.entrez_id == '':
         print("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
         g.save()        
-        
-    if str(g.ensembl_id) != ensembl_id:
-      print("WARNING: For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from Excel file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
+      else:
+        print("WARNING: For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the Excel file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
+
+    if ensembl_id!='' and g.ensembl_id != ensembl_id and ensembl_id!='NoEnsemblIdFound':
+      if g.ensembl_id == '' or g.ensembl_id=='NoEnsemblIdFound':
+        print("Updating Ensembl_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.ensembl_id,ensembl_id,is_driver,g.is_driver, g.is_target))
+        g.ensembl_id=ensembl_id
+        g.save()
+      else:
+        print("WARNING: For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from Excel file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
+      
     """
  1162 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
 WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
@@ -652,6 +658,9 @@ def read_achilles_R_results(result_file, table_name, study, tissue_type, isAchil
   global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS, COLT_FETCH_BOXPLOTS
   if isAchilles and isColt: print("*** ERROR: Cannot be both Achilles and Colt ******")
 
+  print("*** ONLY UPDATING BOXPLOT DATA ***")
+  ONLY_UPDATE_BOXPLOT_DATA = True
+  
   print("\nImporting table: ",result_file)
 
   if isAchilles: print("ACHILLES FETCH_BOXPLOTS is: ",ACHILLES_FETCH_BOXPLOTS)
@@ -687,6 +696,9 @@ def read_achilles_R_results(result_file, table_name, study, tissue_type, isAchil
   izdiff = header_dict['ZDiff']
   itissue = header_dict.get('tissue', -1) # The 'pancan' file has no tissue column.
   iboxplotdata = header_dict['boxplot_data']
+  
+  dependency_rows_updated = 0
+  dependency_rows_not_found_to_update=0
   
   for row in dataReader:      
     # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
@@ -735,6 +747,18 @@ def read_achilles_R_results(result_file, table_name, study, tissue_type, isAchil
     # Bulk create is actually slightly slower than adding record by record in SQLite, but in MySQL it will be faster
 
     key = driver_gene.gene_name + '_' + target_gene.gene_name + ' ' + histotype + '_' + study.pmid # Could maybe use the gene object id as key ?
+
+    if ONLY_UPDATE_BOXPLOT_DATA:
+      try:
+        d = Dependency.objects.get(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], za = row[iza], zb = row[izb], zdiff = row[izdiff], histotype=histotype, mutation_type=mutation_type, study=study)
+        d.boxplot_data = row[iboxplotdata]
+        d.save()
+        dependency_rows_updated += 1
+      except ObjectDoesNotExist: # Not found by the objects.get() - as is different Achilles target_variant
+        dependency_rows_not_found_to_update += 1
+        
+      continue
+        
     d = target_dict.get(key,None)
     if d is not None:
         if not isAchilles: print("*** ERROR: The driver + target + histotype + study key '%s' should be unique for non-Achilles data" %(key))
@@ -757,6 +781,7 @@ def read_achilles_R_results(result_file, table_name, study, tissue_type, isAchil
             count_not_replaced += 1        
     else:
         # Added: zA     zB    ZDiff
+        
         d = Dependency(study_table=table_name, driver=driver_gene, target=target_gene, target_variant=target_variant, wilcox_p=row[iwilcox], effect_size=row[ieffect_size], za = row[iza], zb = row[izb], zdiff = row[izdiff], histotype=histotype, mutation_type=mutation_type, study=study, boxplot_data = row[iboxplotdata])
         # As inhibitors is a ManyToMany field so can't just assign it with: inhibitors=None, 
         # if not d.is_valid_histotype(histotype): print("**** ERROR: Histotype %s NOT found in choices array %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
@@ -765,6 +790,11 @@ def read_achilles_R_results(result_file, table_name, study, tissue_type, isAchil
 
     print("\r",count_added, end=" ")
     count_added += 1
+
+  if ONLY_UPDATE_BOXPLOT_DATA:
+    print("dependency_rows_updated:",dependency_rows_updated," dependency_rows_not_found_to_update:",dependency_rows_not_found_to_update)
+    return
+
     
   # Now fetch the boxplots for those added:
   count_boxplots = 0
@@ -994,7 +1024,7 @@ def add_the_three_studies():
     study_pub_date = "2016, 2 Mar"
     Campbell_study_num_targets = 713  # check this
 
-    Campbell_study=add_study( Campbell_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
+    Campbell_study=find_or_add_study( Campbell_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
 
     # ============================================================================================
     # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
@@ -1010,7 +1040,7 @@ def add_the_three_studies():
     study_pub_date = "2014, 30 Sep"
     Achilles_study_num_targets = 5013 # see my email
     
-    Achilles_study=add_study( Achilles_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    Achilles_study=find_or_add_study( Achilles_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
 
     # ==================================================================================================
     # Colt:  https://neellab.github.io/bfg/   https://www.ncbi.nlm.nih.gov/pubmed/26771497
@@ -1027,7 +1057,7 @@ def add_the_three_studies():
     study_pub_date = "2016, 14 Jan"
     Colt_study_num_targets = 15697 # The actual number of targets tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirement.
 
-    Colt_study=add_study( Colt_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    Colt_study=find_or_add_study( Colt_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
     
     return Campbell_study,Achilles_study,Colt_study,  Campbell_study_num_targets,  Achilles_study_num_targets, Colt_study_num_targets
     
@@ -1057,9 +1087,13 @@ if __name__ == "__main__":
   
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
-    print("\nEmptying database tables")
-    for table in (Dependency, Study, Gene): table.objects.all().delete()  # removed: Histotype, Drug
+    
+    # print("\nEmptying database tables")
+    # for table in (Dependency, Study, Gene): table.objects.all().delete()  # removed: Histotype, Drug
+    print("*** NOT deleting Dependency rows for now, as no change in Studies or Genes ****")
+    
 
+    
     Campbell_study, Achilles_study, Colt_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets = add_the_three_studies()
   
     #for table_name in ('S1I', 'S1K'):
@@ -1069,12 +1103,16 @@ if __name__ == "__main__":
 
     # BUT NEED to FIX THE
     table_name ='S1I'
-    Campbell_results_pancan= "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
+    Campbell_results_pancan= "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    
+    # "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
     csv_filepathname=os.path.join(analysis_dir, Campbell_results_pancan)
     read_achilles_R_results(csv_filepathname, table_name, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
     table_name = 'S1K'
-    Campbell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Campbell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    
+    # "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
@@ -1083,9 +1121,10 @@ if __name__ == "__main__":
 
     # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
     # cannot compute exact p-value with ties
-
+    
     table_name = ''
-    Achilles_results_pancan =  "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Achilles_results_pancan =  "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    # "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
     read_achilles_R_results(csv_filepathname, table_name, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)    
     
@@ -1106,7 +1145,9 @@ if __name__ == "__main__":
 
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
     table_name = ''
-    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+        
+    # "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
     read_achilles_R_results(csv_filepathname, table_name, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
     

@@ -9,6 +9,7 @@ import ipaddress # For is_valid_ip()
 
 from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
 from django.utils import timezone # For log_comment(), with USE_TZ=True in settings.py, and istall "pytz"
  
@@ -31,11 +32,11 @@ ENRICHR_BASE_URL = 'http://amp.pharm.mssm.edu/Enrichr/'
 
 def JsonResponse(data, safe=None):
     # Tired the Django JsonResponse but failed to return the query_info' to javascript, so using HtmlResponse for now:
-    return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
+    return HttpResponse(json.dumps(data, separators=[',',':']), content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
 
     
-def json_error(message, status_code='0'):    
-    return JsonResponse( json.dumps( {'success': False, 'error': status_code, 'message': message } ) ) # eg: str(exception)
+def json_error(message, status_code='0'):
+    return JsonResponse( {'success': False, 'error': status_code, 'message': message } ) # eg: str(exception)
 
 def is_search_by_driver(search_by):
     if   search_by == 'driver': return True
@@ -55,7 +56,7 @@ def get_timing(start_time, name, time_array=None):
     return datetime.now()
 
 
-def index(request, search_by = 'driver', gene_name=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
+def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
     
     driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prevname_synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
 
@@ -68,20 +69,35 @@ def index(request, search_by = 'driver', gene_name=''): # Default is search boxe
     experimenttype_list = Study.EXPERIMENTTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
     dependency_list = None # For now.
-        
+    
+    # if histotype_name=="": histotype_name="PANCAN" # To set the default to PANCAN (previously was set to "ALL_HISTOTYPES", BUT now the tissue menu is populated after user selects driver gene. 
+    
+    
     # This page can be called from the 'drivers' or 'targets' page, with a driver as a POST parameter, so then should display the POST results?
-    if gene_name == '': # if gene not passed using the '/gene_name' parameter in urls.py
+    if (gene_name is None) or (gene_name == ''): # if gene not passed using the '/gene_name' parameter in urls.py
         if   request.method == 'GET':  gene_name = request.GET.get('gene_name', '')
         elif request.method == 'POST': gene_name = request.POST.get('gene_name', '')
         else: gene_name = ''
-    
+        
+    if histotype_name is None: histotype_name=''
+
+    if (study_pmid is None) or (study_pmid == ''): study_short_name=''
+    elif study_pmid=="ALL_STUDIES": study_short_name="All studies"
+    else:
+      for study in study_list:
+        if study_pmid == study.pmid: study_short_name=study.short_name
+      if study_short_name is None:
+        print("WARNING: '"+study_pmid+"' NOT found in database so will be ignored")
+        study_pmid='' # ie. if study_pmid parameter value not found then ignore it.
+        
+        
     # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
     # current_url = request.build_absolute_uri()
     #current_url =  request.META['SERVER_NAME']
     current_url =  request.META['HTTP_HOST']
 
     # Optionally could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'search_by': search_by, 'gene_name': gene_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
+    context = {'search_by': search_by, 'gene_name': gene_name, 'histotype_name': histotype_name, 'study_pmid': study_pmid, 'study_short_name': study_short_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
     return render(request, 'gendep/index.html', context)
 
 
@@ -103,7 +119,7 @@ def get_drivers(request):
         d_json['label'] = d.gene_name
         d_json['value'] = d.gene_name + ' : ' + d.full_name + ' : ' + d.prevname_synonyms
         results.append(d_json)
-    data = json.dumps(results)
+#    data = json.dumps(results)
         # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
         # eg: format is:
         # [ {"id": "3", "value":"3","label":"Matching employee A"},
@@ -112,8 +128,9 @@ def get_drivers(request):
     # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
     
     #    data = 'fail'
+#    return HtmlResponse(json.dumps(results), content_type=json_mimetype)
 
-    return JsonResponse(data, safe=False) # safe is false as data is a Json array, not dictionary
+    return JsonResponse(results, safe=False) # safe is false as data is a Json array, not dictionary
 
 
 
@@ -632,7 +649,10 @@ CDK11A
 
     # The safe=False is needed below so can pass an list (Json array), not just a dictionary.
     # "Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution." From: https://docs.djangoproject.com/en/1.9/ref/request-response/#jsonresponse-objects
-    return JsonResponse(data, safe=False)
+    #return JsonResponse(data, safe=False)
+    
+    return HttpResponse(data, content_type=json_mimetype) # As data is in json format, not using JsonResponse which would try to convert it again.
+    
     # optional param: The "json_dumps_params={'key':'value',....}" parameter is a dictionary of keyword arguments to pass to the json.dumps() call used to generate the response.
     
     #    context = {'dependency_list': dependency_list, 'gene': gene, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
@@ -645,10 +665,26 @@ def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, s
         
     except ObjectDoesNotExist: # Not found by the objects.get()
         error_msg = "Error, Dependency: driver='%s' target='%s' tissue='%s' study='%s' NOT found in Dependency table" %(driver_name, target_name, histotype_name, study_pmid)
-        return HttpResponse(error_msg, content_type=plain_mimetype)
-
+        if dataformat[:4] == 'json':
+          return json_error(error_msg, status_code='1')
+        else:  
+          return HttpResponse(error_msg, content_type=plain_mimetype)  # or should be csv type ??
+          
     if dataformat == 'csvplot':
-        return HttpResponse(d.boxplot_data, content_type=csv_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
+        return HttpResponse(d.boxplot_data, content_type=csv_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_typef
+
+    if dataformat == 'jsonplot':    
+        return HttpResponse(d.boxplot_data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_typef
+
+    if dataformat == 'jsonplotandgene':   # when browser doesn't already have target gene_info and ncbi_summary cached.
+        try:
+          gene = Gene.objects.get(gene_name=target_name)          
+          data = { 'success': True, 'gene_info':{'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene), 'ncbi_summary': gene.ncbi_summary}, 'boxplot': d.boxplot_data }          
+          return JsonResponse(data, safe=False)   # can use: charset='UTF-8' instead of putting utf-8 in the content_typef     # or use JsonResponse(data, safe=False)
+          
+        except ObjectDoesNotExist: # Not found by the objects.get()          
+          error_msg = "Error, Gene: target='%s' NOT found in Gene table" %(target_name)
+          return json_error(error_msg, status_code='2')        
         
     elif dataformat=='download':        
         dest_filename = ('%s_%s_%s_pmid%s.csv' %(driver_name,target_name,histotype_name,study_pmid)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
@@ -858,10 +894,10 @@ def qtip(tip):
 def gene_info(request, gene_name):
     try:
         gene = Gene.objects.get(gene_name=gene_name)
-        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene), 'ncbi_summary': gene.ncbi_summary }  # 
+        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene)}  # 
     except ObjectDoesNotExist: # Not found by the objects.get()
         data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
-    return JsonResponse(json.dumps(data, separators=[',',':']))
+    return JsonResponse(data, safe=False)
         
     
 def graph(request, target_id):
@@ -878,7 +914,7 @@ def about(request):
 
 def tutorial(request):
     return render(request, 'gendep/tutorial.html')
-
+        
 def drivers(request):
     driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
     context = {'driver_list': driver_list}
@@ -1128,7 +1164,9 @@ def enrichr(request, gene_list, gene_set_library):
 
   #data = json.loads(response.text)  # print(data)
   
-  return JsonResponse(response.text, safe=False) # Send the full json response back to browser for now, not just the data[gene_set_library]
+  #return JsonResponse(response.text, safe=False) # Send the full json response back to browser for now, not just the data[gene_set_library]
+  # Not using JsonResponse() as response.text is already in Json format, so don't want to try to convert it to json again.
+  return HttpResponse(response.text, content_type=json_mimetype) # Send the full json response back to browser for now, not just the data[gene_set_library]
   
   
   # =====================================================================

@@ -10,7 +10,7 @@ app_name = 'gendep'
 
 urlpatterns = [
    # url(r'^$', cache_page(60 * 15)(views.index), name='home'),
-    url(r'^$', views.index, name='home'),  
+    url(r'^$', views.index, name='home'),
     url(r'^about/$', views.about, name='about'),
     url(r'^tutorial/$', views.tutorial, name='tutorial'),
     url(r'^drivers/$', views.drivers, name='drivers'),
@@ -34,9 +34,9 @@ urlpatterns = [
     # url(r'^ajax_results/', views.ajax_results_slow_full_detail_version, name='ajax_results_post'),
     
     url(r'^download_csv/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
-    
-    url(r'get_boxplot/(?P<dataformat>(?:myformat|csvplot|download))/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<target_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_boxplot, name='get_boxplot'),
-    
+
+    url(r'get_boxplot/(?P<dataformat>(?:myformat|csvplot|jsonplot|jsonplotandgene|download))/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<target_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_boxplot, name='get_boxplot'),
+
     url(r'^get_gene_info/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.gene_info, name='get_gene_info'), # tip=element.data('url'),
 
     #url(r'get_stringdb_interactions/(?P<protein_list>.+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
@@ -49,8 +49,18 @@ urlpatterns = [
     url(r'enrichr/(?P<gene_set_library>[0-9A-Za-z_]+)/(?P<gene_list>[0-9A-Za-z\-\.;\%\r]+)/$', views.enrichr, name='enrichr' ),   # Can add optional: (?P<description>.....
     
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
-    
-    # url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/gene_name/    
-    url(r'^(?P<search_by>(?:driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
 
+    url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
+    
+    url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]*)/(?P<histotype_name>[0-9A-Za-z\_]*)/(?P<study_pmid>[0-9A-Za-z\_]*)/$', views.index, name='home_search_by_gene_tissue_pmid'), # Needs to be at end as could otherwise interpret 'about' as driver name.
+
+    # eg:  http://localhost:8000/gendep/driver/ERBB2/PANCAN/26947069/
+
+    # url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/gene_name/
+    # The parameters could be optional, so use '*'. If "//" not permitted in url, then could use "ALL/ALL/" (or "ALL_GENES", "ALL_HISTOTYPES", "ALL_STUDIES")
+    # http://stackoverflow.com/questions/2325433/making-a-regex-django-url-token-optional
+    # Better: https://gist.github.com/c4urself/1028897
+    #url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.    
+    
+    
 ]

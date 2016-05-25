@@ -1,4 +1,40 @@
 
+/*
+  // So that won't go back when click back with boxplot shown, just close the boxplot.
+  =========================================  
+   <body onbeforeunload=”HandleBackFunctionality()”>
+    function HandleBackFunctionality()
+    {
+           if(window.event) //Internet Explorer
+           {
+                     alert(“Browser back button is clicked on Internet Explorer…”);
+           }
+          else //Other browsers e.g. Chrome
+           {
+                     alert(“Browser back button is clicked on other browser…”);
+            }
+     }
+But there is a problem that identical event occurs once a user clicks on refresh button of a browser. So, to grasp whether or not refresh button or back button is clicked, we will use the subsequent code.
+
+          if(window.event.clientX < 40 && window.event.clientY < 0)
+          {
+                   alert(“Browser back button is clicked…”);
+          }
+          else
+          {
+                   alert(“Browser refresh button is clicked…”);
+          }
+
+		  
+or in HTML5 catch the browser: window.onpopstate		  
+
+Before you criticize someone, you should walk a mile in their shoes. That way, when you criticize them, you're a mile away and you have their shoes :)
+
+https://github.com/fancyapps/fancyBox/issues/597
+  =======================================================================================
+*/
+
+
 // SVGMagic would enable older browsers to view the SVG imagers: https://github.com/dirkgroenen/SVGMagic  
   
 // SVG javascript libraries:
@@ -157,6 +193,7 @@ var tissue_colours = {
 
 //var driver = "ERBB2", target="MAP2K3", wilcox_p = "4 x 10<sup>-4</sup>", effect_size = "81%", zdelta_score="-1.145", histotype="Pan cancer", study="Campbell(2016)";
 
+var current_dependency_td; // To store the html table cell that this boxplot represents.
 var svg_fancybox_loaded = false;
 var drawing_svg = false;
 var boxplot_csv = ''; 
@@ -172,10 +209,24 @@ var XscreenMin=50,  XscreenMax=(svgWidth-10); // To allow for a margin of 50px a
 var YscreenMin=(svgHeight-50), YscreenMax=10; // To allow a margin of 50px at bottom, and small 10px margin at top
 var wtxc=1.6, muxc=3.8, boxwidth=1.8;
 var svg, xscale, yscale, Yscreen0, lines;
-var tissue_lists;
+var tissue_lists={};
 var cellline_count;
-var collusionTestRadius=4.6;
-var wt_boxplot_elems, mu_boxplot_elems;
+
+
+var collusionTestRadius=4.6; // just less than the point radius, so can overlap slightly.
+
+var PointRadius = 5; // Radius of Circle on the SVG plot.
+
+var TriangleHalfBase = Math.sqrt(Math.PI/Math.sqrt(3))*PointRadius; // This is half the width of triangle base, so that triangle has same area as the circle
+var TriangleBaseToCentre = Math.sqrt(Math.PI/(3*Math.sqrt(3)))*PointRadius; // base to circumcentre of triangle (is 1/sqrt(3) times the half base width).
+var TriangleCentreToApex = Math.sqrt((4*Math.PI)/(3*Math.sqrt(3)))*PointRadius; // circumcentre to apex of triangle (is 2/sqrt(3) times the half base width).
+// So triangle points relative to centre are at: (x,y) = (-TriangleHalfBase, -TriangleBaseToCentre), (-TriangleHalfBase, -TriangleBaseToCentre), (0,TriangleCentreToApex).
+
+var SquareCornerXY = 0.5*Math.sqrt(Math.PI)*PointRadius; // So square has same are as circle withy radius PointRadius.
+
+var DiamondDiagonalXY = 0.5*Math.sqrt(2*Math.PI)*PointRadius; // So diagonal has same are as circle with radius PointRadius.
+
+var wt_boxplot_elems=[], mu_boxplot_elems=[], axes_elems=[];
 
 // Array indexes for the 7 number boxplot_stats():
 var ilowerwisker=1, ilowerhinge=2, imedian=3, iupperhinge=4, iupperwhisker=5;
@@ -185,13 +236,14 @@ var ilowerwisker=1, ilowerhinge=2, imedian=3, iupperhinge=4, iupperwhisker=5;
 //}); // on dom ready
 
     
-function draw_svg_boxplot(driver, target) {
+function draw_svg_boxplot(driver, target, boxplot_data) {
+  if ((typeof boxplot_data !== 'undefined') && (boxplot_data!='')) {boxplot_csv=boxplot_data;} // so this function was called by AJAX success.
+  
+  //console.log("In svg_boxplot(driver, target, boxplot_data)"+driver+', '+target+',\nboxplot_data'+boxplot_data.substring(0,10)+',\nboxplot_csv'+boxplot_csv.substring(0,10));
+  if ((drawing_svg) || (boxplot_csv=='') || (!svg_fancybox_loaded)) {return true;} // returning 'true' so fancybox will display its content, but still waiting for AJAX to return with the boxplot data.
+  drawing_svg = true; // To prevent drawing twice if both callbacks (from fancybox and AJAX) happened as same time.
 
-  if ((drawing_svg) || (boxplot_csv=='') || (!svg_fancybox_loaded)) {return true;} // returning 'true' so fancybox will display its content
-  drawing_svg = true; // To prevent drawing twice if both callback happened as same time.
-
-  wt_boxplot_elems=[];
-  mu_boxplot_elems=[];
+  remove_existing_svg_elems();
   
 //console.log("DRAWING SVG****");
   lines = boxplot_csv.split(";"); // 'lines' is global as is used by the tooltip on hoover
@@ -207,35 +259,57 @@ function draw_svg_boxplot(driver, target) {
   // These are global:
   // From: http://www.i-programmer.info/programming/graphics-and-imaging/3254-svg-javascript-and-the-dom.html
   svg=document.getElementById("mysvg"); // or can create with js: var svg=document.createElementNS(svgNS,"svg"); svg.width=300; svg.height=300; document.body.appendChild(svg);
-  
+  if (!svg) {console.log("*****ERROR: SVG is undefined"+"  Fancybox loaded="+svg_fancybox_loaded);}
     
   xscale = 100; 
   yscale = (YscreenMax-YscreenMin)/(ymax-ymin);  // This is -ive, so Yscreen0 = YscreenMin + ymin*yscale
   Yscreen0 = YscreenMin - ymin*yscale;  // is really Yscreen0 = YscreenMin + (y0 - ymin)*yscale; eg. 380+(0-2)*(-30)
- 
-  axes(wtxc,muxc, ymin,ymax, driver,target);
+  
+  axes_elems = axes(wtxc,muxc, ymin,ymax, driver,target);
 
   // To match my javascript boxplot_stats() which return 7 numbers, starting at position 1 (as zero should be the lowest extreme point)   
   var wt_boxstats = []; for (var i=0; i<5; i++) {wt_boxstats[i+1] = parseFloat(col[iwtbox+i]);}
   var mu_boxstats = []; for (var i=0; i<5; i++) {mu_boxstats[i+1] = parseFloat(col[imubox+i]);}
     
   // Store the boxplot lines and rectangle in global array, so can adjust position later:
-  wt_boxplot_elems = boxplot( wtxc, boxwidth, wt_boxstats, wt_boxplot_elems);
-  mu_boxplot_elems = boxplot( muxc, boxwidth, mu_boxstats, mu_boxplot_elems);
+  wt_boxplot_elems = boxplot( wtxc, boxwidth, wt_boxstats, "wtbox1", wt_boxplot_elems);
+  mu_boxplot_elems = boxplot( muxc, boxwidth, mu_boxstats, "mubox1", mu_boxplot_elems);
   // **** An idea is variable width is proportional to square root of size of groups: https://en.wikipedia.org/wiki/Box_plot
   // https://stat.ethz.ch/R-manual/R-devel/library/graphics/html/boxplot.html
   // range = this determines how far the plot whiskers extend out from the box. If range is positive, the whiskers extend to the most extreme data point which is no more than range times the interquartile range from the box. A value of zero causes the whiskers to extend to the data extremes.
   // width = a vector giving the relative widths of the boxes making up the plot.
   // varwidth = if varwidth is TRUE, the boxes are drawn with widths proportional to the square-roots of the number of observations in the groups.
   // notch = if notch is TRUE, a notch is drawn in each side of the boxes. If the notches of two plots do not overlap this is ‘strong evidence’ that the two medians differ (Chambers et al, 1983, p. 62). See boxplot.stats for the calculations used.
-
-  line(XscreenMin/xscale,-2, XscreenMax/xscale,-2, "1px", true, "red"); // the red y=-2 full-width line
 	
   beeswarm(lines, wtxc-1*boxwidth, muxc-2*boxwidth, boxwidth); // The -1 and -2 are because that is the position set in R for the jitter.
-  
-  add_tooltips();
+
+  add_target_info_to_boxplot(target); // this gene info and ncbi_summary is returned with the boxplot_data in the AJAX
+
+  add_tooltips();  
 }
 
+function remove_existing_svg_elems() {
+   // tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
+  for (var tissue in tissue_lists) {
+	  //console.log("removing points for tissue ",tissue,tissue_lists[tissue]);
+	  tissue_lists[tissue] = remove_array_of_elements(tissue_lists[tissue]); // remove any existing points.
+    }
+  tissue_lists={};
+  axes_elems = remove_array_of_elements(axes_elems);    // Delete the old axes elems.
+  wt_boxplot_elems = remove_array_of_elements(wt_boxplot_elems);
+  mu_boxplot_elems = remove_array_of_elements(mu_boxplot_elems); 
+  // elements will be destroyed by garbage collector when no reference counts to them.
+  }
+
+function remove_array_of_elements(elems) {
+  // were created using: var e = document.createElementNS(svgNS, svgType);
+  for (var i=0; i<elems.length; i++) {
+    // document.removeChild(elems[i]); or svg.removeChild(elems[i]);
+	elems[i].parentNode.removeChild(elems[i]);
+    }
+  return [];
+  }
+	
 function tohalf(x, strokewidth) {
   // As drawing vertical or horizontal one-pixel-wide lines positioned at the half pixel will make them exactly one pixel wide and won't be anti-aliased.
   //return x;
@@ -243,28 +317,28 @@ function tohalf(x, strokewidth) {
   }
 
 
-function axes(wtxc,muxc, ymin,ymax, driver, target) {
-    line(wtxc, ymin, muxc, ymin, "1px", false, "black"); // the horizontal axis
-	
-	line(wtxc, ymin, wtxc, ymin+8/yscale, "1px", false, "black"); // tick mark at 'wt'
-	line(muxc, ymin, muxc, ymin+8/yscale, "1px", false, "black"); // tick mark at 'mutant'
-
-    // The svg text class is set to: text-anchor: middle.
-    text(wtxc,ymin+23/yscale,18,false,"wt");
-	
-    text(muxc,ymin+23/yscale,18,false,"altered");
-
-    text(0.5*(XscreenMin+XscreenMax)/xscale,ymin+45/yscale,20,false,driver+"  status");
+function axes(wtxc,muxc, ymin,ymax, driver, target) {	
+  var elems = [
+    line(wtxc, ymin, muxc, ymin, "1px", false, "black"), // the horizontal axis	
+	line(wtxc, ymin, wtxc, ymin+8/yscale, "1px", false, "black"), // tick mark at 'wt'
+	line(muxc, ymin, muxc, ymin+8/yscale, "1px", false, "black"), // tick mark at 'mutant'
+    text(wtxc,ymin+23/yscale,18,false,"wt"),	    // The svg text class is set to: text-anchor: middle.
+    text(muxc,ymin+23/yscale,18,false,"altered"),
+    text(0.5*(XscreenMin+XscreenMax)/xscale,ymin+45/yscale,20,false,driver+"  status"),
 		
-	line(XscreenMin/xscale, ymin, XscreenMin/xscale, ymax, "1px", false, "black"); // y-axis	
+	line(XscreenMin/xscale, ymin, XscreenMin/xscale, ymax, "1px", false, "black"), // y-axis
+    text(15/xscale,0.5*(ymin+ymax),20,true,target+" Z-score"),	 	//text(15/xscale,ymin+2,20,true,target+" Z-score");
+	line(XscreenMin/xscale,-2, XscreenMax/xscale,-2, "1px", true, "red") // the red y=-2 full-width line	  
+	];
+	
 	for (var y=ymin; y<=ymax; y++) {
-	  line((XscreenMin-5)/xscale,y, XscreenMin/xscale,y,"1px",false,"black")
+	  elems.push( line((XscreenMin-5)/xscale,y, XscreenMin/xscale,y,"1px",false,"black") );
 	  var x = y>=0 ? 0.32 : 0.27;
-	  text(x,y+8/yscale,18,false, y.toString());
+	  elems.push( text(x,y+8/yscale,18,false, y.toString()) );
 	  }
-		
-	//text(15/xscale,ymin+2,20,true,target+" Z-score");
-    text(15/xscale,0.5*(ymin+ymax),20,true,target+" Z-score");	
+
+
+    return elems;
     }
 
 function mouseOver(e) {
@@ -290,6 +364,7 @@ function mouseOut(e) {
 	var target = e.target || e.srcElement;	
 	target.setAttribute("r", "5");	
     }
+
 
 function search_rows_above_and_below(which_row,row,row_above,row_below,row_twoabove,row_twobelow) {
     var i = row.length; // ie. beyond end of this row
@@ -334,7 +409,7 @@ function boxplot_stats(y) {
     // if (len==0) {return [];} // return empty array as no data.
     if (len==0) {return [0,0,0,0,0,0,0];} // or return all zeros.	
 	
-	console.log("boxplot_stats y: len=",y.length,"   positions:",y);
+	//console.log("boxplot_stats y: len=",y.length,"   positions:",y);
 	
 	var sorted = y.sort(function(a, b){return a-b}); // by default sort comapres as strings, so need this compare function parameter.
     //var n = sorted.length;
@@ -424,7 +499,7 @@ function boxplot_stats(y) {
 	}
 	
 	// eg: There are eight observations, so the median is the mean of the two middle numbers, (2 + 13)/2 = 7.5. Splitting the observations either side of the median gives two groups of four observations. The median of the first group is the lower or first quartile, and is equal to (0 + 1)/2 = 0.5. The median of the second group is the upper or third quartile, and is equal to (27 + 61)/2 = 44. The smallest and largest observations are 0 and 63.
-	console.log("boxplot_stats:",min, "lfence:",lower_fence, "lquart:",lower_quartile, "median:",median, "uquart:",upper_quartile, "ufence:",upper_fence, max );
+	//console.log("boxplot_stats:",min, "lfence:",lower_fence, "lquart:",lower_quartile, "median:",median, "uquart:",upper_quartile, "ufence:",upper_fence, max );
 	
 	return [ min, lower_fence, lower_quartile, median, upper_quartile, upper_fence, max ];
 }
@@ -592,12 +667,12 @@ function beeswarm(lines,wtx,mux,boxwidth) {
 // A beeswarm with jitter example: http://jsfiddle.net/5kc0wtfg/5/
 
 // Test examples from: https://en.wikipedia.org/wiki/Quartile
-console.log(boxplot_stats([6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49])); // quartiles: 25.5, 40, 42.5
-console.log(boxplot_stats([7, 15, 36, 39, 40, 41])); // quartiles: 15, 37.5,40
-console.log(boxplot_stats([1]));
+//console.log(boxplot_stats([6, 7, 15, 36, 39, 40, 41, 42, 43, 47, 49])); // quartiles: 25.5, 40, 42.5
+//console.log(boxplot_stats([7, 15, 36, 39, 40, 41])); // quartiles: 15, 37.5,40
+//console.log(boxplot_stats([1]));
 
-  tissue_lists = {}; // a global variable as used by 'toggle_tissue_checkboxes(e)'
-var wt_points=[],mu_points=[];
+  var wt_points=[],mu_points=[];
+
   var wtHorizPointSpacing = 8, muHorizPointSpacing = 12;  // was 12 for horizontal point spacing, but ERBB2 vs ERBB2 points overflow the boxplot width
   var tissue_count=0;
   var wtleft=[], wtright=[], muleft=[], muright=[]; // To avoid overlapping points.
@@ -616,10 +691,31 @@ var wt_points=[],mu_points=[];
 if (isWT) {wt_points.push(parseFloat(col[iy]))}
 else {mu_points.push(parseFloat(col[iy]))}
 
-    var y = tohalf(Yscreen0 + parseFloat(col[iy]) * yscale, 1);
-    var Yi = Math.round(y / collusionTestRadius); // 5 is twice the circle radius.
-  
-    var e = document.createElementNS(svgNS,"circle");
+//    var y = tohalf(Yscreen0 + parseFloat(col[iy]) * yscale, 1);
+    var y = Yscreen0 + parseFloat(col[iy]) * yscale;
+
+    var Yi = Math.round(y / collusionTestRadius);
+
+	var pointType = "circle", svgType = "circle";
+	//  looking at the mutation types - this is the mapping :
+	// 1,2,3 - mutation
+    // 4,5 - copy number (is one a deletion and one an amplification?)
+    if (!isWT) {
+	  switch (col[imutant]) {		  
+	    case "1":
+	    case "2":
+	    case "3":		
+		  // pointType = "square";   svgType = "rect"; break; // Square not drawn correctly yet.
+		  pointType = "diamond";  svgType = "polygon"; break;		  
+        case "4":
+	    case "5":
+          pointType = "triangle"; svgType = "polygon"; break;
+		// a 5-point star would be another shape
+	    default: alert("Invalid point type: '"+col[imutant]+"'")
+	  }
+	}
+	
+    var e = document.createElementNS(svgNS, svgType);
 
 	var colour = tissue_colours[tissue];
 	if (typeof colour === 'undefined') {alert("Unexpected tissue '"+tissue+"'");}
@@ -778,13 +874,45 @@ function generateDataURI(file) {
 	//if (x < -0.5*boxwidth*xscale ...xcentre ....) {
     //if (x >  0.5*boxwidth*xscale) { 6 is half the width .... but need to remove the mod of boxwidth/12
 
-	//add the xcentre after the above calculations 
+    // Using tohalf() and Math.round() to prevent anti-aliasing of horizontal and vertical lines, and ensure circles, triangle, diamond are drawn pixel consistently.
+    switch(pointType) {
+	  case "circle":
+	    //add the xcentre after the above calculations 	
+	    e.setAttribute("cx", tohalf(x,1).toString() ); // or: e.cx.baseVal.value =  parseFloat(col[2]) * xscale );	
+	    e.setAttribute("cy", tohalf(y,1).toString() ); // or: e.cy.baseVal.value = parseFloat(col[3]) * yscale );				
+	    e.setAttribute("r", PointRadius.toString()); // Firefox and IE don't use the 'r' in the 'circle' class (whereas Chrome does)  e.r.baseVal.value = PointRadius.toString(); set in the 'circle' class
+		break;
 	
-	e.setAttribute("cx", tohalf(x, 1).toString() ); // or: e.cx.baseVal.value =  parseFloat(col[2]) * xscale );
-	
-	e.setAttribute("cy", y.toString() ); // or: e.cy.baseVal.value = parseFloat(col[3]) * yscale );
+      case "square": // rect
+	    e.setAttribute("x", tohalf(x-SquareCornerXY, 1).toString());
+	    e.setAttribute("y", tohalf(y-SquareCornerXY, 1).toString());
+	    e.setAttribute("width", Math.round(2*SquareCornerXY).toString());
+	    e.setAttribute("height",Math.round(2*SquareCornerXY).toString());
+	    break;
+
+	  case "triangle": // polygon
+	    // polygons also have stroke and fill which is similar to circle: "stroke:#660000; fill:#cc3333; stroke-width: 3;"
+	    // want to draw triangle inverted as graphics y=0 is at top of screen.
+	    e.setAttribute("points",
+              tohalf(x-TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
+         +" "+tohalf(x+TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
+         +" "+tohalf(x,1).toString()                 +","+tohalf(y-TriangleCentreToApex,1)
+		 );
+	    break;
 		
-	e.setAttribute("r", "5"); // Firefox and IE don't use the 'r' in the 'circle' class (whereas Chrome does)  e.r.baseVal.value = "5"; set in the 'circle' class
+	  case "diamond": // path
+	    e.setAttribute("points",
+		       tohalf(x,1).toString()                  +","+tohalf(y-DiamondDiagonalXY).toString()
+		  +" "+tohalf(x+DiamondDiagonalXY,1).toString()+","+tohalf(y,1).toString()
+		  +" "+tohalf(x,1).toString()                  +","+tohalf(y+DiamondDiagonalXY,1).toString()
+		  +" "+tohalf(x-DiamondDiagonalXY,1).toString()+","+tohalf(y,1).toString()
+		  );
+        break;
+		
+      default:
+				
+	}
+	
 	var id = "c"+i.toString();
 	e.setAttribute("id", id); // 'c' for circle or cell_line
 	
@@ -801,7 +929,7 @@ function generateDataURI(file) {
 		
 	//var legend_thead = '<thead><tr><th>Show<br/>"+toggle_button+"</th><th>Tissue</th><th>Total<br/>cell lines</th><th>WildType<br/>cell lines</th><th>Altered<br/>cell lines</th></tr></thead>';
 	
-	var legend_thead = '<thead><tr><th rowspan="2">Show</th><th rowspan="2">Tissue</th><th colspan="3">Cell lines</th></tr><tr><th>Wild type</th><th>Altered</th><th>Total</th></tr></thead>';
+	var legend_thead = '<thead><tr><th rowspan="2">Show</th><th rowspan="2">Tissue</th><th colspan="3">Cell lines</th></tr><tr style="font-size: 95%"><th>Wild type</th><th>Altered</th><th>Total</th></tr></thead>';
   
 	
 	var legend_tbody='<tbody>';
@@ -827,14 +955,14 @@ function generateDataURI(file) {
     legend_tbody+='</tbody>';
 
 
-	var all_button = '<input input type="button" id="all_checkboxes" value="All" style="font-size: 90%" onclick="tissue_checkboxes(\'all\');">';
-	var none_button = '<input input type="button" id="none_checkboxes" value="None" style="font-size: 90%" onclick="tissue_checkboxes(\'none\');">';
+	var all_button = '<input input type="button" id="all_checkboxes" value="All" style="padding: 2px;" onclick="tissue_checkboxes(\'all\');">';
+	var none_button = '<input input type="button" id="none_checkboxes" value="None" style="padding: 2px;" onclick="tissue_checkboxes(\'none\');">';
 	
     // Disabled the toggle button:
     //var toggle_button = '<br/><input input type="button" id="toggle_checkboxes" value="Toggle" style="font-size: 90%" onclick="tissue_checkboxes(\'toggle\');">';	
     // var legend_tfoot = '<tfoot><tr><td>'+all_button+none_button+toggle_button+'</td>'
 	
-	var legend_tfoot = '<tfoot><tr><td>'+all_button+none_button+'</td>'
+	var legend_tfoot = '<tfoot><tr><td style="padding: 1px;">'+all_button+none_button+'</td>'
 	 + '<td>Totals:</td><td>'+wt_total+'</td>'
 	 + '<td>'+mu_total+'</td>'
 	 + '<td>'+(wt_total+mu_total)+'</td></tr></tfoot>';
@@ -853,7 +981,7 @@ function generateDataURI(file) {
 		document.getElementById("cb_"+tissue).onchange=showhide_tissue;
 		}
 		
-console.log("rline0:",lines[0]);
+//console.log("rline0:",lines[0]);
 var wt_stats=boxplot_stats(wt_points);
 var mu_stats=boxplot_stats(mu_points);
 //console.log("mystats wt:",wt_stats);
@@ -876,7 +1004,7 @@ var col=lines[0].split(',');
 for (var i=1; i<6; i++) {mystats.push(parseFloat(wt_stats[i].toFixed(3)).toString())}
 for (var i=1; i<6; i++) {mystats.push(parseFloat(mu_stats[i].toFixed(3)).toString())}
 //console.log("mystats:",mystats);
-console.log("jsline0:",mystats.join(","));
+//console.log("jsline0:",mystats.join(","));
 //if (mystats.join(",") != lines[0]) {alert("Difference between R and my JS boxplot_stats() functions")}
 var msg='';
 // As the current R version uses the y valueswith more than 2 decomal places for Achilles/Colt values to compute the boxplot_stats, so just check to 1 decimal place:
@@ -915,8 +1043,8 @@ function add_tooltips() {
   // jQuery Tipsy: http://onehackoranother.com/projects/jquery/tipsy/ (these display quickly)
   // Good info about the different types of tooltips for SVG elements.
     // $('#title').tooltip({
-  $("#mysvg, #plot_title").tooltip({  // was $(document).tooltip(....
-    items: "circle, [data-gene]",
+  $("#mysvg, #boxplot_driver_details").tooltip({  // was $(document).tooltip(....
+    items: "circle, rect, polygon, [data-gene]",
 	position: { my: "left+28 center", at: "center center+10" }, // at: "right center" }
 	//position: { my: "right-200 center", at: "center center-100" }, // at: "right center" }	
 	show: false, //{ effect: "", duration: 0, delay: 0},
@@ -925,8 +1053,10 @@ function add_tooltips() {
 	content: function(callback) {
 	  var element = $( this );
 	  		//alert("in tooltip "+element.id);
-      if ( element.is( "circle" ) ) {
+      if ( element.is( "circle" ) || element.is( "rect" ) || element.is( "polygon" )) {
 	    var id = element.attr("id");
+		//console.log(id);
+		if ((typeof id === "undefined") || (id.substring(0,1)!='c')) {return "";} // As can be a 'rect' that forms the boxplot box.
         var i = parseInt(id.substring(1)); // remove the starting 'c'
 	    var col = lines[i].split(",");  // or could encode the tissue and cellline in the ID.
 		
@@ -959,11 +1089,13 @@ function add_tooltips() {
  
  // <p style="background-color:'+tissue_colours[tissue]+';"> .... +'</p>'
  
- 
+        var mutant_type='';
+		if ((mutant=='1') || (mutant=='2') || (mutant=='3')) {mutant_type="Mutation (type "+mutant+")<br/>";}
+		else if ((mutant=='4') || (mutant=='5')) {mutant_type="Copy number (type "+mutant+")</br>"}
         // To add the mutation type, use: +(mutant!="0" ? "MutantType....<br/>" : "")
-        return '<b>'+col[icellline]+'</b><br/>'+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
+        return '<b>'+col[icellline]+'</b><br/>'+mutant_type+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
 	    }
-      else if ( element.is( "[data-gene]" ) ) { // To display the ncbi_summary for the driver and target genes in the boxplolt_title.
+      else if ( element.is( "[data-gene]" ) ) { // To display the target genes in the boxplot_title.
         var gene_name = element.attr("data-gene");  // was: = element.text();
 		if (gene_name in gene_info_cache) {
 			var result = format_gene_info_for_tooltip(gene_info_cache[gene_name]);
@@ -1005,11 +1137,14 @@ function add_tooltips() {
 }
 
 
-function rect(xcenter,width,ystats, e) {
+function rect(xcenter,width,ystats, id, e) {
 	// A 45 degree rotated square (a diamond) can be created using:
 	//  1  <rect x="203" width="200" height="200" style="fill:slategrey; stroke:black; stroke-width:3; -webkit-transform: rotate(45deg);"/>
 	//console.log("rect:",typeof e);
-    if (typeof e == "undefined") { e = document.createElementNS(svgNS,"rect");  } // console.log("SVGrect made");
+    if (typeof e == "undefined") {
+	    e = document.createElementNS(svgNS,"rect");
+	    svg.appendChild(e); // or: document.documentElement.appendChild(elem); // console.log("SVGrect made");
+	    }
 	else if (!(e instanceof SVGRectElement)) {alert("rect(): expected 'rect' for existing elem, but got: "+e.tagName)}
 		
 	e.setAttribute("x", tohalf((xcenter-0.5*width)*xscale, 1) );
@@ -1019,17 +1154,22 @@ function rect(xcenter,width,ystats, e) {
 	e.setAttribute("y", y);  // Note: box drawn upside down, as screen zero is top left.
     e.setAttribute("width", Math.round(width*xscale) );	
 	e.setAttribute("height", Math.round( (Yscreen0+ystats[ilowerhinge]*yscale)-y) );	// yscale is -ive. Slightly more accurate than (ystats[1]-ystats[3])*yscale, as ystats[3]*yscale has been moved slightly by the tohalf.
+	e.setAttribute("id",id);
+	
 	//e.setAttribute("fill", "none"); // set by the CSS
 	//e.setAttribute("stroke", "black");
 	//e.setAttribute("stroke-opacity", "1.0");
 	//e.setAttribute("stroke-width", strokewidth);
-    svg.appendChild(e); // or: document.documentElement.appendChild(elem);
+
 	return e;
 	}
 	
 function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
 	//console.log("line:",typeof e);
-	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"line"); } // console.log("SVGline made");
+	if (typeof e == "undefined") {
+	    e = document.createElementNS(svgNS,"line"); // console.log("SVGline made");
+		svg.appendChild(e);
+	    }
     else if (!(e instanceof SVGLineElement)) {alert("line(): expected 'line' for existing elem, but got: "+e.tagName)}	
 	
     var isVertical = x1==x2;
@@ -1050,7 +1190,7 @@ function line(x1,y1,x2,y2,strokewidth,dashed,colour, e) {
 	e.setAttribute("stroke", colour); // as black is default in the CSS
 	e.setAttribute("stroke-width", strokewidth);
 	if (dashed) {e.setAttribute("stroke-dasharray", "6,3");} // se: http://www.w3schools.com/svg/svg_stroking.asp
-    svg.appendChild(e);
+
 	return e;
 	}
 	
@@ -1081,7 +1221,10 @@ function text(x,y,size,vertical,text, e) {
 	// useful: http://www.hongkiat.com/blog/scalable-vector-graphics-text/
 	
 	// *** Better to position text, could use:  style="text-anchor: middle" so uses text centre for positioning text
-	if (typeof e == "undefined") { e = document.createElementNS(svgNS,"text"); }
+	if (typeof e == "undefined") {
+		e = document.createElementNS(svgNS,"text");
+        svg.appendChild(e);
+		}
     else if (!(e instanceof SVGTextElement)) {alert("text(): expected 'text' for existing elem, but got: "+e.tagName); }	
 	
     var xscreen = x*xscale;
@@ -1092,16 +1235,16 @@ function text(x,y,size,vertical,text, e) {
 	if (vertical) {e.setAttribute("transform", "rotate(-90,"+xscreen+","+yscreen+")");}  // transform="rotate(30 20,40)" See: http://stackoverflow.com/questions/11252753/rotate-x-axis-text-in-d3
 	//e.setAttributeNS(null,"stroke", colour);
     e.appendChild(document.createTextNode(text));
-    svg.appendChild(e);
 	return e;
 	}
 
 	
-function boxplot(xcenter,width,ystats, elms) {
+function boxplot(xcenter,width,ystats, rect_id, elms) {
 	// if (boxplot_elems.length=0) {}
 	//console.log("*** BOXPLOT STATS LENGTH:",ystats.length);	
+	//console.log("rect_id",rect_id);
 	return [
-      rect(xcenter,width,ystats, elms[0]),
+      rect(xcenter,width,ystats, rect_id, elms[0]),
 	  line(xcenter-0.25*width,ystats[ilowerwisker], xcenter+0.25*width,ystats[ilowerwisker], "1px", false, "black", elms[1]), // lower whisker horizontal line
 	  line(xcenter,ystats[ilowerwisker], xcenter,ystats[ilowerhinge], "1px", true, "black", elms[2]),  // lower whisker to box dashed line
 	  line(xcenter-0.5*width,ystats[imedian], xcenter+0.5*width,ystats[imedian], "3px", false, "black", elms[3]), // median horizontal line
@@ -1148,13 +1291,14 @@ function update_boxplots() {
   var wt_boxstats=boxplot_stats(wt_points);
   var mu_boxstats=boxplot_stats(mu_points);
   
-//  console.log(wt_boxstats);
-//  console.log(mu_boxstats);
+//console.log(wt_boxstats);
+//console.log(mu_boxstats);
 	
   // We have stored the boxplot lines and rectangle in two global array, so can adjust position later:
-  boxplot( wtxc, boxwidth, wt_boxstats, wt_boxplot_elems); // don't need "wt_boxplot_elems = ..." as element ids unchanged, just their positions are changed.  
-  boxplot( muxc, boxwidth, mu_boxstats, mu_boxplot_elems); // mu_boxplot_elems = 
-  
+  //console.log("before update_boxplot",wt_boxplot_elems,mu_boxplot_elems);
+  boxplot( wtxc, boxwidth, wt_boxstats, "wtbox", wt_boxplot_elems); // don't need "wt_boxplot_elems = ..." as element ids unchanged, just their positions are changed.  
+  boxplot( muxc, boxwidth, mu_boxstats, "mubox", mu_boxplot_elems); // mu_boxplot_elems = 
+  //console.log("after update_boxplot",wt_boxplot_elems,mu_boxplot_elems);  
   return true;
   }
 	
@@ -1391,7 +1535,7 @@ along with the msSaveBlob() (that I used for downloading the legends)
 */
 		
     case 'png':
-	  show_message("download_PNG_boxplot", "Downloading..."); // maybe warn if browser is IE
+	  show_message("download_png_boxplot", "Downloading..."); // maybe warn if browser is IE
       var ua = window.navigator.userAgent;  // if ($.browser.msie) {alert($.browser.version);}	
       var ie = ((ua.indexOf('MSIE ') > 0) || (ua.indexOf('Trident/')>0));  // 'MSIE' for IE<=10; 'Trident/' for IE 11; || (ua.indexOf('Edge/')>0) for Edge (IE 12+)
 	  var render = ie ? "canvg" : "native";  // Using "canvg" for IE, to avoid the SECURITY_ERR in IE: canvas.toDataURL(type)	
@@ -1599,26 +1743,46 @@ function fetch_data(driver,target,histotype,study_pmid) {
 		
 	//var url = "http://localhost:8000/gendep/get_boxplot_csv/"+driver+"/"+target+"/"+histotype+"/"+study_pmid+"/";
 		
-	var url = global_url_for_boxplot_data.replace('myformat','csvplot').replace('mydriver',driver).replace('mytarget',target).replace('myhistotype',histotype).replace('mystudy',study_pmid);
+	// if the gene_info is already retrieved then could do without requesting it here, although still need ncbi_summary:
+	// if exists gene_info_cache[target] and gene_info_cache[target]['ncbi_summary'], then only need to retrieve the boxplot
+	var boxplot_key = driver+'_'+target+'_'+histotype+'_'+study_pmid;
+	if (boxplot_key in boxplot_cache) {
+		//console.log("fetch_data: boxplot IS in cache");
+		//setTimeout(function(){
+			draw_svg_boxplot(driver, target, boxplot_cache[boxplot_key]);
+			//}, 10000);
+	  }
+	else {
+		
+	  var dataformat='jsonplotandgene';  // or 'jsonplot'	
+	  var url = global_url_for_boxplot_data.replace('myformat',dataformat).replace('mydriver',driver).replace('mytarget',target).replace('myhistotype',histotype).replace('mystudy',study_pmid);
     
-    $.ajax({
+	// The response headers returned from the origin web server. If the headers indicate that content should not be cached then it won’t be.
+    // A validator such as an ETag or Last-Modified header must be present in the response.
+	
+      $.ajax({
         url: url,
-        dataType: 'text',  // use 'text' as there is no specific 'csv' option for this.
+		cache: true, // is the default but requires webserver to set headers to allow caching of the response.
+        dataType: 'json',   // 'text',  // use 'text' as there is no specific 'csv' option for this.
         })
         .done(function(data, textStatus, jqXHR) {  // or use .always(...)
 //console.log(data);
 //		alert(data);
-			boxplot_csv=data;
-			draw_svg_boxplot(driver, target);
-			
-//            if (data['success']) {
-//
-//				}
-//			  else {callback("Error: "+data['message'])}
+            if (data['success']) {
+			  if (dataformat=='jsonplotandgene') {
+				if ('gene_info' in data) {gene_info_cache[target] = data['gene_info'];} // cache to retrieve faster next time - will also include the ncbi_summary, which isn't in the gene_info returned for the onhoover tooltips.
+				else {alert("AJAX data didn't contain the 'gene_info'");}
+			    }
+			  boxplot_cache[boxplot_key] = data['boxplot'];
+		      //console.log("fetch_data: AJAX got boxplot data");
+			  draw_svg_boxplot(driver, target, data['boxplot']);
+			  }
+			else {alert("ERROR: "+data['message']);}
 		})
 		.fail(function(jqXHR, textStatus, errorThrown) {
 		    alert("Ajax Failed: '"+textStatus+"'  '"+errorThrown+"'");
         });
+	  }
 	return true; // To the fancybox afterLoad, so that the fancy box content is shown.		
     }
 
@@ -1645,7 +1809,7 @@ function fetch_data(driver,target,histotype,study_pmid) {
 */  
 		   
 
-function show_ncbi_summary() {
+function showhide_ncbi_summary() {
 	if ($("#boxplot_ncbi_summary").css("display") == "none") {
 	  //$("#boxplot_ncbi_summary_more").css("display", "none");
       $("#boxplot_ncbi_summary").css("display", "block"); // is a paragraph so display as block, rather than inline.
@@ -1656,27 +1820,73 @@ function show_ncbi_summary() {
 	}  
 }	
 
+function add_target_info_to_boxplot(target)	{
+  //var target_details='', target_external_links = '', ncbi_summary_text='';
+  if (typeof target === 'undefined') {alert("target gene is undefined"); return false;}
 
-function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score, target_info, target_variant) {
+  var target_info;
+  if (target in gene_info_cache) {target_info = gene_info_cache[target];}
+  else {alert("target gene '"+target+"' NOT in gene_info_cache"); return false;}
+  
+  if (typeof target_info === 'undefined') {$("#target_details").html("Unable to retrieve synonyms and external links for this '"+target+"' gene"); return false;}
 
+  if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] ); return false;}
+  
+  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
+  var target_synonyms   = target_info['synonyms'];
+  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
+
+  var target_details = target+'</b>'+target_synonyms+', '+target_full_name
+	 
+  var ncbi_summary = target_info['ncbi_summary']; // Not all genes have a summary in Entrez  
+  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {
+	target_details += ' <a id="ncbi_summary_showhide_link" href="javascript:void(0);" onclick="showhide_ncbi_summary();">(Gene Description)</a>'; // The ncbi_summary_link
+	
+    $("#boxplot_ncbi_summary").html('<b>Entrez summary for '+target+':</b> '+ncbi_summary);
+  }
+
+  $("#boxplot_target_details").html(target_details);
+	
+  var target_links = target+' Links: '+gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
+    
+  $("#boxplot_target_links").html(target_links);
+
+  // For the following, maybe better just keep left aligned instead as refers to target gene. 	  
+  // plot_title += target_details + ncbi_summary_text + target_external_links;
+  return true;
+  }
+
+function set_previous_next_boxplot_buttons(jq_button, mtext, dependency_td) {
+  if (dependency_td===null) {
+    jq_button.attr('onclick','').html("No "+mtext+"</br>boxplot").attr('disabled', true);
+    }
+  else {	  	  
+    jq_button
+     .attr('onclick',  dependency_td.getAttribute('onclick'))
+	 .html(mtext+" boxplot<br/>"+dependency_td.getAttribute('data-gene'))
+	 .attr('disabled', false);
+    }
+  }  
+
+  
+function show_svg_boxplot_in_fancybox(dependency_td_id, driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score,  target_variant) {
+
+//console.log("In show_svg():",dependency_td_id, driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score,  target_variant)	
   // Only draw the svg after fancybox content has loaded as needs "mysvg" tag), and AJAX has retrned the data.
-  svg_fancybox_loaded = false;
+  // svg_fancybox_loaded = false; // is set globally at start of script and when this fancybox closes.
+
+ //console.log("In show_svg_boxplot_in_fancybox, svg_fancybox_loaded="+svg_fancybox_loaded);  
+ 
   drawing_svg = false;
   boxplot_csv = '';
-  fetch_data(driver,target,histotype,study_pmid);	  // is asynchronous AJAX call.
+  fetch_data(driver,target,histotype,study_pmid);	  // is asynchronous AJAX call. // target_variant
 
-  var comma = "','";
-  var parameters = "'"+driver +comma+ target +comma+ histotype +comma+ study_pmid+"'";
-  //console.log(parameters);
-  
-  var download_boxplot_csv_url = global_url_for_boxplot_data.replace('myformat','download').replace('mydriver',driver).replace('mytarget',target).replace('myhistotype',histotype).replace('mystudy',study_pmid);  
+if (!svg_fancybox_loaded) {  // so this function was called by clicking on dependency table cell, rather than by Previous/Next boxplot button.
 
-  var download_csv_click = 'show_message(\'download_CSV_boxplot\', \'Downloading...\');'
-  
 //  $("#download_boxplot_csv_form")
 //      .attr("action", download_boxplot_csv_url)
 //      .submit(function( event ) {
-//         show_message("download_message", "Downloading CSV file ....."); // maybe warn if browser is IE       
+//         ..show_message("download_message", "Downloading CSV file ....."); // maybe warn if browser is IE       
 	     //return true;
 //       });
 // The background colour of the downloaded PNG file is transparent. To get a white background as requested, can try: http://stackoverflow.com/questions/11293026/default-background-color-of-svg-root-element  
@@ -1686,34 +1896,29 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 // if want a box around the plot, to the "rect" can add: stroke-width:0;stroke:black;stroke-opacity:1.0
 
 // if change the sv dimensions, remember to also change the background rect dimensions:
-  var mycontent = '<table align="center" style="padding:0; border-collapse: collapse; border-spacing: 0;">'
-  + '<tr><td style="padding:0;">'
+  var mycontent = '<table align="center" style="padding:0; border-collapse: collapse; border-spacing: 0; border-bottom: solid 1px black;">'
+  + '<tr><td rowspan="2" style="padding:0;">'
   + '<svg id="mysvg" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="'+svgWidth.toString()+'" height="'+svgHeight.toString()+'">'
   + '<style>'
   + ' line{stroke-opacity: 1.0;}'
   + ' rect{fill: none; stroke: black; stroke-width: 1px; stroke-opacity: 1.0;}'
   + ' circle {fill-opacity: 0.9; stroke-width: 1px; stroke: black;}'
-  + ' circle:hover {opacity: 0.9; stroke: black;}'
+  + ' polygon {fill-opacity: 0.9; stroke-width: 1px; stroke: black;}'
+  + ' polygon:hover {stroke-width: 5px; stroke: black;}'
+  + ' circle:hover  {stroke-width: 5px; opacity: 0.9; stroke: black;}'
   + ' text {font-family: sans-serif; word-spacing: 2; text-anchor: middle;}'
   + '</style>'
-  + '<rect x="0" y="0" width="'+svgWidth.toString()+'" height="'+svgHeight.toString()+'" style="fill:white;stroke-width:0;fill-opacity:1.0;"/>'
+  + '<rect id="background_rect" x="0" y="0" width="'+svgWidth.toString()+'" height="'+svgHeight.toString()+'" style="fill:white;stroke-width:0;fill-opacity:1.0;"/>'
   + 'Sorry, your browser does not support inline SVG.'
   + '</svg>'
   + '</td><td style="vertical-align:middle; padding:0;">'
   + '<table id="legend_table" class="tablesorter"></table>'
-  + '<table style="padding:0; border-collapse: collapse; border-spacing: 0;"><tr><td style="font-size:80%">Download boxplot as:'
-  + '</td><td><input type="button" id="download_PNG_boxplot" value="PNG image" data-value="PNG image" onclick="download_boxplot(\'png\','+parameters+');"/> '
-  + '</td><td><form id="download_boxplot_form" method="get" action="'+download_boxplot_csv_url+'">'   
-  + '<input type="submit" id="download_CSV_boxplot" value="CSV file" data-value="CSV file" onclick="'+download_csv_click+'"/>'  
-  + '</form></td></tr></table>'  
-  + '<table style="padding:0; border-collapse: collapse; border-spacing: 0;"><tr><td style="font-size:80%">Download legend for:'  
-  + '</td><td><input type="button" id="download_selected_legend" value="Selected tissues" data-value="Selected tissues" onclick="download_legend(\'selected\');"/> '
-  + '</td><td><input type="button" id="download_all_legend" value="All tissues" data-value="All tissues" onclick="download_legend(\'all\');"/> '
-  + '</td></tr></table>'
-  
-  + '<br/><span id="download_message" style="font-size: 70%;"></span>'
+  + '<table id="boxplot_download_buttons_table" style="padding:0; border-collapse: collapse; border-spacing: 0;"></table>'
+  + '<table id="legends_download_buttons_table" style="padding:0; border-collapse: collapse; border-spacing: 0;"></table>'
+  + '</td><tr><td style="vertical-align:bottom; text-align:center; padding:0;">'
+  + '<table id="next_prev_boxplot_buttons_table" style="padding:0; border-collapse: collapse; border-spacing: 0;"></table></td></tr>'
   + '</td></tr></table>';
-  
+
   // For testing  drawing the legend:  + '<canvas id="mycanvas">Canvas not supported</canvas>';
 
   // The download_all_legend was previously a submit button inside a form, so would download a legend from the server, but now generating the legend in the javascript function:
@@ -1727,46 +1932,12 @@ function show_svg_boxplot_in_fancybox(driver, target, histotype, study_pmid, wil
 
 // alt="Loading boxplot image...."/
 
-  var study = study_info(study_pmid);
+  var plot_title = '<p id="boxplot_driver_details" style="margin-top: 2px; margin-bottom: 5px; text-align: center; line-height: 1.3"></p>'
+    + '<p id="boxplot_target_details" style="margin-bottom: 0; margin-top: 7px; text-align: center; line-height: 1.3;"></p>'
+    + '<p id="boxplot_ncbi_summary" style="display:none; font-size:90%; margin-top:0; margin-bottom:0;"></p>'
+    + '<p id="boxplot_target_links" style="margin-top: 1px; margin-bottom: 0; text-align: center;"></p>';
 
-  var plot_title = '<hr/><p id="plot_title" style="margin-top: 0; text-align: center; line-height: 1.7">'
-    + '<b><span data-gene="'+driver+'">'+driver+'</span></b>'
-	+ ' altered cell lines have an increased dependency upon'
-	+ ' <b><span data-gene="'+target+'">'+target+'</span></b></br>'
-	+ ' (p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup>'
-    + ' | effect size='+effect_size+'%'
-    + ' | &Delta;Score='+zdelta_score
-	+ ' | Tissues='+ histotype_display(histotype)
-	+ ' | Source='+ study[ishortname]
-	+ ')</p>';
-
-  var plot_links='';
-  if (typeof target_info === 'undefined') {plot_links = 'Unable to retrieve synonyms and external links for this gene';}
-  else {
-      if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] );}
-	  var target_full_name  = '<i>'+target_info['full_name']+'</i>';
-	  var target_synonyms   = target_info['synonyms'];
-	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;}
-
-	  var ncbi_summary = target_info['ncbi_summary']; // Not all genes have a summary in Entrez
-	  
-	  var ncbi_summary_link='',ncbi_summary_text='';
-	  if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {
-		ncbi_summary_link = '<a href="javascript:void(0);" onclick="show_ncbi_summary();">(Gene Description)</a>';
-		ncbi_summary_text='<p id="boxplot_ncbi_summary" style="display:none; font-size:90%; margin-top:0; margin-bottom:0;"><b>Entrez summary for '+target+':</b> '+ncbi_summary+'</span></p>';
-      }
-		
-	  var target_external_links = '<p style="margin-top: 0; margin-bottom: 0; text-align: center;">'+target+' Links: '+gene_external_links(target_info['ids'], '|', false)+'</p>'; // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
-	  
-	  plot_links = '<b>'+target+'</b>'+target_synonyms+', '+target_full_name + ' ' + ncbi_summary_link + ncbi_summary_text	  
-	  + target_external_links;
-	  //console.log(ncbi_summary_link);
-	  //console.log(ncbi_summary_text);	  
-	  //console.log(plot_links);	  
-	  }
-// For the following, maybe better just keep left aligned instead as refers to target gene. 	  
-  plot_title += '<p style="margin-bottom: 0; text-align: center; line-height: 1.5;">'+plot_links+'</p>';
-  
+	
 //===========================================================================
 /*
 // From the original png boxplot function:
@@ -1878,10 +2049,11 @@ return false;
     preload: 0, // Number of gallary images to preload
     //minWidth: 900,
     //mHeight: 750,
-	width: 900,
+	width: 820,  // as boxplot is 500 + legend table of 317 = 817px
 	height: 510,
-	minWidth: 900,
+	minWidth: 800, // was 900 but too wide of older monitors and projectors.
 	minHeight: 510,
+	padding: 5, // To reduce the border arround box from the 15px default, to fit narrower screens/projectors.
 	//width: '100%',
 	//height: '100%',
 	autoSize: false, // true, //false,  // true,  // false, // otherwise it resizes too tall.
@@ -1895,15 +2067,6 @@ return false;
     arrows: true, // false, (next/prev arrows)
 	
 	loop : false,
-    afterLoad: function(current, previous) {
-        console.info( 'Current: ' + current.href );        
-        console.info( 'Previous: ' + (previous ? previous.href : '-') );
-
-        if (previous) {
-            console.info( 'Navigating: ' + (current.index > previous.index ? 'right' : 'left') );     
-        }
-    },
-	
 	closeEffect : 'none',
     helpers: {
         title: {
@@ -1919,15 +2082,100 @@ return false;
     //content:
     // href: href,	
 	content: mycontent,
-	title: plot_title,
-	afterLoad: function() {  // Otherwise might draw before ready 
-	  svg_fancybox_loaded = true;
-	  draw_svg_boxplot();
-	}
+	title: plot_title, 
 	
+	// "..afterShow would make way more sense to use if you plan on adding any events. afterLoad fires as soon as it's ready to load before it shows anything at all""
+	afterShow: function(current, previous) {  // Otherwise might draw before fancybox is ready 	
+	  //console.log("In afterload, svg_fancybox_loaded="+svg_fancybox_loaded);
+//      console.info( 'Current: ' + current.href );        
+//      console.info( 'Previous: ' + (previous ? previous.href : '-') );
+//      if (previous) {console.info( 'Navigating: ' + (current.index > previous.index ? 'right' : 'left') );}
+	  svg_fancybox_loaded = true;
+	  //console.log("fetch_data: afterload fancybox");
+	  //setTimeout(function(){
+		  draw_svg_boxplot(driver,target,'',histotype, study_pmid, wilcox_p, effect_size, zdelta_score,  target_variant);
+		  //},10000);
+	  return true;
+	},		
+	afterClose: function() {  // There is also a "beforeClose()" event
+		remove_existing_svg_elems(); // Could reuse these same elements for the next boxplot. - but not is svg is recreated ???
+		svg_fancybox_loaded=false;		
+	    //console.log("In afterClose, svg_fancybox_loaded="+svg_fancybox_loaded);
+	}	
    });
+
+  var download_csv_click = "show_message('download_csv_boxplot', 'Downloading...');";
+  
+  //form onsubmit="return xyz();..." is more appropriate than button "input .... onclick=...
+  
+  $("#boxplot_download_buttons_table").html('<tr><td style="font-size:80%">Download boxplot as:</td>'
+  + '<td><input type="button" id="download_png_boxplot" value="PNG image" data-value="PNG image" style="font-size:80%"/></td>'
+  + '<td><form id="download_boxplot_form" method="get">'
+  + '<input type="submit" id="download_csv_boxplot" value="CSV file" data-value="CSV file" onclick="'+download_csv_click+'"/ style="font-size:80%"></form>'
+  + '</td></tr>');    
+
+  $("#legends_download_buttons_table").html('<tr><td style="font-size:80%">Download legend for:</td>'
+  + '<td><input type="button" id="download_selected_legend" value="Selected tissues" data-value="Selected tissues" onclick="download_legend(\'selected\');" style="font-size:80%; padding: 1px;"/></td>'
+  + '<td><input type="button" id="download_all_legend" value="All tissues" data-value="All tissues" onclick="download_legend(\'all\');" style="font-size:80%; padding: 1px;"/></td>'
+  + '</tr>');
+
+  /*
+  $("#next_prev_boxplot_buttons_table").html(
+  '<tr>' 
+  + '<td><input type="button" id="previous_boxplot_button" value="Previous boxplot" data-value="Previous boxplot" style="font-size:80%;"/></td>'
+  + '<td><input type="button" id="close_boxplot_button" value="Close boxplot" data-value="Close boxplot" onclick="$.fancybox.close();" style="font-size:80%;"/></td>'
+  + '<td><input type="button" id="next_boxplot_button" value="Next boxplot" data-value="Next boxplot" style="font-size:80%;"/></td>'
+  + '</tr>'  
+  );   
+   */
+
+   // Changed to using the <button>....</button> tags instead of <input type="button"... /> as can include line breaks inside the button>, eg: <button> I see this <br/>is a long <br/> sentence here.</button>
+   // Can even put images inside the button tags text.
+  $("#next_prev_boxplot_buttons_table").html(
+  '<tr>' 
+  + '<td style="padding: 1px 5px;"><button id="previous_boxplot_button" data-value="Previous boxplot" style="font-size:75%;"></button></td>'
+  + '<td style="padding: 1px 5px;"><button id="close_boxplot_button" data-value="Close boxplot" onclick="$.fancybox.close();" style="font-size:75%;">Close</br>boxplot</button></td>'
+  + '<td style="padding: 1px 5px;"><button id="next_boxplot_button" data-value="Next boxplot" style="font-size:75%;"></button></td>'
+  + '</tr>'  
+  );   
    
-   return false; // Return false to the caller so won't move on the page
+
+   
+} // end of if if (!svg_fancybox_loaded) { ....   
+
+  
+  var study = study_info(study_pmid);
+   $("#boxplot_driver_details").html(
+    '<b><span data-gene="'+driver+'">'+driver+'</span></b>'
+	+ ' altered cell lines have an increased dependency upon'
+	+ ' <b><span data-gene="'+target+'">'+target+'</span></b></br>'
+	+ ' (p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup>'
+    + ' | effect size='+effect_size+'%'
+    + ' | &Delta;Score='+zdelta_score
+	+ ' | Tissues='+ histotype_display(histotype)
+	+ ' | Source='+ study[ishortname]
+	+ ')'
+	);
+	
+  $("#download_boxplot_form").attr('action', global_url_for_boxplot_data.replace('myformat','download').replace('mydriver',driver).replace('mytarget',target).replace('myhistotype',histotype).replace('mystudy',study_pmid) );  
+
+  var comma = "','";
+  $("#download_png_boxplot").attr('onclick', "download_boxplot('png" +comma+ driver +comma+ target +comma+ histotype +comma+ study_pmid+"');" );
+  
+  var this_td =   svg=document.getElementById(dependency_td_id);
+  
+  set_previous_next_boxplot_buttons($("#previous_boxplot_button"), 'Previous', previous_dependency(this_td));
+  set_previous_next_boxplot_buttons($("#next_boxplot_button"),     'Next',     next_dependency(this_td));
+
+  // WAS previously: 
+  //var download_csv_click = "show_message('download_csv_boxplot', 'Downloading...');";  
+  //$("#boxplot_download_buttons_table").html('<tr><td style="font-size:80%">Download boxplot as:</td>'
+  //+ '<td><input type="button" id="download_png_boxplot" value="PNG image" data-value="PNG image" onclick="'+download_boxplot_png+'" style="font-size:80%"/></td>'
+  //+ '<td><form id="download_boxplot_form" method="get" action="'+download_boxplot_csv_url+'">'
+  //+ '<input type="submit" id="download_csv_boxplot" value="CSV file" data-value="CSV file" onclick="'+download_csv_click+'"/ style="font-size:80%"></form>'
+  //+ '</td></tr>');
+      
+  return false; // Return false to the caller so won't move on the page
 }	
 
 

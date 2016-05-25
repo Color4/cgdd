@@ -72,7 +72,7 @@ if (isAchilles) {
 } else {
   # For Colm/Cambell (2016)
   # ORIGINAL: uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_150202.txt"
-  uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff.txt"
+  uv_results_kinome_combmuts_file <- "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff.txt"
 
   # Just one result to test boxplot printing:
   # uv_results_kinome_combmuts_file <- "one_boxplot_SEMG2_CAMK1_extracted_from_univariate_results_v26_pancan_kinome_combmuts_150202.txt"
@@ -199,9 +199,8 @@ uv_results_kinome_combmuts_bytissue <- read.table(
 #	tissue_cols=legend_col
 #	)
 
-
-fileConn<-file(open="w", paste0( sub("\\.txt$","",uv_results_kinome_combmuts_file), "_and_boxplotdata.txt") ) # Need "\\." to correctly escape the dot in regexp in R
 source("../scripts/Intercell_analysis_functions.R")
+fileConn<-file(open="w", paste0( sub("\\.txt$","",uv_results_kinome_combmuts_file), "_and_boxplotdata_mutantstate.txt") ) # Need "\\." to correctly escape the dot in regexp in R
 #debug(write_box_dot_plot_data)
 write_box_dot_plot_data(
 	results=as.data.frame(
@@ -224,8 +223,9 @@ close(fileConn) # caller should close the fileConn
 	
 # Plot combmuts results for separate histotypes
 # select associations where wilcox.p <= 0.05 and CLES > =0.65
+source("../scripts/Intercell_analysis_functions.R")
 fileConn<-file(open="w", 
-paste0( sub("\\.txt$","",uv_results_kinome_combmuts_bytissue_file), "_and_boxplotdata.txt") ) # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
+paste0( sub("\\.txt$","",uv_results_kinome_combmuts_bytissue_file), "_and_boxplotdata_mutantstate.txt") ) # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
 tissues <- levels(as.factor(uv_results_kinome_combmuts_bytissue$tissue))
 write_header <- TRUE
 for(this_tissue in tissues){
