@@ -1395,7 +1395,7 @@ function is_form_complete() {
   
   var found = false;
   //alert("search_by='"+search_by+"' gene='"+g+"'");
-  if (search_by = 'driver') {
+  if (search_by === 'driver') {
     for (var i=0; i<driver_array.length; i++) {
       if (g == driver_array[i]['value']) {
         found = true;
@@ -1403,7 +1403,7 @@ function is_form_complete() {
       }
     }
   }
-  else if (search_by = 'target') {
+  else if (search_by === 'target') {
       for (var i=0; i<target_array.length; i++) {
       if (g == target_array[i]['value']) {
         found = true;
