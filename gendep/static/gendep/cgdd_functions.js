@@ -1394,7 +1394,7 @@ function is_form_complete() {
     }
   
   var found = false;
-  alert("search_by='"+search_by+"' gene='"+g+"'");
+  //alert("search_by='"+search_by+"' gene='"+g+"'");
   if (search_by = 'driver') {
     for (var i=0; i<driver_array.length; i++) {
       if (g == driver_array[i]['value']) {
