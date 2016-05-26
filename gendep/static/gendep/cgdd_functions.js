@@ -47,6 +47,17 @@ function sprintf( format )
 }
 */
 
+// As Safari 6 and IE 8 don't support performance.now()  From: http://jsfiddle.net/moob/1vw3ncck/
+//Date.now() wasn't added to the JavaScript spec until ECMAScript 5 so this is needed for <=IE8
+Date.now = Date.now || function() { return +new Date; };
+//Good browsers support window.performance but shitsters like IE and Safari do not
+window.performance = (window.performance || {
+    offset: Date.now(),
+    now: function now(){
+        return Date.now() - this.offset;
+    }
+});
+// Alternatively see: https://gist.github.com/paulirish/5438650
 
 // Finish this:
 function show_message(elem_id, message, waitfor) {

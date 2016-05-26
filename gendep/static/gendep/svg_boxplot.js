@@ -336,8 +336,28 @@ function axes(wtxc,muxc, ymin,ymax, driver, target) {
 	  var x = y>=0 ? 0.32 : 0.27;
 	  elems.push( text(x,y+8/yscale,18,false, y.toString()) );
 	  }
-
-
+	  
+    // The labels for the type of alteration:
+	//var x = tohalf( (XscreenMin + 0.80*(XscreenMax-XscreenMin))/xscale ,1);
+    //var y = tohalf(ymin+45/yscale,1);
+    var x = XscreenMin+ 0.85*(XscreenMax-XscreenMin);
+	var y = ymin*yscale+15;  // yscreen = Yscreen0 + y*yscale;
+//console.log("key x=",x," y=",y," Yscreen0=",Yscreen0," ymin=",ymin," yscale=",yscale);
+	var e = document.createElementNS(svgNS, "polygon");
+	e.setAttribute("fill", "white");	
+	e.setAttribute("points",diamond_points(x,Yscreen0+y-5));   // yscreen = Yscreen0 + y*yscale;
+    svg.appendChild(e);
+    elems.push(e);
+    elems.push( text( (x+27)/xscale ,y/yscale,11,false, "Mutation") );
+	
+	var y = ymin*yscale+30;
+	e = document.createElementNS(svgNS, "polygon");
+	e.setAttribute("fill", "white");
+	e.setAttribute("points", triangle_points(x, Yscreen0+y-2));   // yscreen = Yscreen0 + y*yscale;
+	svg.appendChild(e);
+	elems.push(e);
+    elems.push( text( (x+40)/xscale, y/yscale,11,false, "Copy number") );
+	
     return elems;
     }
 
@@ -663,6 +683,22 @@ function canvas_text(ctx, x,y, mtext, font) {
 
 
 
+function triangle_points(x,y) {
+	x = tohalf(x,1)
+    return    tohalf(x-TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
+         +" "+tohalf(x+TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
+         +" "+x.toString()                           +","+tohalf(y-TriangleCentreToApex,1);
+}
+
+function diamond_points(x,y) {
+	x = tohalf(x,1); // Setting the to half position as other diamond is not symentical even if use tohalf(x,1) below:
+	y = tohalf(y,1);
+    return            x.toString()                     +","+tohalf(y-DiamondDiagonalXY,1).toString()
+		  +" "+tohalf(x+DiamondDiagonalXY,1).toString()+","+y.toString()
+		  +" "       +x.toString()                     +","+tohalf(y+DiamondDiagonalXY,1).toString()
+		  +" "+tohalf(x-DiamondDiagonalXY,1).toString()+","+y.toString();
+}
+
 function beeswarm(lines,wtx,mux,boxwidth) {
 // A beeswarm with jitter example: http://jsfiddle.net/5kc0wtfg/5/
 
@@ -893,20 +929,11 @@ function generateDataURI(file) {
 	  case "triangle": // polygon
 	    // polygons also have stroke and fill which is similar to circle: "stroke:#660000; fill:#cc3333; stroke-width: 3;"
 	    // want to draw triangle inverted as graphics y=0 is at top of screen.
-	    e.setAttribute("points",
-              tohalf(x-TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
-         +" "+tohalf(x+TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
-         +" "+tohalf(x,1).toString()                 +","+tohalf(y-TriangleCentreToApex,1)
-		 );
+	    e.setAttribute("points", triangle_points(x,y));
 	    break;
 		
 	  case "diamond": // path
-	    e.setAttribute("points",
-		       tohalf(x,1).toString()                  +","+tohalf(y-DiamondDiagonalXY).toString()
-		  +" "+tohalf(x+DiamondDiagonalXY,1).toString()+","+tohalf(y,1).toString()
-		  +" "+tohalf(x,1).toString()                  +","+tohalf(y+DiamondDiagonalXY,1).toString()
-		  +" "+tohalf(x-DiamondDiagonalXY,1).toString()+","+tohalf(y,1).toString()
-		  );
+	    e.setAttribute("points",diamond_points(x,y));
         break;
 		
       default:

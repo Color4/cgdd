@@ -699,7 +699,7 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
         }
     });
 	
-	
+    $("#gene").focus();
 	
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
@@ -708,8 +708,8 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 function set_tissue_and_study_options(event, ui) {
 	  // $(this).val(b.item.value);	  
 	  {% if search_by == 'target' %}
-  	    var options_html = '<option value="ALL_HISTOTYPES">'+histotype_display("ALL_HISTOTYPES")+'</option>'
-		                  +'<option value="PANCAN" selected="selected">'+histotype_display("PANCAN")+'</option>';
+  	    var options_html = '<option value="ALL_HISTOTYPES" selected="selected">'+histotype_display("ALL_HISTOTYPES")+'</option>'
+		                  +'<option value="PANCAN">'+histotype_display("PANCAN")+'</option>';
         $("#histotype").empty().append(options_html);
 		
 		options_html = '<option value="ALL_STUDIES" selected="selected">'+study_info('ALL_STUDIES')[ishortname]+'</option>';
