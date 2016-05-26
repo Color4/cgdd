@@ -3,7 +3,14 @@
 {% block links_top %}
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <!-- script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script -->
+  
+  <script src="http://marvl.infotech.monash.edu/webcola/cola.v3.min.js"></script>
+  
   <script src="http://cytoscape.github.io/cytoscape.js/api/cytoscape.js-latest/cytoscape.min.js"></script>
+  
+  <!-- script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-qtip/2.2.5/cytoscape-qtip.js"></script -->
+  <script src="https://cdn.rawgit.com/cytoscape/cytoscape.js-cola/1.1.1/cytoscape-cola.js"></script>
+  
 {% endblock %}
 {% block scripts %}
 <style type="text/css">
@@ -23,14 +30,76 @@
 <script type="text/javascript">
  $(function() { // on dom ready
 
-    $('#cy').cytoscape({
-	
+ /*
+Cola demos:
+
+http://bioinformatics.oxfordjournals.org/content/32/2/309.full
+
+http://marvl.infotech.monash.edu/webcola/
+
+http://js.cytoscape.org/demos/2ebdc40f1c2540de6cf0/
+
+
+http://js.cytoscape.org/demos/2ebdc40f1c2540de6cf0/
+http://js.cytoscape.org/demos/2ebdc40f1c2540de6cf0/code.js
+http://stackoverflow.com/questions/28853072/rendering-speed-of-cola-layout-in-cytoscape-js
+
+*/
+ 
+ /*
+  var params = {
+    name: 'cola',
+    nodeSpacing: 5,
+    edgeLengthVal: 45,
+    animate: true,
+    randomize: false,
+    maxSimulationTime: 1500
+  };
+  var layout = makeLayout();
+  var running = false;
+
+  cy.on('layoutstart', function(){
+    running = true;
+  }).on('layoutstop', function(){
+    running = false;
+  });
+  
+  layout.run();
+
+   function makeLayout( opts ){
+    params.randomize = false;
+    params.edgeLength = function(e){ return params.edgeLengthVal / e.data('weight'); };
+
+    for( var i in opts ){
+      params[i] = opts[i];
+    }
+
+    return cy.makeLayout( params );
+  }
+
+  
+  */
+ 
+    //var cy = 
+	$('#cy').cytoscape({
+	/* Default layouts include null, random, preset, grid, circle, concentric, breadthfirst, dagre, cose, cola, spread, arbor and springy. */
+	/* Tried: cose, cola */
+
         layout: {
+            name: 'cola',
+			/*nodeSpacing: 5,
+            edgeLengthVal: 45,
+            animate: true, */
+            randomize: false,
+            maxSimulationTime: 1500
+
+/*
             name: 'cose',
             idealEdgeLength: 30,
             nodeOverlap: 20,
 			useMultitasking: true,
 			fit: true
+*/			
         },
 		zoom: 2,
 		minZoom: 0.5,
@@ -42,15 +111,16 @@
             .selector('node')
             .css({
 				'shape': 'ellipse',
-				'width': 40,
-				'height': 40,
-			    'background-color': '#004279',
+				'width': 50,
+				'height': 50,
+			    'background-color': '#d2b48c',
                 'content': 'data(name)',					
                 'text-valign': 'center',
-				'font-size': '12px',
-                'color': 'white',
-                'text-outline-width': 2,
-                'text-outline-color': '#888'
+				'font-size': '18px',
+				'font-weight': 'bold',
+                'color': '#004279'
+                /* 'text-outline-width': 2,
+                'text-outline-color': '#888' */
         })
             .selector('edge')
             .css({
@@ -82,6 +152,7 @@ elements: {
 {% endfor %} ]
 },
 
+
             ready: function() {
                 window.cy = this;
 
@@ -103,14 +174,24 @@ elements: {
                     }
                 });
             }
-
+			
         });
-
-    }); // on dom ready
+/*		
+  var layout = cy.makelayout({
+    name: 'cola',
+    nodeSpacing: 5,
+    edgeLengthVal: 45,
+    animate: true,
+    randomize: false,
+    maxSimulationTime: 1500
+  });
+  layout.run();
+*/
+}); // on dom ready
 </script>	
 {% endblock %}
 
 {% block content %}
-<p>Cytoscape proteins and connections.....</p>
+<p>Using Cytoscape.js to display these proteins, and their connections as obtained from String-db.....</p>
   <div id="cy"></div>
 {% endblock%}

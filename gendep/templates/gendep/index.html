@@ -117,7 +117,7 @@ var global_url_for_boxplot_data = "{% url 'gendep:get_boxplot' dataformat='myfor
 
 var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
 var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
-var global_url_for_cytoscape = "{% url 'gendep:cytoscape' required_score='700' protein_list='myproteins' %}";
+var global_url_for_cytoscape_get = "{% url 'gendep:cytoscape_get' required_score='700' protein_list='myproteins' gene_list='mygenes' %}";
 var global_url_for_enrichr = "{% url 'gendep:enrichr' gene_set_library='mylibrary' gene_list='mygenes' %}";
 
 // String-db options:
@@ -152,7 +152,7 @@ var global_max_stringdb_proteins_ids = 300; // Using POST now instead of GET(whi
 
 
 // The currently selected driver gene:  
-// var global_search_by = ''; 
+var global_search_by = ''; 
 var global_selected_gene = ''; // The currently selected driver/target gene name, eg. ERBB2 
 var global_selected_histotype = '';
 var global_selected_study = '';
@@ -179,9 +179,12 @@ var driver_array = [
 
 
 var target_array = [
-//   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prevname_synonyms }}", synonyms: "{{ target.prevname_synonyms }}", full_name: "{{target.full_name}}"}{% if not forloop.last %},{% endif %}
-//   {% endfor %}
-]; // Only populated by AJAX if user selects sets the 'search_by' to 'target'
+{% if search_by == 'target' %}
+   {% for target in target_list %} {value: "{{target.gene_name}}", label: "{{target.gene_name}} | {{ target.prevname_synonyms }}", synonyms: "{{ target.prevname_synonyms }}", full_name: "{{target.full_name}}"}{% if not forloop.last %},{% endif %}
+   {% endfor %}
+{% endif %}
+// For targets, there is no: , tissue_list: "{{target.target_histotype_list}}", study_list: "{{target.target_study_list}}"
+]; // Maybe better to only populated by AJAX if user selects sets the 'search_by' to 'target'
 
 
  
@@ -576,6 +579,8 @@ var t0 = performance.now();
 		show_message("search_button", "Searching..."); // So button changes for 3 seconds
 		
 		var search_by = $("#search_by").val();
+		global_search_by = search_by; // Store selected search_by (driver or target) as a global as needed by cgdd_functions.js(), etc.
+		
         var gene = $("#gene").val();
 		global_selected_gene = gene; // Store selected driver/target as a global as needed by boxplot plot(), etc.
 		
@@ -640,7 +645,8 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
 
     // Initialise the driver autocomplete search box:
     $("#gene").autocomplete({
-        source: driver_array,  // using the above array (but is reset to target_array if user selects search_by='target'.
+        source: {% if search_by == 'target' %}target_array{% else %}driver_array{% endif %},
+		// using the above array (but is reset to target_array if user selects search_by='target' - maybe better ro use ajax if target_array as target array will be large.
         // It is possible to format the list items using the focus and select functions and html, etc:	
         minLength: 2,  // number of letters need to type for drop-down menu to appear.
         delay: 1,  // 1 millisecond delay.
@@ -698,8 +704,19 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });
 
+
 function set_tissue_and_study_options(event, ui) {
-	  // $(this).val(b.item.value);
+	  // $(this).val(b.item.value);	  
+	  {% if search_by == 'target' %}
+  	    var options_html = '<option value="ALL_HISTOTYPES">'+histotype_display("ALL_HISTOTYPES")+'</option>'
+		                  +'<option value="PANCAN" selected="selected">'+histotype_display("PANCAN")+'</option>';
+        $("#histotype").empty().append(options_html);
+		
+		options_html = '<option value="ALL_STUDIES" selected="selected">'+study_info('ALL_STUDIES')[ishortname]+'</option>';
+        $("#study").empty().append(options_html);
+		return;
+	  {% endif %}
+	  
         var item = ui.item;   // alternatively first test: if (ui.hasOwnProperty("item")) {..... but maybe less browser support and slower
 		// item is "The item selected from the menu, if any. Otherwise the property is null."
 		//console.log("Change .....");
@@ -709,7 +726,7 @@ function set_tissue_and_study_options(event, ui) {
           var val = $(this).val(); // should be same as: $("#gene").val(); whereas 'this.value' maybe is only the text when ititialised.
 		  // val.toUpperCase(); // in case entered in lower case, but some gene_names are partly lower case.
 		  //var item_array = $("#gene").data("ui-autocomplete").source; // $(this).source;  // could be the driver_array or the target_array
-		  item_array = driver_array; // but could be the target_array if search_by = target
+		  item_array = {% if search_by == 'target' %}target_array{% else %}driver_array{% endif %}; // Maybe use AJAX call.
 	      for (var i=0; i<item_array.length; i++) {
 	        if (item_array[i].value == val) {
 	        item = item_array[i];
@@ -807,7 +824,7 @@ $.ajax({
 </style>
 {% endblock %}
 {% block content %}
-<div id="welcome_div" {% if gene_name %}style="display:none"{% endif %} >
+<div id="welcome_div" {% if gene_name or search_by == 'target' %}style="display:none"{% endif %} >
 <p>Welcome to the cancer genetic dependencies database, which integrates results from loss-of-function <a href ="{% url 'gendep:studies' %}" title="Studies">screens</a> in cell line panels with mutational profiles to identify genetic dependencies associated with specific <a href="{% url 'gendep:drivers' %}" title="Driver genes">driver gene</a> mutations. These dependencies include oncogene addictions - e.g. cell lines with <i>ERBB2</i> amplification have an increased sensitivity to <i>ERBB2</i> inhibition - and non-oncogene addictions or synthetic lethalities - <i>e.g.</i> cell lines with <i>SMAD4</i> loss display an increased sensitivity to inhibition of multiple mitotic kinases. This resource currently includes dependencies identified using RNA interference approaches (siRNA and shRNA) but will be expanded in future to include results from CRISPR based screens.</p>
 
 <p>We welcome <a href="{% url 'gendep:contact' %}">your comments and queries.</a></p>
@@ -816,11 +833,14 @@ $.ajax({
 {# (Select search type ("Driver gene" or "Target gene"). Then in the driver/target search box, #}
 In the 'Driver gene' search box, typing two letters of a gene name will display a menu of matching gene names. The 'Tissue' and 'Study' menu options will be updated depending on gene selected.)</p>
 </div>
+{% if search_by == 'target' %}<p><b>This "Search by target" is an experimental feature that enables you to search the dependency database by target gene (rather than by driver gene). As the database currently contains only 23 driver genes these "Search by Target" dependency results will therefore be limited to these 23 driver genes.</b></p>{% endif %}
+
 <table id="searchbox_table" style="margin-left:auto; margin-right:auto;">
 <tr>
 <td>Search filter:</td>
-<td>
-  <input name="search_by" id="search_by" value="driver" type="hidden"/>
+<td>  
+  <input name="search_by" id="search_by" value="{% if search_by == 'target' %}target{% else %}driver{% endif %}" type="hidden"/>
+  
 {% comment %}
   <select name="search_by" id="search_by" class="searchbox_dropdown">
     <option value="driver" {% if search_by != "target" %}selected="selected"{% endif %}>Driver gene:</option>
@@ -887,7 +907,6 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 
 {# <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a> #}
-<input type="button" id="cytoscape_button" value="Cytoscape" data-value="cytoscape" onclick="show_cytoscape();" />
 
 <!--  http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css -->
 <table style="padding: 10px;  border-spacing: 0; border-collapse: collapse; margin-top: 0; margin-bottom: 0; margin-right: 0; margin-left: auto;"><tr>
@@ -912,7 +931,14 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
   </form>
 </td>
 <td>
-  <input type="button" id="cytoscape_button" value="Cytoscape" data-value="cytoscape" onclick="show_cytoscape();" />
+  <form id="cytoscape_form" method="post" action="{% url 'gendep:cytoscape_post' required_score='700' %}" target="_blank" enctype= "multipart/form-data" onsubmit="return show_cytoscape();">
+    {% csrf_token %}
+    <input type="hidden" id="cytoscape_protein_list" name="protein_list"/>
+    <input type="hidden" id="cytoscape_gene_list" name="gene_list"/>
+    <input type="submit" id="cytoscape_submit_button" value="Cytoscape.js" data-value="Cytoscape.js"/>
+	{# was: onclick="show_cytoscape();"  now using forms onsubmit= #}
+  </form>  
+  <!-- input type="button" id="cytoscape_submit_button" value="Cytoscape" data-value="Cytoscape" onclick="show_cytoscape();" /-->    
 </td>
 <td>
   <form id="enrichr_form" method="post" action="http://amp.pharm.mssm.edu/Enrichr/enrich" target="_blank" enctype= "multipart/form-data">

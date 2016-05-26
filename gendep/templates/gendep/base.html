@@ -18,6 +18,7 @@
 <img src="{% static 'gendep/images/CGDD_logo3_smallest.png' %}" alt="Cancer Genetic Dependencies Database (CGDD)" width="101" height="62"/>
 </td><td>
  &nbsp; &nbsp; <a href="{% url 'gendep:home' %}">Home/Search</a>
+ &nbsp; &nbsp; <a href="{% url 'gendep:home_search_by' search_by='target' %}">ByTarget</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:about' %}">About</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:tutorial' %}">Tutorial</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:drivers' %}">Drivers</a>
@@ -40,10 +41,12 @@
 </div>
 <div id="footer">
 <hr style="color: #aa66ff;" />
-<a href="http://www.ucd.ie/sbi/" title="Systems Biology Ireland"><img src="{% static 'gendep/images/SBI-logo-138w79h.png' %}" alt="Systems Biology Ireland" width="138" height="79" /></a>
-&nbsp; &nbsp; <a href="http://www.ucd.ie/" title="University College Dublin"><img src="{% static 'gendep/images/UCD_maincore_logo.png' %}" alt="University College Dublin" width="276" height="69" /></a>
-&nbsp; &nbsp; <a href="http://www.icr.ac.uk/" title="The Institute of Cancer Research"><img src="{% static 'gendep/images/ICR_logo.png' %}" alt="The Institute of Cancer Research" width="235" height="45" /></a>
-&nbsp; &nbsp; <a href="http://www.hrb.ie/" title="The Health Research Board, Ireland"><img src="{% static 'gendep/images/HRB_logo_blue_thumb_200x80px.jpg' %}" alt="The Health Research Board, Ireland" width="200" height="80" /></a>
+<table align="center" cellpadding="10"><tr>
+<td><a href="http://www.ucd.ie/sbi/" title="Systems Biology Ireland"><img src="{% static 'gendep/images/SBI-logo-138w79h.png' %}" alt="Systems Biology Ireland" width="138" height="79" /></a></td>
+<td><a href="http://www.ucd.ie/" title="University College Dublin"><img src="{% static 'gendep/images/UCD_maincore_logo.png' %}" alt="University College Dublin" width="276" height="69" /></a></td>
+<td><a href="http://www.icr.ac.uk/" title="The Institute of Cancer Research"><img src="{% static 'gendep/images/ICR_logo_smaller.png' %}" alt="The Institute of Cancer Research" width="283" height="55" /></a></td>
+<td><a href="http://www.hrb.ie/" title="The Health Research Board, Ireland"><img src="{% static 'gendep/images/HRB_logo_blue_thumb_200x80px.jpg' %}" alt="The Health Research Board, Ireland" width="200" height="80" /></a></td>
+</tr></table>
 
 </div>
 {% block links_bottom %}{% endblock %}

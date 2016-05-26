@@ -44,16 +44,20 @@ urlpatterns = [
     # Alloweed carriage return character (as is %0D) - using a semi colon as the divider instead of return:
     url(r'get_stringdb_interactions/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
     
-    url(r'cytoscape/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.cytoscape, name='cytoscape' ),
+    url(r'cytoscape/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/(?P<gene_list>[0-9A-Za-z\-_\.;\%\r]+)/$', views.cytoscape, name='cytoscape_get' ),
 
+    url(r'cytoscape/(?P<required_score>[0-9]+)/$', views.cytoscape, name='cytoscape_post' ),
+    
     url(r'enrichr/(?P<gene_set_library>[0-9A-Za-z_]+)/(?P<gene_list>[0-9A-Za-z\-\.;\%\r]+)/$', views.enrichr, name='enrichr' ),   # Can add optional: (?P<description>.....
     
     url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
 
-    url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
-    
-    url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]*)/(?P<histotype_name>[0-9A-Za-z\_]*)/(?P<study_pmid>[0-9A-Za-z\_]*)/$', views.index, name='home_search_by_gene_tissue_pmid'), # Needs to be at end as could otherwise interpret 'about' as driver name.
+    url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]*)/(?P<histotype_name>[0-9A-Za-z\_]*)/(?P<study_pmid>[0-9A-Za-z\_]*)/$', views.index, name='home_search_by_gene_tissue_pmid'),
 
+    url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by_gene'),
+
+    url(r'^(?P<search_by>(?:mysearchby|driver|target))/$', views.index, name='home_search_by'), # Needs to be at end as could otherwise interpret 'about' as driver name.
+        
     # eg:  http://localhost:8000/gendep/driver/ERBB2/PANCAN/26947069/
 
     # url(r'^driver/(?P<driver>[0-9A-Za-z\-_\.]+)/$', views.index, name='driver'), # ie: /driver/gene_name/

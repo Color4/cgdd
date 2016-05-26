@@ -839,11 +839,32 @@ def get_stringdb_interactions(request, required_score, protein_list):
 
 
     
-def cytoscape(request, required_score, protein_list):
+def cytoscape(request, required_score, protein_list=None, gene_list=None):
+    
+    if (protein_list is None) or (protein_list == ''):
+        if   request.method == 'GET':  protein_list = request.GET.get('protein_list', '')
+        elif request.method == 'POST': protein_list = request.POST.get('protein_list', '')
+        else: protein_list = ''
+
+    if (gene_list is None) or (gene_list == ''):
+        if   request.method == 'GET':  gene_list = request.GET.get('gene_list', '')
+        elif request.method == 'POST': gene_list = request.POST.get('gene_list', '')
+        else: gene_list = ''
+       
     success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
     
     if success:
-        initial_nodes =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
+#        initial_nodes =  dict((protein,True) for protein in protein_list.split(';'))
+
+        protein_list = protein_list.split(';')
+        gene_list = gene_list.split(';')
+        if len(protein_list) != len(gene_list):
+            return HttpResponse('ERROR: lengths of gene_list and protein_list are different', content_type=plain_mimetype)
+
+        # Create a dictionary to check later if returned protein was in original list, and what the gene_name was for that protein_id:            
+        initial_nodes = dict()
+        for i in range(0, len(protein_list)): # Dict to check later if returned protein was in original list
+            initial_nodes[protein_list[i]] = gene_list[i] #  (protein,True)
     
         nodes = dict() # The protein nodes for cytoscape
         edges = dict()   # The edges for cytoscape
@@ -868,12 +889,24 @@ def cytoscape(request, required_score, protein_list):
             if edge not in edges and edge_reversed not in edges:
                 edges[edge] = True
 
-        node_list = sorted(nodes)
+        # node_list = sorted(nodes)
+        # Convert node list of protein_ids, to list of gene_names
+        
+        for protein in protein_list: # Can't use 'initial_nodes' here as it will be updated
+            initial_nodes[protein.replace('9606.', '')] = initial_nodes.pop(protein)
+        
+        node_list = []
+        for protein in nodes:
+            node_list.append(initial_nodes[protein])
         #print(node_list)
         
-        edge_list = []
+        edge_list = [] # Will be an array of tuples.
         for edge in edges:
-            edge_list.append(edge.split('#')) # So should be array of arrays.
+            proteins = edge.split('#')
+            if len(proteins) != 2:
+                print("**** Expected two proteins in edge, but got: "+edge)
+            edge_list.append( ( initial_nodes[proteins[0]], initial_nodes[proteins[1]] ) )
+        #    edge_list.append(edge.split('#')) 
         # print(edge_list)
 
         context = {'node_list': node_list, 'edge_list': edge_list}

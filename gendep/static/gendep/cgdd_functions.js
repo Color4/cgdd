@@ -416,6 +416,9 @@ function get_id_list_for_depenedencies(div, idtype) {
 	//console.log("\nUsing standard javascript:");
     // var list_of_proteins ='';
 	var protein_dict = {}; // Need to use a dictionary as if tissue is 'All tissues' then each protein can appear several times in dependency table (just with different tissue each time).
+	
+	var gene_dict = {}; // Need to use a dictionary as if tissue is 'All tissues' then each protein can appear several times in dependency table (just with different tissue each time).
+	
 	var protein_count = 0;
 
 // http://stackoverflow.com/questions/3065342/how-do-i-iterate-through-table-rows-and-cells-in-javascript
@@ -443,8 +446,15 @@ function get_id_list_for_depenedencies(div, idtype) {
 	// This url of corresponds to 8216 characters (see example in file: max_stringdb_url.txt)
     //console.log('first-child:')
 
-    var data_tag = "data-epid";  // default to 'protein'.
-    if (idtype=='gene') {data_tag="data-gene";}	
+    var getProtein = false, getGene = false;
+	switch (idtype) {
+		case 'protein':      getProtein=true; break;
+	    case 'gene':         getGene=true; break;
+		case 'protein-gene': getProtein=true; getGene=true; break;
+		default: alert("Invalid idtype: "+idtype); // maybe should default to 'protein'.
+	}
+	
+
 //    $('#result_table tbody tr:visible td:first-child').each(function(index) {
 	// In order to catch the 'remove-me' class of the space <tr> used for the scroller, need to loop through the rows
 	// "remove-me": https://github.com/Mottie/tablesorter/issues/1143
@@ -457,43 +467,81 @@ function get_id_list_for_depenedencies(div, idtype) {
 // first-child selector: http://stackoverflow.com/questions/1045926/jquery-selector-for-every-row-except-the-first-on-every-table-except-first		
 // https://github.com/Mottie/tablesorter/wiki/Summary
 // https://mottie.github.io/tablesorter/docs/index.html#selectorremove
-	    var protein_id = $("td:first-child", $(this)).attr(data_tag);
-//		var gene_id    = $("td:first-child", $(this)).attr('data-gene');
+
 //		console.log(index," : ",gene_id," : ",protein_id);
         //if (index>0) { // skip row 0, (which is class 'tablesorter-ignoreRow') as its the table filter widget input row
 		// continue doesn't work with each(...)
 
 		if (protein_count >= global_max_stringdb_proteins_ids) {return false;} // return false to end the ".each()" loop early. like 'break' in a for() loop. Alternatively return true skips to the next iteration (like 'continue' in a normal loop).
-		if ((protein_id != '') && !(protein_id in protein_dict)) {
-			protein_dict[protein_id] = true;
-            protein_count++;
-        }
-		//}
+		
+	    var first_td = $("td:first-child", $(this));
+		
+        if (getProtein) {
+		    var protein_id = first_td.attr("data-epid");
+            if ((protein_id != '') && !(protein_id in protein_dict)) {
+                if (getGene) { // getting the gene and protein ids:
+                    var gene_id = first_td.attr("data-gene");
+                    if ((gene_id != '') && !(gene_id in gene_dict)) {
+                        protein_dict[protein_id] = true;
+						gene_dict[gene_id] = true;
+                        protein_count++;
+					}
+					else {console.log("A gene with a valid protein id '"+protein_id+"' shares a gene id: '"+gene_id+"'");}
+				}
+				else { // only getting the protein ids:
+                    protein_dict[protein_id] = true;
+                    protein_count++;
+				}
+			}
+		}
+		else {
+            var gene_id = first_td.attr("data-gene");
+            if ((gene_id != '') && !(gene_id in gene_dict)) {
+				gene_dict[gene_id] = true;
+                protein_count++;
+			}
+				
+		}
+		
     });
-    console.log("get_id_list_for_depenedencies:", protein_dict, protein_count)
-	return [dict_to_string(protein_dict,div), protein_count];
+    console.log("get_id_list_for_depenedencies:", protein_dict, gene_dict, protein_count)
+	if (getProtein && getGene) {return [dict_to_string(protein_dict,div), dict_to_string(gene_dict,div), protein_count];}
+	else if (getProtein) {return [dict_to_string(protein_dict,div), protein_count];}
+	else if (getGene) {return [dict_to_string(gene_dict,div), protein_count];}
+	else {return false;}
 }
 
 
 function show_cytoscape() {
 	
-	show_message("cytoscape_button", "Fetching cytoscape...");
+	show_message("cytoscape_submit_button", "Fetching cytoscape...");
 	// was: Fetching Cytoscape protein list for cytoscape image
 
-	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
+	var protein_and_gene_list_and_count = get_id_list_for_depenedencies(';', 'protein-gene');
 
-    var protein_list = protein_list_and_count[0];
-    var protein_count = protein_list_and_count[1];
+	var protein_list = protein_and_gene_list_and_count[0];
+    var gene_list = protein_and_gene_list_and_count[1];
+    var protein_count = protein_and_gene_list_and_count[2];
 	
 	// Try to remove unconnected proteins for the list before displaying the string network image.
 	
 	//var url = global_url_for_stringdb_interactionsList + dict_to_string(protein_dict,'%0D'); // Need a function to do this? eg. jQuery.makeArray() or in EM 5.1: Object.keys(protein_dict);
 	
 	//var protein_list = dict_to_string(protein_dict,';');
-	console.log("Cytoscape original protein count:",protein_count, "Protein list:",protein_list);
-	var url = global_url_for_cytoscape.replace('myproteins', protein_list);  // Using semi-colon instead of return character '%0D'
+	console.log("Cytoscape original protein count:",protein_count, "Protein list:",protein_list,"Gene list:",gene_list);
+
+    /*
+	For GET use:
+	var url = global_url_for_cytoscape_get.replace('myproteins', protein_list).replace('mygenes', gene_list);  // Using semi-colon instead of return character '%0D'
+	
 	window.open(url);  // should open a new tab in browser.
 	return false; // or maybe return true?	
+	*/
+
+	// For POST using form:
+	document.getElementById("cytoscape_protein_list").value = protein_list;
+	document.getElementById("cytoscape_gene_list").value = gene_list;
+    return true; // to submit the form, otherwise false;
 }
 
 
@@ -1346,6 +1394,7 @@ function is_form_complete() {
     }
   
   var found = false;
+  alert("search_by='"+search_by+"' gene='"+g+"'");
   if (search_by = 'driver') {
     for (var i=0; i<driver_array.length; i++) {
       if (g == driver_array[i]['value']) {
