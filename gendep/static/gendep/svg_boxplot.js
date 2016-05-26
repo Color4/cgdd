@@ -348,7 +348,7 @@ function axes(wtxc,muxc, ymin,ymax, driver, target) {
 	e.setAttribute("points",diamond_points(x,Yscreen0+y-5));   // yscreen = Yscreen0 + y*yscale;
     svg.appendChild(e);
     elems.push(e);
-    elems.push( text( (x+27)/xscale ,y/yscale,11,false, "Mutation") );
+    elems.push( text( (x+28)/xscale ,y/yscale,11,false, "Mutation") );
 	
 	var y = ymin*yscale+30;
 	e = document.createElementNS(svgNS, "polygon");
@@ -685,6 +685,7 @@ function canvas_text(ctx, x,y, mtext, font) {
 
 function triangle_points(x,y) {
 	x = tohalf(x,1)
+    y = tohalf(x,1)
     return    tohalf(x-TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
          +" "+tohalf(x+TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
          +" "+x.toString()                           +","+tohalf(y-TriangleCentreToApex,1);
