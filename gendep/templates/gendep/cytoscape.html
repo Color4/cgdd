@@ -1,4 +1,4 @@
-{% extends 'gendep/base.html' %}
+{# % extends 'gendep/base.html' % #}
 {% load staticfiles %}
 {% block links_top %}
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
@@ -24,20 +24,42 @@
  $(function() { // on dom ready
 
     $('#cy').cytoscape({
-
+	
+        layout: {
+            name: 'cose',
+            idealEdgeLength: 30,
+            nodeOverlap: 20,
+			useMultitasking: true,
+			fit: true
+        },
+		zoom: 2,
+		minZoom: 0.5,
+        maxZoom: 5,
+		pan: { x: 0, y: 0 },
+		/* motionBlur: true, */
+		wheelSensitivity: 0.2,
         style: cytoscape.stylesheet()
             .selector('node')
             .css({
-            'content': 'data(name)',
+				'shape': 'ellipse',
+				'width': 40,
+				'height': 40,
+			    'background-color': '#004279',
+                'content': 'data(name)',					
                 'text-valign': 'center',
+				'font-size': '12px',
                 'color': 'white',
                 'text-outline-width': 2,
                 'text-outline-color': '#888'
         })
             .selector('edge')
             .css({
-            'target-arrow-shape': 'triangle'
-        })
+			    'curve-style': 'haystack',  /* haystack are fast to draw */
+				'haystack-radius': '0.1',
+				'opacity': '0.4',
+				'width': '2',
+                'line-color': 'green'
+        })	
             .selector(':selected')
             .css({
                 'background-color': 'black',

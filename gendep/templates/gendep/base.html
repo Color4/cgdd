@@ -6,6 +6,8 @@
   {% block title %}<title>Cancer Genetic Dependencies Database (CGDD)</title>{% endblock %}
   {% block links_top %}{% endblock %} {# Putting non-essential scripts at bottom can speedup display of webpage #}
   {# Need to call my style sheet after jQuery one, so that mine overwrites the jquery defaults #}
+  <link rel="icon" type="image/png" href="{% static 'gendep/images/favicon-32x32.png' %}" sizes="32x32" />
+  <link rel="icon" type="image/png" href="{% static 'gendep/images/favicon-16x16.png' %}" sizes="16x16" />  
   <link rel="stylesheet" type="text/css" href="{% static 'gendep/style.css' %}" />
   {% block scripts %}{% endblock %} 
 </head>

@@ -887,7 +887,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 
 
 {# <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a> #}
-{# <input type="button" id="cytoscape_button" value="cytoscape" data-value="cytoscape" onclick="show_cytoscape();" /> #}
+<input type="button" id="cytoscape_button" value="Cytoscape" data-value="cytoscape" onclick="show_cytoscape();" />
 
 <!--  http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css -->
 <table style="padding: 10px;  border-spacing: 0; border-collapse: collapse; margin-top: 0; margin-bottom: 0; margin-right: 0; margin-left: auto;"><tr>
@@ -910,6 +910,9 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
     <input type="hidden" name="caller_identity" value="Cancer Genetic Dependency Database"/>
     <input type="submit" id="string_interactive_submit_button" value="Stringdb Interactive" data-value="Stringdb Interactive" onclick="set_string_form_identifiers();"/> <!-- or new HTML5 button tag: formtarget="_blank" -->
   </form>
+</td>
+<td>
+  <input type="button" id="cytoscape_button" value="Cytoscape" data-value="cytoscape" onclick="show_cytoscape();" />
 </td>
 <td>
   <form id="enrichr_form" method="post" action="http://amp.pharm.mssm.edu/Enrichr/enrich" target="_blank" enctype= "multipart/form-data">
