@@ -9,7 +9,7 @@
 <tbody>
 {% for driver in driver_list %}
 <tr>
-<td><a href="{% url 'gendep:home_search_by' search_by='driver' gene_name=driver.gene_name %}">{{ driver.gene_name }}</a></td>
+<td><a href="{% url 'gendep:home_search_by_gene' search_by='driver' gene_name=driver.gene_name %}">{{ driver.gene_name }}</a></td>
 <td>{{ driver.full_name }}</td>
 <td><font size="-1">{{ driver.prev_names_and_synonyms_spaced }}</font></td>
 <td style="text-align:center"><a class="tipleft" href="javascript:void(0);">{{ driver.driver_num_studies }}<span>PubMed Ids: {{ driver.driver_study_list }}</span></a></td>
