@@ -833,7 +833,7 @@ $.ajax({
 {# (Select search type ("Driver gene" or "Target gene"). Then in the driver/target search box, #}
 In the 'Driver gene' search box, typing two letters of a gene name will display a menu of matching gene names. The 'Tissue' and 'Study' menu options will be updated depending on gene selected.)</p>
 </div>
-{% if search_by == 'target' %}<p><b>This "Search by target" is an experimental feature that enables you to search the dependency database by target gene (rather than by driver gene). As the database currently contains only 23 driver genes these "Search by Target" dependency results will therefore be limited to these 23 driver genes.</b></p>{% endif %}
+{% if search_by == 'target' %}<p><b>This "Search by target" is an experimental feature that enables you to search the dependency database by target gene (rather than by driver gene). As the database currently contains <a href="{% url 'gendep:drivers' %}">23 driver genes</a> these "Search by Target" dependency results will therefore be limited to these 23 driver genes.</b></p>{% endif %}
 
 <table id="searchbox_table" style="margin-left:auto; margin-right:auto;">
 <tr>
