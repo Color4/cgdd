@@ -699,7 +699,7 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
         }
     });
 	
-    $("#gene").focus();
+    $("#gene").focus();  // Another way to force focus when move is: Assuming your combobox has id= combobox, the input generated is put in a span following the combobox. This should do the job: $('#combobox').next().find('input').focus()
 	
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
 });

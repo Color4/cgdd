@@ -685,7 +685,7 @@ function canvas_text(ctx, x,y, mtext, font) {
 
 function triangle_points(x,y) {
 	x = tohalf(x,1)
-    y = tohalf(x,1)
+    y = tohalf(y,1)
     return    tohalf(x-TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
          +" "+tohalf(x+TriangleHalfBase,1).toString()+","+tohalf(y+TriangleBaseToCentre,1).toString()
          +" "+x.toString()                           +","+tohalf(y-TriangleCentreToApex,1);
@@ -1576,8 +1576,7 @@ along with the msSaveBlob() (that I used for downloading the legends)
             }
 	        else { //other browsers
               download_data(canvas.toDataURL("image/png",1), filename);
-            }
-			
+            }			
 //		    download_data(data,filename)
 			},
 		renderer: render 
@@ -1612,7 +1611,15 @@ function download_data(data, filename) {
     a.setAttribute('target', '_blank');	// or: 	a.target = '_blank';
     a.setAttribute('download', filename);	
 	document.body.appendChild(a);    // as link has to be on the document - needed in Firefox, etc.
-	a.click();
+    if(a.click) {a.click();}
+    else if(document.createEvent) {  // For Safari earlier versions, but the 'download' attribute might be missing or try jquery: $(a).click()
+        var eventObj = document.createEvent('MouseEvents');
+        eventObj.initEvent('click',true,true);
+        element.dispatchEvent(eventObj);
+	    // see: http://stackoverflow.com/questions/12925153/jquery-click-works-on-every-browser-but-safari		
+        }	
+
+	
     document.body.removeChild(a);
 	// http://halistechnology.com/2015/05/28/use-javascript-to-export-your-data-as-csv/
 	// http://cwestblog.com/2014/10/21/javascript-creating-a-downloadable-file-in-the-browser/
