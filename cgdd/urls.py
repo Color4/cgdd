@@ -19,7 +19,12 @@ from django.contrib import admin
 
 urlpatterns = [
 #    url(r'^(?:gendep|api)/', include('gendep.urls')), # This didn't work, (as genedp.utls contains app_name = 'gendep') but split the gendep urls in two files, but keep as one for simplicity for now.
+    url(r'^admin/', admin.site.urls),
     url(r'^gendep/', include('gendep.urls')),
 #    url(r'^api/', include('gendep.urls_api')),
-    url(r'^admin/', admin.site.urls),
+    
+    # To enable the domain name: "http://www.cancergd.org" to go to the gendep app, without needing /gendep/ suffix.
+    # From: http://stackoverflow.com/questions/22468813/how-do-i-set-my-django-views-url-to-the-root-domain-of-my-website    
+    # The following url should be the final url() here so that Django can test for matches to the above urls first.
+    url(r'^', include('gendep.urls', namespace = "gendep")),    
 ]

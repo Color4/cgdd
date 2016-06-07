@@ -33,25 +33,25 @@ urlpatterns = [
 
     # url(r'^ajax_results/', views.ajax_results_slow_full_detail_version, name='ajax_results_post'),
     
-    url(r'^download_csv/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
+    url(r'^download_csv/(?P<delim_type>(?:csv|tsv|xlsx))/(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.download_dependencies_as_csv_file, name='download_csv'), # \_ needed to match ALL_STUDIES and ALL_HISTOTYPES
 
-    url(r'get_boxplot/(?P<dataformat>(?:myformat|csvplot|jsonplot|jsonplotandgene|download))/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<target_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_boxplot, name='get_boxplot'),
+    url(r'get_boxplot/(?P<dataformat>(?:myformat|csvplot|jsonplot|jsonplotandgene|csv|download))/(?P<driver_name>[0-9A-Za-z\-_\.]+)/(?P<target_name>[0-9A-Za-z\-_\.]+)/(?P<histotype_name>[0-9A-Za-z\_]+)/(?P<study_pmid>[0-9A-Za-z\_]+)/$', views.get_boxplot, name='get_boxplot'),
 
     url(r'^get_gene_info/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.gene_info, name='get_gene_info'), # tip=element.data('url'),
 
     #url(r'get_stringdb_interactions/(?P<protein_list>.+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
     
-    # Alloweed carriage return character (as is %0D) - using a semi colon as the divider instead of return:
+    # Allow carriage return character (as is %0D) - using a semicolon as the divider instead of return:
     url(r'get_stringdb_interactions/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions'),
     
-    url(r'cytoscape/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/(?P<gene_list>[0-9A-Za-z\-_\.;\%\r]+)/$', views.cytoscape, name='cytoscape_get' ),
-
-    url(r'cytoscape/(?P<required_score>[0-9]+)/$', views.cytoscape, name='cytoscape_post' ),
+    # For sending protein_list request as HTML GET or POST:
+    url(r'get_stringdb_interactions/(?P<required_score>[0-9]+)/$', views.get_stringdb_interactions, name='get_stringdb_interactions_post'),
+        
+    url(r'cytoscape/(?P<required_score>[0-9]+)/(?P<protein_list>[0-9A-Za-z\.;\%\r]+)/(?P<gene_list>[0-9A-Za-z\-_\.;\%\r]+)/$', views.cytoscape, name='cytoscape_get'),
     
-    url(r'enrichr/(?P<gene_set_library>[0-9A-Za-z_]+)/(?P<gene_list>[0-9A-Za-z\-\.;\%\r]+)/$', views.enrichr, name='enrichr' ),   # Can add optional: (?P<description>.....
+    # For sending protein_list and gene_list as HTML GET or POST:
+    url(r'cytoscape/(?P<required_score>[0-9]+)/$', views.cytoscape, name='cytoscape_post'),
     
-    url(r'^qtip/(?P<query>[0-9A-Za-z\-_\.]+)/$', views.qtip, name='qtip'), # tip=element.data('url'),
-
     url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]*)/(?P<histotype_name>[0-9A-Za-z\_]*)/(?P<study_pmid>[0-9A-Za-z\_]*)/$', views.index, name='home_search_by_gene_tissue_pmid'),
 
     url(r'^(?P<search_by>(?:mysearchby|driver|target))/(?P<gene_name>[0-9A-Za-z\-_\.]+)/$', views.index, name='home_search_by_gene'),

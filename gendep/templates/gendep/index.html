@@ -2,7 +2,6 @@
 {% load staticfiles %}
 {% block links_top %}
 
-
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.2/jquery.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
@@ -111,14 +110,16 @@ var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
 var global_url_for_dependency_search = "{% url 'gendep:get_dependencies' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
 
-var global_url_for_download_csv = "{% url 'gendep:download_csv' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
+var global_url_for_download_csv = "{% url 'gendep:download_csv' delim_type='csv' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
+
+var global_url_for_download_excel = "{% url 'gendep:download_csv' delim_type='xlsx' search_by='mysearchby' gene_name='mygene' histotype_name='myhistotype' study_pmid='mystudy' %}";
 
 var global_url_for_boxplot_data = "{% url 'gendep:get_boxplot' dataformat='myformat' driver_name='mydriver' target_name='mytarget' histotype_name='myhistotype' study_pmid='mystudy' %}";
 
 var global_url_gene_info_for_mygene = "{% url 'gendep:get_gene_info' gene_name='mygene' %}"; // replace 'mygene' with gene name of interest.
 var global_url_for_mystudy = "{% url 'gendep:show_study' study_pmid='mystudy' %}"; // replace mystudy with pmid for the study
 var global_url_for_cytoscape_get = "{% url 'gendep:cytoscape_get' required_score='700' protein_list='myproteins' gene_list='mygenes' %}";
-var global_url_for_enrichr = "{% url 'gendep:enrichr' gene_set_library='mylibrary' gene_list='mygenes' %}";
+{# var global_url_for_enrichr = "{ % url 'gendep:enrichr' gene_set_library='mylibrary' gene_list='mygenes' % }"; #}
 
 // String-db options:
 // The string interactive URL is now moved to the 'string_interactive_form' form at bottom of this "index.html", so need to set any options in that form's action:
@@ -913,10 +914,20 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <td>
   <form id="download_csv_form" method="get">
     <input id="download_csv_button" type="submit" value="Download as CSV file" data-value="Download as CSV file"/>
-    <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->    
-    <input type="button" id="string_image" value="Stringdb Image" data-value="Stringdb Image" onclick="show_stringdb(stringdb_image);" />
-<!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
   </form>
+</td>
+<td>
+  <form id="download_excel_form" method="get">
+    <input id="download_excel_button" type="submit" value="Download as Excel file" data-value="Download as Excel file"/>
+  </form>
+</td>  
+<td>  
+  &nbsp; 
+</td>
+<td>
+  <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->    
+  <input type="button" id="string_image" value="Stringdb Image" data-value="Stringdb Image" onclick="show_stringdb(stringdb_image);" />
+  <!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
 </td>
 <td>
   <form id="string_interactive_form" method="post" action="http://string-db.org/newstring_cgi/show_network_section.pl" target="_blank">
@@ -941,11 +952,17 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
   <!-- input type="button" id="cytoscape_submit_button" value="Cytoscape" data-value="Cytoscape" onclick="show_cytoscape();" /-->    
 </td>
 <td>
+  &nbsp;   
+</td>
+<td>
   <form id="enrichr_form" method="post" action="http://amp.pharm.mssm.edu/Enrichr/enrich" target="_blank" enctype= "multipart/form-data">
     <input type="hidden" id="enrichr_list" name="list"/>
     <input type="hidden" id="enrichr_description" name="description"/>
     <input type="submit" id="enrichr_submit_button" value="Enrichr" data-value="Enrichr" onclick="show_enrichr();" />
   </form>	
+</td>
+<td>
+ &nbsp;
 </td>
 <td><span id="string_link"></span></td>
 </tr></table>

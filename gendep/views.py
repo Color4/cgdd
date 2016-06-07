@@ -10,132 +10,168 @@ import ipaddress # For is_valid_ip()
 from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.core.exceptions import ObjectDoesNotExist
-from django.core.cache import cache  # To cache previous results. "To provide thread-safety, a different instance of the cache backend will be returned for each thread."    
+from django.core.cache import cache  # To cache previous results. NOTE: "To provide thread-safety, a different instance of the cache backend will be returned for each thread."
 from django.utils import timezone # For log_comment(), with USE_TZ=True in settings.py, and istall "pytz"
- 
+from django.db.models import Q # Used for get_drivers()
+         
 from .models import Study, Gene, Dependency, Comment  # Removed: Histotype,
 
-# This django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
+# Optionally use Django logging during development and testing:
+# This Django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
 #import logging
 #logger = logging.getLogger(__name__)
 #def log(): logger.debug("this is a debug message!")
 #def log_error(): logger.error("this is an error message!!")
 
-json_mimetype = 'application/json; charset=utf-8'
+# Mime types for the responses:
 html_mimetype = 'text/html; charset=utf-8'
+json_mimetype = 'application/json; charset=utf-8'
 csv_mimetype  = 'text/csv; charset=utf-8' # can be called: 'application/x-csv' or 'application/csv'
 tab_mimetype  = 'text/tab-separated-values; charset=utf-8'
 plain_mimetype ='text/plain; charset=utf-8'
+#excel_minetype ='application/vnd.ms-excel'
+excel_minetype ='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' # for xlsx format?
 
+# Alternatively can use separate parameter in HtmlResponse: charset='UTF-8' instead of including 'charset=utf-8' in the content_type
 
+# Enricher URL:
 ENRICHR_BASE_URL = 'http://amp.pharm.mssm.edu/Enrichr/'
 
-def JsonResponse(data, safe=None):
-    # Tired the Django JsonResponse but failed to return the query_info' to javascript, so using HtmlResponse for now:
-    return HttpResponse(json.dumps(data, separators=[',',':']), content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
-
+def post_or_get_from_request(request, name):
+    if   request.method == 'POST': return request.POST.get(name, '')
+    elif request.method == 'GET':  return request.GET.get(name, '')
+    else:  return ''
     
-def json_error(message, status_code='0'):
+def JsonResponse(data, safe=False):
+    """ Could use the Django JsonResponse but less format options, so using HtmlResponse() """
+    # eg: django.http.JsonResponse(data, safe=safe)
+    return HttpResponse(json.dumps(data, separators=[',',':']), content_type=json_mimetype)
+
+def json_error(message, status_code='1'):
+    """ Sends an error message to the browser in JSON format """
     return JsonResponse( {'success': False, 'error': status_code, 'message': message } ) # eg: str(exception)
 
 def is_search_by_driver(search_by):
+    """ Checks if the 'search_by' parameter is valid, returning True if the dependency search is by driver """
     if   search_by == 'driver': return True
     elif search_by == 'target': return False
     else: print("ERROR: **** Invalid search_by: '%s' ****" %(search_by))
 
-    
-    
-def get_timing(start_time, name, time_array=None):
-    # To print timings, and optionally build an array of timings that can then be sent to webbrowser console via json.
-    # The start_time should be obtained from: datetime.now()
-    duration = datetime.now() - start_time
-    #print( "%s: %s msec" %(name,str(duration)))  # or use: duration.total_seconds()
-    if time_array is not None:
+def get_study_shortname_from_study_list(study_pmid, study_list):
+    if (study_pmid is None) or (study_pmid == ''):
+        return ''
+    if study_pmid=="ALL_STUDIES":
+        return "All studies"
+    try:    
+        study = study_list.get(study_pmid=study.pmid)
+#   Or iterate through the list:        
+#   for study in study_list:
+#       if study_pmid == study.pmid:
+        return study.short_name
+    except ObjectDoesNotExist: # Not found by the objects.get()
+        print("WARNING: '"+study_pmid+"' NOT found in database so will be ignored")
+        return '' # ie. if study_pmid parameter value not found then ignore it.
+        
+        
+        
+def get_timing(start_time, name, time_list=None):
+    """ Prints the time taken by functions, to help optimise the code and SQL queries.
+    The start_time parameter value should be obtained from: datetime.now()
+    Optionally if 'time_list' is passed then an array of timings is added to this list that can then be sent to Webbrowser console via JSON. A python list (array) is used (rather than a dictionary) so will preserve the order of elements. """
+    duration = datetime.now() - start_time # This duration is in milliseconds
+    # To print results in server log, use:
+    # print( "%s: %s msec" %(name,str(duration)))  # or use: duration.total_seconds()
+    if time_list is not None:
+        if not isinstance(time_list, list):
+            print("ERROR: get_timings() 'time_list' parameter is not a list")
         #if name in time_dict: print("WARNING: Key '%s' is already in the time_dict" %(name))
-        time_array.append({name: str(duration)}) # Uses an array so will preserve the order, rather than a dictionary.
+        time_list.append({name: str(duration)})
     return datetime.now()
 
 
-def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''): # Default is search boxes, with gene dropdown populated with driver gene_names (plus an empty name).
     
-    driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prevname_synonyms").order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''):
+    """ Sets the javascript arrays for driver, histotypes and studies within the main home/index page.
+    As the index page can be called with specified values, eg: '.../driver/ERBB2/PANCAN/26947069/'
+    Then calls the 'index.html' template to create the webpage.
+    The 'search_by' is usually by driver, but for the "SearchByTarget" webpage, it will be set to 'target' """
+    
+    # Obtain the list of driver genes for the autocomplete box.
+    # (Or for the 'Search-ByTarget' webpage, get the list of target genes).
+    # This needs: (is_driver=True), not just: (is_driver)
+    if is_search_by_driver(search_by):
+        driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prevname_synonyms").order_by('gene_name')
+        target_list = []
+    else: 
+        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "is_target", "prevname_synonyms").order_by('gene_name')
+        driver_list = []
 
-    target_list = []
-    if not is_search_by_driver(search_by):
-        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "is_target", "prevname_synonyms").order_by('gene_name')  # Needs: (is_target=True), not just: (is_target)
-
-    # histotype_list = Histotype.objects.order_by('full_name')
+    # Retrieve the tissue, experiment type, and study data:
     histotype_list = Dependency.HISTOTYPE_CHOICES
+       # Alternatively if using histotype table (in the 'models.py' instead of 'choices' list):  histotype_list = Histotype.objects.order_by('full_name')
     experimenttype_list = Study.EXPERIMENTTYPE_CHOICES
     study_list = Study.objects.order_by('pmid')
-    dependency_list = None # For now.
     
-    # if histotype_name=="": histotype_name="PANCAN" # To set the default to PANCAN (previously was set to "ALL_HISTOTYPES", BUT now the tissue menu is populated after user selects driver gene. 
-    
-    
-    # This page can be called from the 'drivers' or 'targets' page, with a driver as a POST parameter, so then should display the POST results?
-    if (gene_name is None) or (gene_name == ''): # if gene not passed using the '/gene_name' parameter in urls.py
-        if   request.method == 'GET':  gene_name = request.GET.get('gene_name', '')
-        elif request.method == 'POST': gene_name = request.POST.get('gene_name', '')
-        else: gene_name = ''
+    # As this page could in future be called from the 'drivers' or 'targets' page, with the gene_name as a standard GET or POST parameter (instead of the Django '/gene_name' parameter option in url.py):
+    if (gene_name is None) or (gene_name == ''):
+        gene_name = post_or_get_from_request(request, 'gene_name')
         
-    if histotype_name is None: histotype_name=''
+    # Set the default histotype to display in the Tissues menu:
+    # Previously this defaulted to PANCAN (or "ALL_HISTOTYPES"), BUT now the tissue menu is populated by javascript after the user selects driver gene:
+    # if histotype_name=="": histotype_name="PANCAN"
+    if histotype_name is None: histotype_name='' 
+    
+    # Get the study short name (to display as default in the studies menu) for the study_pmid:
+    study_short_name = get_study_shortname_from_study_list(study_pmid,study_list)
 
-    if (study_pmid is None) or (study_pmid == ''): study_short_name=''
-    elif study_pmid=="ALL_STUDIES": study_short_name="All studies"
-    else:
-      for study in study_list:
-        if study_pmid == study.pmid: study_short_name=study.short_name
-      if study_short_name is None:
-        print("WARNING: '"+study_pmid+"' NOT found in database so will be ignored")
-        study_pmid='' # ie. if study_pmid parameter value not found then ignore it.
-        
-        
-    # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
+    # Get host IP (or hostname) To display the host in title for developing on localhost or pythonanywhere server:
+    # current_url = request.get_full_path()
     # current_url = request.build_absolute_uri()
-    #current_url =  request.META['SERVER_NAME']
+    # current_url =  request.META['SERVER_NAME']
     current_url =  request.META['HTTP_HOST']
 
-    # Optionally could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'search_by': search_by, 'gene_name': gene_name, 'histotype_name': histotype_name, 'study_pmid': study_pmid, 'study_short_name': study_short_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'dependency_list': dependency_list, 'current_url': current_url}
+    # Set the context dictionary to pass to the template. (Alternatively could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
+    context = {'search_by': search_by, 'gene_name': gene_name, 'histotype_name': histotype_name, 'study_pmid': study_pmid, 'study_short_name': study_short_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'current_url': current_url}
     return render(request, 'gendep/index.html', context)
 
 
 def get_drivers(request):
-    # View for the driver_jquery search box.
-    #if request.is_ajax(): # Users can also access this from scripts so not always AJAX
-    name_contains = request.GET.get('name', '')  #  jQuery autocomplete sends the query as "term" and it expects back three fields: id, label, and value. It will use those to display the label and then the value to autocomplete each driver gene.
-    # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
-    if name_contains != '':
-        drivers = Gene.objects.filter(is_driver=True, gene_name__icontains = name_contains)   # [:20]
-    else:
-        drivers = Gene.objects.filter(is_driver=True)   # [:20]
+    """ Returns list of driver genes in JSON format for the jquery-ui autocomplete searchbox AJAX mode """
     
-    # ADD: full_name__icontains = q or prev_names__icontains = q or synonyms__icontains = q
-    results = []
-    for d in drivers:
-        d_json = {}
-        d_json['id'] = d.gene_name  # But maybe this needs to be an integer? 
-        d_json['label'] = d.gene_name
-        d_json['value'] = d.gene_name + ' : ' + d.full_name + ' : ' + d.prevname_synonyms
-        results.append(d_json)
-#    data = json.dumps(results)
-        # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
-        # eg: format is:
-        # [ {"id": "3", "value":"3","label":"Matching employee A"},
-        #   {"id": "5", "value":"5","label":"Matching employee B"},
-        # ]
-    # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
-    
-    #    data = 'fail'
-#    return HtmlResponse(json.dumps(results), content_type=json_mimetype)
+    # if request.is_ajax(): # Users can also access this from API scripts so not always AJAX
+    name_contains = request.GET.get('name', '')
+    # jQuery autocomplete sends the query as "name" and it expects back three fields: id, label, and value, eg:
+    # [ {"id": "ERBB2", "value":"ERBB2","label":"ERBB2, ...."},
+    #   {"id": "ERBB3", "value":"ERBB3","label":"ERBB3, ...."},
+    # ]
 
-    return JsonResponse(results, safe=False) # safe is false as data is a Json array, not dictionary
+    # For each driver gene, the autocomplete box with display the 'label' then the 'value'.
+    
+    if name_contains == '':
+        # Needs: (is_driver=True), not just: (is_driver)
+        drivers = Gene.objects.filter(is_driver=True)
+    else:    
+        # drivers = Gene.objects.filter(is_driver=True, gene_name__icontains=name_contains)
+        # To search in both: 'gene_name' or 'prevname_synonyms', need to use the 'Q' object:
+        drivers = Gene.objects.filter(is_driver=True).filter( Q(gene_name__icontains=name_contains) | Q(prevname_synonyms__icontains=name_contains) )  # could add: | Q(full_name__icontains=name_contains)
+
+    results = []
+    for d in drivers.order_by('gene_name'):
+        results.append({
+            'id':    d.gene_name,
+            'value': d.gene_name,
+            'label': d.gene_name + ' : ' + d.full_name + ' : ' + d.prevname_synonyms
+        })        
+        
+    # For a simpler result set could use, eg: 
+    # results = list(Gene.objects.filter(gene_name__icontains=name_contains).values('gene_name'))
+    
+    return JsonResponse(results, safe=False) # needs 'safe=false' as results is an array, not dictionary.
 
 
 
 def is_valid_ip(ip_address):
-    """ Check Validity of an IP address """
+    """ Check validity of an IP address """
     try:
         ip = ipaddress.ip_address(u'' + ip_address)
         return True
@@ -143,20 +179,10 @@ def is_valid_ip(ip_address):
         return False
     
 def get_ip_address_from_request(request):
-    """ Makes the best attempt to get the client's real IP or return the loopback """
-    # From: http://stackoverflow.com/questions/4581789/how-do-i-get-user-ip-address-in-django
-    # which is based on: "easy_timezones.utils.get_ip_address_from_request": https://github.com/Miserlou/django-easy-timezones
-    # or alternatively: https://github.com/un33k/django-ipware
+    """ Makes the best attempt to get the client's real IP or return the loopback """    
+    # Based on: "easy_timezones.utils.get_ip_address_from_request": https://github.com/Miserlou/django-easy-timezones
     
-    # IP addresses can be spoofed so isn't reliable.
-    
-    # "If your application server is behind a proxy, request.META["REMOTE_ADDR"] will likely return the proxy server's IP, not the client's IP. The proxy server will usually provide the client's IP in the HTTP_X_FORWARDED_FOR header. 
-    
-    # Could use "GeoIP" to plot location of requests, eg: http://dev.maxmind.com/geoip/legacy/geolite/
-    # GeoLocation2: https://docs.djangoproject.com/en/1.9/ref/contrib/gis/geoip2/
-    
-    # On PythonAnywhere:  https://help.pythonanywhere.com/pages/WebAppClientIPAddresses/
-    # when you access the remote_addr field, which is where the client IP address normally goes, you'll get the internal IP address of the load-balancer. Our loadbalancer puts the real IP address that we received the request from into the X-Real-IP header, which you can access like this in Django: request.META.get('HTTP_X_REAL_IP')   We also pass along the X-Forwarded-For header, which contains a comma-separated list of IP addresses which should be a list of all proxies that have handled the client's request, with the client's IP address first and the one we received it from last.
+    # On PythonAnywhere the loadbalancer puts the IP address received into the "X-Real-IP" header, and also passes the "X-Forwarded-For" header as a comma-separated list of IP addresses. The 'REMOTE_ADDR' contains load-balancer address.
     
     PRIVATE_IPS_PREFIX = ('10.', '172.', '192.', '127.')
     ip_address = ''
@@ -180,7 +206,7 @@ def get_ip_address_from_request(request):
             if not x_real_ip.startswith(PRIVATE_IPS_PREFIX) and is_valid_ip(x_real_ip):
                 ip_address = x_real_ip.strip()
     if not ip_address:
-        remote_addr = request.META.get('REMOTE_ADDR', '') # On PythonAnywhere this is the load-balancer addres.
+        remote_addr = request.META.get('REMOTE_ADDR', '') # On PythonAnywhere this is the load-balancer address.
         if remote_addr:
             if not remote_addr.startswith(PRIVATE_IPS_PREFIX) and is_valid_ip(remote_addr):
                 ip_address = remote_addr.strip()
@@ -189,74 +215,51 @@ def get_ip_address_from_request(request):
     return ip_address
     
     
-
-
     
 def send_an_email(emailfrom, emailto, emailreplyto, subject, text):
-    # Uses mailgun.com (for as free  PythonAnywhere accounts don't have SMTP access)
-    # mailgun records email in your logs: https://mailgun.com/cp/log .  You can send up to 300 emails/day from this sandbox server..."
-    # http://gexos.org/send-email-through-mailgun-with-python-and-pythonanywhere/
-    # MailGun API: https://documentation.mailgun.com/api-sending.html#sending
+    """ Uses the 'mailgun.com' service (as free  PythonAnywhere accounts don't have SMTP access) """
+    # mailgun.com records email in your logs: https://mailgun.com/cp/log 
+    # Better to keep this API auth key in a separate file, not on github:
     response = requests.post(
         "https://api.mailgun.net/v3/sandboxfb49cd4805584358bdd5ee8d96240a09.mailgun.org/messages",
         auth=("api", "key-ff52850192b21b271260779529ebd491"),
-        data={"from": emailfrom, # "Mailgun Sandbox <postmaster@sandboxfb49cd4805584358bdd5ee8d96240a09.mailgun.org>",
-              "to": emailto,  # "Stephen <sbridgett@gmail.com>",
+        data={"from": emailfrom,
+              "to": emailto,
               "h:Reply-To": emailreplyto,
               "subject": subject,
               "text": text
               })
-              
-    # Alternatively to use SMTP on the non-free PythonAnywhere account: http://stackoverflow.com/questions/6367014/how-to-send-email-via-django
-    # https://docs.djangoproject.com/en/1.9/topics/email/
-    """
-    Add SMTP config to settings.py
-    from django.core.mail import send_mail, BadHeaderError
-    from django.http import HttpResponse, HttpResponseRedirect
-
-    subject = request.POST.get('subject', '')
-    message = request.POST.get('message', '')
-    from_email = request.POST.get('from_email', '')
-    if subject and message and from_email:
-        try:
-            send_mail(subject, message, from_email, ['admin@example.com'])
-        except BadHeaderError:
-            return HttpResponse('Invalid header found.')
-        return HttpResponseRedirect('/contact/thanks/')
-    else:
-        # In reality we'd use a form class
-        # to get proper validation errors.
-        return HttpResponse('Make sure all fields are entered and valid.')
-    """
-    
+    if not response.ok: print("Failed to send email as:", response.content)
     return response.ok
-          
-              
+    
+
+    
 def log_comment(request):
-    # Log and email comments/queries from the 'contacts' page. 
+    """ Log and email comments/queries from the 'contacts' page """
+    # The user's input data is send by an HTML POST, not by Django url parameters as the message can be long:
     name = request.POST.get('name', '')
     emailreplyto = request.POST.get('email', '')
     comment = request.POST.get('comment', '')
-    # interest = request.POST.get('interest', '')
-    # human = request.POST.get('human', '')
-    # date = datetime.now() # can add the timezone as parameter, or alternatively use: django.utils.timezone.now() and set USE_TZ=True: https://docs.djangoproject.com/en/1.9/_modules/django/utils/timezone/
+    
+    # Optional fields, which are currently commented out on the html template:
+    #   interest = request.POST.get('interest', '')
+    #   human = request.POST.get('human', '')  # Result of a simple maths test, to check user is not a web spam robot.
+    
+    # To store the timezone: in "cgdd/settings.py" set: USE_TZ=True    
     date = timezone.now()
-    # can format date time using: https://docs.djangoproject.com/en/1.9/ref/templates/builtins/#date
-    # eg: D (for day, eg: Fri), d (day of month, eg: 04), M (eg. Jan), Y (year, eg: 1999) H (24 hour times) (or h for 12 hour, and A for AM/PM), i (minutes), e (timezone), T (Time zone of this machine).
-    # eg: {{ value|date:"D d M Y" }}
+    
     ip = get_ip_address_from_request(request)
         
     c = Comment.objects.create(name=name, email=emailreplyto, comment=comment, ip=ip, date=date)
         
-    # Should probably check for header injection attacks:  https://www.reddit.com/r/Python/comments/15n6dw/sending_emails_through_python_and_gmail/
+    # Should probably check for email header injection attacks:  https://www.reddit.com/r/Python/comments/15n6dw/sending_emails_through_python_and_gmail/
     # But mailgun probably checks for this.
-    
-    #emailfrom="sbridgett@gmail.com"
-    
+
     emailfrom=emailreplyto # Needs to be a valid email address or might give an exception?
-    
-    emailto="cancergenetics@ucd.ie"
-    #emailto="sbridgett@gmail.com"
+
+    # The emailto address needs to be authorised on the mailgun.com     
+    emailto="cancergenetics@ucd.ie" # or: "Cancer Genetics <cancergenetics@ucd.ie>"
+    #emailto="sbridgett@gmail.com"  # or: "Stephen <sbridgett@gmail.com>" for testing.
 
     subject="Cgenetics Comment/Query: "+str(c.id)
 
@@ -264,364 +267,208 @@ def log_comment(request):
     text = "From: "+name+" "+emailreplyto+"\nDate: " + date.strftime("%a %d %b %Y at %H:%M %Z") + "\n\n"+comment
     # https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
     
-    email_sent = "Email sent to cgenetics" if send_an_email(emailfrom=emailfrom, emailto=emailto, emailreplyto=emailreplyto, subject=subject, text=text) else "Failed to send email, but your message was saved in our comments database."
-    # Could add: interest=interest
+    email_sent = "Email sent to cgenetics" if send_an_email(emailfrom=emailfrom, emailto=emailto, emailreplyto=emailreplyto, subject=subject, text=text) else "Failed to send email, but your message was saved in our comments database."  # To the email could add: interest=interest
 
-    
-    # Sending email from PythonAnywhere free account: https://help.pythonanywhere.com/pages/SMTPForFreeUsers/
-    # Use MailGun (or Gmail): http://www.mailgun.com/
-
-    #             use: django.utils.timezone.now() and set USE_TZ=True
-    
-    """ Alternatively in the model use:
-    date = models.DateTimeField(default=datetime.now(), blank=True)
-Django has a feature to accomplish what you are trying to do already:
-
-date = models.DateTimeField(auto_now_add=True, blank=True)
-or default=timezone.now
-http://stackoverflow.com/questions/2771676/django-datetime-issues-default-datetime-now
-date = models.DateTimeField(default=datetime.now, blank=True)
-date = models.DateTimeField(default=datetime.now, editable=False,)
-Make sure, if your trying to represent this in an Admin page, that you list it as 'read_only' and reference the field name
-
-read_only = 'date'
-
-More info on Django timezones: https://docs.djangoproject.com/en/1.9/topics/i18n/timezones/
-    """
-    
     context = {'name': name, 'email': emailreplyto, 'comment': comment, 'date': date, 'email_sent': email_sent}
     return render(request, 'gendep/log_comment.html', context, content_type=html_mimetype)
     
+
+def get_histotype_full_name(histotype_name):
+    """ Returns the human readable proper-case tissue name, eg: 
+        if input is 'PANCAN' returns 'Pan cancer', or if input 'SOFT_TISSUE' returns 'Soft tissue' """
+    if histotype_name == "ALL_HISTOTYPES":
+        return "All tissues"
+    else:
+        return Dependency.histotype_full_name(histotype_name)
+
+
+def get_study(study_pmid):
+    """ Returns short study name (First author and year), for an imput Pub-Med Id """
+    if study_pmid == "ALL_STUDIES":
+        return "ALL_STUDIES"
+    try:
+        study = Study.objects.get(pmid=study_pmid)
+    except ObjectDoesNotExist: # Not found by the objects.get()
+        study = None
+    return study        
+
+
+def get_gene(gene_name):
+    """ Returns the Gene object (row from the Gene table) for the input gene_name (eg. 'ERBB2') """
+    # gene = None if gene_name == '' else Gene.objects.get(gene_name=gene_name)            
+    if gene_name=='':
+        return None
+    try:
+        gene = Gene.objects.get(gene_name=gene_name)
+    except ObjectDoesNotExist: # gene_name not found by the Gene.objects.get()
+        gene = None
+    return gene
+    
     
 def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wilcox_p=0.05, order_by='wilcox_p', select_related=None):
+    """ Builds the query used to extract the requested dependencies.
+          search_by:      'driver' or 'target'
+          gene_name:      must be sepcified and in the Genes table
+          histotype_name: can be "ALL_HISTOTYPES" or a histotype in the model
+          study_pmid:     can be "ALL_STUDIES" or a study pubmed id in the Study table
+          wilcox_p:       the Dependency table only contains the rows with wilcox_p <=0.05 so must be same or less than 0.05
+          order_by:       defaults to wilcox_p, but could be 'target_id' or 'effect_size', etc
+          select_related: can be None, or a string, or a list of strings (eg: ['driver__inhibitors', 'driver__ensembl_protein_id'] to efficiently select the inhibitors and protein_ids from the related Gene table in the one SQL query, rather than doing multiple SQL sub-queries later)
+    """
     error_msg = ""
     
     if gene_name == "":
         error_msg += 'Gene name is empty, but must be specified'
-        return error_msg, None, None, None, None
+        return error_msg, None
 
-    # As Query Sets are lazy, so can build query and evaluated once at end:
-    q = Dependency.objects.filter(wilcox_p__lte = wilcox_p) # Only list significant hits (ie: p<=0.05)
+    # Using driver_id=gene_name (or target_id=gene_name) avoids table join of (driver = gene):
+    q = Dependency.objects.filter(driver_id=gene_name) if is_search_by_driver(search_by) else Dependency.objects.filter(target_id=gene_name)
         
-    try: # To not need the table join, 
-        gene = Gene.objects.get(gene_name=gene_name)
-        # gene = None if gene_name == '' else Gene.objects.get(gene_name=gene_name) 
-        if is_search_by_driver(search_by):
-            q = q.filter( driver = gene )  # q = q.filter( driver__gene_name = gene )  maybe use driver_id = gene_name
-        else:
-            q = q.filter( target = gene )  # q = q.filter( target__gene_name = gene )  maybe use target_id = gene_name
-        
-    except ObjectDoesNotExist: # Not found by the objects.get()
-        error_msg = "Gene '%s' NOT found in Gene table" %(gene_name)  # if gene is None
-        return error_msg, None, None, None, None
-
+    # As Query Sets are lazy, so can incrementally build the query, then it is evaluated once at end when it is needed:
     if histotype_name != "ALL_HISTOTYPES":
-        histotype_full_name = Dependency.histotype_full_name(histotype_name)
-        q = q.filter( histotype = histotype_name ) # This correctly uses "...= histotype_name" (not "...= histotype_full_name")
-    else: 
-        histotype_full_name = "All tissues"
+        q = q.filter( histotype = histotype_name ) # Correctly uses: =histotype_name, not: =histotype_full_name
 
     if study_pmid != "ALL_STUDIES":
-        try:
-            study = Study.objects.get(pmid=study_pmid)
-            q = q.filter( study = study )
-        except ObjectDoesNotExist: # Not found by the objects.get()
-            error_msg += " Study pmid='%s' NOT found in Study table" %(study_pmid)
-            return error_msg, None, None, None, None
-    else:
-        study = "ALL_STUDIES"
+        q = q.filter( study_id = study_pmid )  # Could use: (study = study) but using study_id should be more efficiewnt as no table join needed.
 
-    if select_related != None:
-        if isinstance(select_related, str) and select_related != '': 
+    q = q.filter(wilcox_p__lte = wilcox_p) # Only list significant hits (ie: p<=0.05). '__lte' means 'less than or equal to'
+
+    if select_related is not None: 
+        if isinstance(select_related, str) and select_related != '':
             q = q.select_related(select_related)
-        elif isinstance(select_related, list):
+        elif isinstance(select_related, list) or isinstance(select_related, tuple):
             for column in select_related:
                 q = q.select_related(column)
         else:
-            error_msg += " ERROR: *** Invalid type for 'select_related' ***"        
+            error_msg += " ERROR: *** Invalid type for 'select_related' %s ***" %(type(select_related))
             print(error_msg)
-
      
     if order_by != None and order_by != '':
-        q = q.order_by(order_by)  # usually 'wilcox_p', but was: order_by('target__gene_name')
+        q = q.order_by(order_by)  # usually 'wilcox_p', but could be: order_by('target_id') to order by target gene name
         
-    return error_msg, q, gene, histotype_full_name, study
+    return error_msg, q
     
     
-def ajax_results_slow_full_detail_version(request):
-    # View for the dependency search result table.
-    # Ajax sends four fields: driver, histotype, pmid, [start(row for pagination):
-
-    request_method = request.method # 'POST' or 'GET'
-    if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), html_mimetype)
-
-    if not request.is_ajax(): return HttpResponse('fail', html_mimetype)
-
-    driver_name = request.POST.get('driver', "")  # It's an ajax POST request, rather than the usual ajax GET request
-    histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
-    study_pmid = request.POST.get('study', "ALL_STUDIES")
-
-    error_msg, dependency_list, driver, histotype_full_name, study = build_dependency_query(driver_name, histotype_name, study_pmid)
-    
-    if error_msg != '': return HttpResponse("Error: "+error_msg, html_mimetype)
-
-    gene_weblinks = driver.external_links('|')
-       
-    current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
-
-    context = {'dependency_list': dependency_list, 'driver': driver, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
-    return render(request, 'gendep/ajax_results.html', context, content_type=html_mimetype) #  ??? .. charset=utf-8"
-
 
 def gene_ids_as_dictionary(gene):
-  return {
-    'gene_name': gene.gene_name,
-    'entrez_id': gene.entrez_id,
-    'ensembl_id': gene.ensembl_id,
-    'ensembl_protein_id': gene.ensembl_protein_id,
-    'vega_id': gene.vega_id,
-    'omim_id': gene.omim_id,
-    'hgnc_id': gene.hgnc_id,
-    'cosmic_id': gene.cosmic_id,
-    'uniprot_id': gene.uniprot_id
-    }
+    """ To return info about alternative gene Ids as dictionary, for an JSON object for AJAX """
+    return {
+        'gene_name': gene.gene_name,
+        'entrez_id': gene.entrez_id,
+        'ensembl_id': gene.ensembl_id,
+        'ensembl_protein_id': gene.ensembl_protein_id,
+        'vega_id': gene.vega_id,
+        'omim_id': gene.omim_id,
+        'hgnc_id': gene.hgnc_id,
+        'cosmic_id': gene.cosmic_id,
+        'uniprot_id': gene.uniprot_id
+        }
+
+def gene_info_as_dictionary(gene):
+    """ To return info about the gene as a JSON object for AJAX """
+    return {    
+        'gene_name': gene.gene_name,
+        'full_name': gene.full_name,
+        'synonyms': gene.prevname_synonyms,
+        'ids': gene_ids_as_dictionary(gene),
+        }
     
-    
-# The following are cached so don't need to reload on each request:
-# These map the study_pmid and histotype short name to an integer:
-study_dict = dict()  # Maybe simpler to hard code the studies in 'models.py' in future.
-# Then could use small integer in the dependency table for study and histotype.
-study_json = None
-study_last_reloaded = None
-histotype_dict = dict() # As histotypes are hardcoded in 'models.py' then won't change while server running.
-histotype_json = None
-
-
-
     
 def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
-    # Results JSON formatted data for the dependency search result table.
-    # Ajax on from "Search" button on the "index.html" page sends four fields: search_by, gene_name, histotype, pmid, [start(row for pagination):
-    # returns json - should also return the error message as json format.
-    # Get request is faster than post, as Post make two http requests, Get makes one, the django parameters are a get.
-    # mimetype = 'text/html' # for error messages. was: 'application/json'
+    """ Fetches the dependency data from cache (if recent same query) or database, for the main search result webpage.
+    After "Search" button on the "index.html" page is pressed an AJAX requst sends four fields: search_by, gene_name, histotype, and study_pmid.
+    For paginated table, could add [start_row, and number_of_rows to return]
+    Returns JSON formatted data for the dependency search result table, or an error message in JSON format.
+    GET request is faster than POST, as POST makes two http requests, GET makes one, the Django url parameters are a GET request.
+    """
     
-    timing_array = []  # Using an array to preserve order on output.
+    timing_array = []  # Using an array to preserve order of times on output.
     start = datetime.now()
     
-    ajax_results_cache_version = '1' # version of the data in the database and of this json format. Increment this on updates that change the db or this json format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
+    ajax_results_cache_version = '1' # version of the data in the database and of this JSON format. Increment this on updates that change the database data or this JSON format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
+    
+    # Avoid storing a 'None' value in the cache as then difficult to know if was a cache miss or is value of the key
+    cache_key = search_by+'_'+gene_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
+    cache_data = cache.get(cache_key, 'not_found') # To avoid returning None for a cache miss.
+    if cache_data != 'not_found': 
+        # start = get_timing(start, 'Retrieved from cache', timing_array)
+        # The 'timings': timing_array in the cached version is saved from the actual previous query execution, is not the timing for retrieving from the cache.
+        return HttpResponse(cache_data, json_mimetype) # version=ajax_results_cache_version)
 
     search_by_driver = is_search_by_driver(search_by) # otherwise is by target
-    #if search_by_driver: print("***** search_by_driver is TRUE")
-    #else: print("***** search_by_driver is FALSE")
-    
-    # Avoid storing a 'None' on the cache as then can't tell if if cache miss or is value of the key
-    cache_key = search_by+'_'+gene_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
-    cache_data = cache.get(cache_key, 'not_found')
-    if cache_data != 'not_found': 
-        start = get_timing(start, 'Retrieved from cache', timing_array)
-    #    return HttpResponse(cache_data, json_mimetype, version=ajax_results_cache_version)
-   
-    #d = end - start  # datetime.timedelta object
-    #print d.total_seconds()  
 
+    # Specify 'select_related' columns on related tables, otherwise the template will do a separate SQL query for every dependency row to retrieve the driver/target data (ie. hundreds of SQL queries on the Gene table)
+    # Can add more select_related columns if needed, eg: for target gene prevname_synonyms: target__prevname_synonyms
+    select_related = [ 'target__inhibitors', 'target__ensembl_protein_id' ] if search_by_driver else [ 'driver__inhibitors', 'driver__ensembl_protein_id' ]
     
-    #request_method = request.method # 'POST' or 'GET'
-    #if request_method != 'POST': return HttpResponse('Expected a POST request, but got a %s request' %(request_method), json_mimetype)
-
-    # if not request.is_ajax(): return HttpResponse('fail', json_mimetype)
-    
-    # search_by = request.POST.get('search_by', "")  # It's an ajax POST request, rather than the usual ajax GET request
-    # gene_name = request.POST.get('gene', "") 
-    # histotype_name = request.POST.get('histotype', "ALL_HISTOTYPES")
-    # study_pmid = request.POST.get('study', "ALL_STUDIES")
-    # effect_size = request.POST.get('effect_size', "ALL_EFFECT_SIZES")
-    # return json_error('Hello') # HttpResponse("Hello", json_mimetype)
-    
-    if search_by_driver:
-        select_related = [ 'target__inhibitors', 'target__ensembl_protein_id' ]
-    else:
-        select_related = [ 'driver__inhibitors', 'driver__ensembl_protein_id' ]
- 
-    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # can add select related if needed, eg: for target gene prevname_synonyms.
+    error_msg, dependency_list = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) 
     if error_msg != '': return json_error("Error: "+error_msg)
+    
+    gene = get_gene(gene_name)
+    if gene is None: return json_error("Error: Gene '%s' NOT found in Gene table" %(gene_name))
 
-    # gene_weblinks = gene.external_links('|') # Now in javascript
-       
-    current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
+    # Only need current_url to include it in title/browser tab on hoover, for testing.
+    #current_url =  request.META['HTTP_HOST']  # or: request.META['SERVER_NAME']
 
     start = get_timing(start, 'Query setup', timing_array)
         
     results = []
     csv = ''
     div = ';' # Using semicolon as the div, as comma may be used to separate the inhibitors
-    
-    # From server-side, a csv file format is probably more efficient as is just commas as separater, rather than repeating the keys multiple times.
-    # Maybe even use raw sql for maybe faster query: https://docs.djangoproject.com/en/1.9/topics/db/sql/#passing-parameters-into-raw
-    # *** To see the raw SQL, try using:  django.db.connection.queries 
-
-    # In MySQL can directly use:   SELECT CONCAT_WS(',', field1, field2, field3) FROM table; 
-    #   http://stackoverflow.com/questions/707473/how-do-you-output-mysql-query-results-in-csv-format-to-the-screen-not-to-a-fil
-    #   CONCAT_WS() does not skip empty strings. However, it does skip any NULL values after the separator argument. 
-    #   https://ariejan.net/2008/11/27/export-csv-directly-from-mysql/
-    # Is there anything similar for sqlite?
-    
-    # If need to acccess fields in a related table, use: ...select_related('fieldname')  https://www.neustar.biz/blog/optimizing-django-queries
-    # Although just works on 1-to-1 relationships, tthen use dict approach.
-    # Other ideas: https://blog.mozilla.org/webdev/2011/12/15/django-optimization-story-thousand-times-faster/
-    
-    # Maybe use: json = serializers.serialize('json', playlists)
-    #            return HttpResponse(json, mimetype=json_mimetype)
-    
-    
-    # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again. This iteractor version seems slightly faster than non-iterated version.
-    # In practice, the database interface (e.g. the Python MySQLdb module) does cache data anyway. If really need to reduce memory usage, retrieve data in chunks.
-    
-    # Could try rawSQL: https://docs.djangoproject.com/en/dev/topics/db/sql/
-    
-    # Adding  only(field1, field2, ...), to this query might make a bit faster as retrieves fewer fields, so less converted to python strings/objects: https://docs.djangoproject.com/en/dev/ref/models/querysets/#only
-    # dependency_list =  dependency_list.only("target_id", "wilcox_p", "effect_size", "histotype", "study_id", "interaction", "inhibitors")
     count = 0
-        
-    for d in dependency_list.iterator(): # was: for d in dependency_list:
+    
+    # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again in this function. This iteractor version seems slightly faster than non-iterator version.
+    for d in dependency_list.iterator():
         count += 1
-        """
-        d_json = {}
-        # Using single characters for the field keys below would reduce the size of the json to be transfered to client.
-        # eg: g=gene, p=wilcox_p, e=effect_size, s=study, h=histotype, i=inhibitors, a=interaction
+
+        interaction = d.interaction
+        if interaction is None: interaction = ''  # shouldn't be None, as set by ' add_ensembl_proteinids_and_stringdb.py' script to ''.
         
-        d_json['g'] = d.target_id if search_by_driver else d.driver_id
-        
-        # was: d_json['t'] =  d.target_id # was 'target'  # or d.target_id   ? .gene_name  # But maybe this 'id' needs to be an integer?   # Maybe don't need to ref the gene_name as the target filed is itself the gene_name
-        # or on the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
-        # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
-            
-        d_json['p'] = format(d.wilcox_p, ".0E").replace("E-0", "E-")  # was 'wilcox_p' Scientific format and remove the leading zero from the exponent  # in template use: |stringformat:....
-        d_json['e'] = d.effect_size # was 'effect_size'
-        d_json['s'] = d.study_id # was: 'study_pmid' or maybe id # can use the foreign key value directly as it is the pmid. https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
-        # But maybe I need to call field the default name of 'study_id'
-        #    study    = models.ForeignKey(Study, verbose_name='PubMed ID', db_column='pmid', to_field='pmid', on_delete=models.PROTECT, db_index=True)
-            
-        # + ' ' + d.full_name + ' ' + d.prevname_synonyms
-            
-        d_json['h'] = d.histotype   # was 'histotype' get_histotype_display()  # or could use 'd.histotype' shortened names, with a hash in javascript in the index.html file.
-        d_json['i'] = '' # d.inhibitors  was 'inhibitors' - but empty for now.
-        # d_json['study_summary'] = d.study.summary  # Info about all the studies separately embedded in the index.html template file is small.  dependency.study.weblink|safe
-        d_json['a'] = '' # d.interaction  was: 'interaction'
-        
-        results.append(d_json)
-        """
-
-        """
-Test stringdb:
-CHECK1
-RIOK2
-WEE1
-CDK18
-TTK
-PLK1
-PRKCD
-AURKA
-GUCY2F
-DCK
-TWF1
-BUB1
-XRCC6BP1
-CDKN2C
-CDK11A
-        """
-        # As CSV, or simply each row as one array or tuple within the results array, and can optionally have a number as index, eg:
-        # But cannot use gene (driver/target) as key, as dict assumes that gene is unique within this driver's data: (currently it isn't unique within histotype & study_pmid)
-# was 'interaction_hhm'
-
-        # NEED to change this target/driver search by protein ids.
-        # *** should include this protein_id in related fields above for speed, as either driver or target
-
-        interaction = d.interaction   # Medium/High/Highest. is Null? # was: 'Y' if d.interaction else '', 
-        if interaction is None: interaction = ''   # should not be None, as set in table by script to ''.
-
         interation_protein_id = d.target.ensembl_protein_id if search_by_driver else d.driver.ensembl_protein_id
         if interation_protein_id is None: interation_protein_id = ''  # The ensembl_protein_id might be empty.
-        interaction += '#'+interation_protein_id  # Always append the protein id so can use this to link to string.org
-        
-        
-        inhibitors = d.target.inhibitors if search_by_driver else d.driver.inhibitors
-        if inhibitors is None: inhibitors = ''
-        
-        results.append([
-                    d.target_id if search_by_driver else d.driver_id, # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
-                    format(d.wilcox_p, ".0E").replace("E-0", "e-"),  # Scientific format, remove leading zero from the exponent
-                    format(d.effect_size*100, ".1f"),  # As a percentage
-                    format(d.zdiff,".2f"), # Usually negative
-                    d.histotype, # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
-                    d.study_id, # returns the underlying pmid number rather than the Study object
-                    interaction,
-                    inhibitors,  #'',  # d.inhibitors - but empty for now.
-                    d.target_variant  # Just temporary to ensure display correct achilles boxplot image.
-                    ])  # optionally an id: d_json['1'] = 
-        """
-        # If use simple CSV rather than json, then would need to check for semicolons in the input fields,
-        # so is safer to use csv_writer, as it will quote any sttrings containing semicolons:
-        # histotype_code and study_code return single characters to encode these fields smaller, for faster data transfer to browser.
-        csv += d.target_id +div+ # the '_id' suffix gets the underlying gene name, rather than the foreigh key Gne object. See:  https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
-               format(d.wilcox_p, ".0E").replace("E-0", "E-") +div+  # Scientific format, remove leading zero from the exponent
-               format(d.effect_size*100, ".1f") +div+  # As a percentage
-               histotype_code[d.histotype] +div+ # was d.get_histotype_display()  # but now using a hash in javascript to convert these shortened names.
-               study_code[d.study_id] +div+ # returns the underlying pmid number rather than the Study object
-               '' +div+ # d.interaction - but empty for now
-               '' +"\n" # d.inhibitors - but empty for now
-        """
+        interaction += '#'+interation_protein_id  # Append the protein id so can use this to link to string-db.org
 
-        # To add join to the query add:    qs.select_related('author')  # see: http://digitaldreamer.net/blog/2011/11/7/showing-foreign-key-value-django-admin-list-displa/
-        # target      = models.ForeignKey(Gene, verbose_name='Target gene', db_column='target', to_field='gene_name', related_name='+', db_index=True, on_delete=models.PROTECT)
-                        
-        # + ' ' + d.full_name + ' ' + d.prevname_synonyms
-                    
+        inhibitors = d.target.inhibitors if search_by_driver else d.driver.inhibitors
+        if inhibitors is None: inhibitors = '' # shouldn't be None, as set by 'drug_inhibitors.py' script to ''.
+        
+        # For driver or target below, the '_id' suffix gets the underlying gene name, rather than the foreign key Gene object, so more efficient as no SQL join needed.
+        # Similarily 'study_id' returns the underlying pmid number from Dependency table rather than the Study object.
+        # wilcox_p in scientific format with no decimal places (.0 precision), and remove python's leading zero from the exponent.
+        results.append([
+                    d.target_id if search_by_driver else d.driver_id,
+                    format(d.wilcox_p, ".0e").replace("e-0", "e-"),
+                    format(d.effect_size*100, ".1f"),  # As a percentage with 1 decimal place
+                    format(d.zdiff,".2f"), # Usually negative. two decomal places
+                    d.histotype,
+                    d.study_id,
+                    interaction,
+                    inhibitors # Formatted above
+                    ])
+
     start = get_timing(start, 'Dependency results', timing_array)
     
-    # results_column_names = ['Target','Wilcox_p','Effect_size','Histotype','Study_pmid','Inhibitors','Interactions'] # Could add this to the returned 'query_info'
-    histotype_details = "<b>All tissues</b>" if histotype_name == "ALL_HISTOTYPES" else ("tissue type <b>"+histotype_full_name+"</b>")
-    study_details = "<b>All studies</b>" if study_pmid == "ALL_STUDIES" else ("study "+study.weblink()+" "+study.title+", "+ study.authors[:30]+" et al, "+study.journal+", "+ study.pub_date)
+    # results_column_names = ['Target','Wilcox_p','Effect_size','ZDiff','Histotype','Study_pmid','Inhibitors','Interactions'] # Could add this to the returned 'query_info'
 
     query_info = {'search_by': search_by,
                   'gene_name': gene_name,
                   'gene_full_name': gene.full_name,
                   'gene_synonyms': gene.prevname_synonyms,
-                  # 'gene_weblinks': gene.external_links('|'), # now passing the 'gene_ids' as a dictionary to format in webbrowser.
                   'histotype_name': histotype_name,
-                  'histotype_full_name': histotype_full_name, # Not read
-                  'histotype_details': histotype_details,
                   'study_pmid': study_pmid,
-                  'study_details': study_details,
                   'dependency_count': count, # should be same as: dependency_list.count(), but dependency_list.count() could be another SQL query. # should be same as number of elements passed in the results array.
-                  'current_url': current_url
                   }
-                # study.weblink|safe
+                  # 'current_url': current_url # No longer needed.
                 
-    #print(timing_array)
     data = json.dumps({
         'success': True,
         'timings': timing_array,
         'query_info': query_info,
         'gene_ids': gene_ids_as_dictionary(gene),
         'results': results
-        }, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think would make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
-        # Alternatively use: return HttpResponse(simplejson.dumps( [drug.field for drug in drugs ]))
-        # eg: format is:
-        # [ {"id": "3", "value":"3","label":"Matching employee A"},
-        #   {"id": "5", "value":"5","label":"Matching employee B"},
-        # ]
-    # data = json.dumps(list(Town.objects.filter(name__icontains=q).values('name')))
+        }, separators=[',',':']) # The default separators=[', ',': '] includes whitespace which I think make transfer to browser larger. As ensure_ascii is True by default, the non-asciii characters are encoded as \uXXXX sequences, alternatively can set ensure_ascii to false which will allow unicode I think.
     
     start = get_timing(start, 'Json dump', timing_array) # Although too late to add this time to the json already encoded above.
-    
-    # BUT need to check for other process writing this file at same time - eg. include the process (os.getpid() - Returns the current process id) and maybe thread id (import _thread; _thread.get_ident() - the 'thread identifier' of the current thread. This is a nonzero integer. Its value has no direct meaning; it is intended as a magic cookie to be used e.g. to index a dictionary of thread-specific data. Thread identifiers may be recycled when a thread exits and another thread is created.)
-    # then when finished writing move if safe to move to .json
-    # or maybe better to store in database rather than file.
-    # An example of using file system for caching - half-way down thisa webpage: https://www.pythonanywhere.com/forums/topic/197/
-    #with open('Cache_'+cache_key+'.json','w') as fout:
-    #    fout.write(data)
-    
+
     cache.set(cache_key, data, version=ajax_results_cache_version) # could use the add() method instead, but better to update anyway.
     # Could gzip the cached data (using GZip middleware's gzip_page() decorator for the view, or in code https://docs.djangoproject.com/en/1.9/ref/middleware/#module-django.middleware.gzip )
     # GZipMiddleware will NOT compress content if any of the following are true:
@@ -634,142 +481,90 @@ CDK11A
     # and example of gzip using flask: https://github.com/closeio/Flask-gzip
     #  https://github.com/closeio/Flask-gzip/blob/master/flask_gzip.py
 
+    #print(timing_array) # To django console/server log
+    return HttpResponse(data, content_type=json_mimetype) # As data is alraedy in json format, so not using JsonResponse(data, safe=False) which would try to convert it to JSON again.
     
-    # Maybe better to use a JsonResponse, and use only dictionary objects (I used an array above as more comapct):
-    # from django.http import JsonResponse
-    # response = JsonResponse({'foo': 'bar'})
-    # response.content
-    # b'{"foo": "bar"}'
-    # In order to serialize objects other than dict you must set the safe parameter to False:
-    # response = JsonResponse([1, 2, 3], safe=False)
-    # ** Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution.
-    # See: https://docs.djangoproject.com/en/1.9/ref/request-response/
-
-    # return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
-
-    # The safe=False is needed below so can pass an list (Json array), not just a dictionary.
-    # "Before the 5th edition of EcmaScript it was possible to poison the JavaScript Array constructor. For this reason, Django does not allow passing non-dict objects to the JsonResponse constructor by default. However, most modern browsers implement EcmaScript 5 which removes this attack vector. Therefore it is possible to disable this security precaution." From: https://docs.djangoproject.com/en/1.9/ref/request-response/#jsonresponse-objects
-    #return JsonResponse(data, safe=False)
-    
-    return HttpResponse(data, content_type=json_mimetype) # As data is in json format, not using JsonResponse which would try to convert it again.
-    
-    # optional param: The "json_dumps_params={'key':'value',....}" parameter is a dictionary of keyword arguments to pass to the json.dumps() call used to generate the response.
-    
-    #    context = {'dependency_list': dependency_list, 'gene': gene, 'histotype': histotype_name, 'histotype_full_name': histotype_full_name, 'study': study, 'gene_weblinks': gene_weblinks, 'current_url': current_url}
-    # return render(request, 'gendep/ajax_results.html', context, content_type=mimetype) #  ??? .. charset=utf-8"
 
 
-def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, study_pmid):  # Optionally a 'target_variant' for the Achilles data
+def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, study_pmid):
+    """ Returns data for plotting the boxplots, in JSON or CSV format
+    The 'target_variant' parameter is no longer used for the Achilles data, as only the target_variant with the best wilcox_p value is stored in the Dependency table """
     try:
         d = Dependency.objects.get(driver_id=driver_name, target_id=target_name, histotype=histotype_name, study_id=study_pmid)
         
-    except ObjectDoesNotExist: # Not found by the objects.get()
+    except ObjectDoesNotExist: # ie. not found by the objects.get()
         error_msg = "Error, Dependency: driver='%s' target='%s' tissue='%s' study='%s' NOT found in Dependency table" %(driver_name, target_name, histotype_name, study_pmid)
-        if dataformat[:4] == 'json':
-          return json_error(error_msg, status_code='1')
+        if dataformat[:4] == 'json': # for request 'jsonplot' or 'jsonplotandgene'
+          return json_error(error_msg)
         else:  
-          return HttpResponse(error_msg, content_type=plain_mimetype)  # or should be csv type ??
+          return HttpResponse(error_msg, content_type=plain_mimetype)  # or could use csv_minetype
           
     if dataformat == 'csvplot':
-        return HttpResponse(d.boxplot_data, content_type=csv_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_typef
+        return HttpResponse(d.boxplot_data, content_type=csv_mimetype)
 
-    if dataformat == 'jsonplot':    
-        return HttpResponse(d.boxplot_data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_typef
-
-    if dataformat == 'jsonplotandgene':   # when browser doesn't already have target gene_info and ncbi_summary cached.
+    if dataformat == 'jsonplot':
+        return JsonResponse({'success': True, 'boxplot': d.boxplot_data}, safe=False)
+   
+    if dataformat == 'jsonplotandgene': # when browser doesn't already have target gene_info and ncbi_summary cached.
         try:
-          gene = Gene.objects.get(gene_name=target_name)          
-          data = { 'success': True, 'gene_info':{'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene), 'ncbi_summary': gene.ncbi_summary}, 'boxplot': d.boxplot_data }          
-          return JsonResponse(data, safe=False)   # can use: charset='UTF-8' instead of putting utf-8 in the content_typef     # or use JsonResponse(data, safe=False)
-          
-        except ObjectDoesNotExist: # Not found by the objects.get()          
-          error_msg = "Error, Gene: target='%s' NOT found in Gene table" %(target_name)
-          return json_error(error_msg, status_code='2')        
-        
-    elif dataformat=='download':        
-        dest_filename = ('%s_%s_%s_pmid%s.csv' %(driver_name,target_name,histotype_name,study_pmid)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
+            gene = Gene.objects.get(gene_name=target_name)
+            gene_info = gene_info_as_dictionary(gene);
+            gene_info['ncbi_summary'] = gene.ncbi_summary  # To include the gene's ncbi_summary
+            return JsonResponse( { 'success': True,
+                                   'gene_info': gene_info,
+                                   'boxplot': d.boxplot_data },
+                                 safe=False )
+        except ObjectDoesNotExist: # Not found by the objects.get()                    
+            return json_error( "Error, Gene: target='%s' NOT found in Gene table" %(target_name) )
 
+    elif dataformat=='csv' or dataformat=='download': 
+        # 'csv' is for users to request the boxplot data via API
+        # 'download' to for the 'Download as CSV' button on the SVG boxplots
         lines = d.boxplot_data.split(';')
-        lines[0] = "Tissue,CellLine,Zscore,Altered"; # This first line is the count, range, and boxplot_stats
-        # Create the HttpResponse object with the CSV/TSV header and downloaded filename:                
-        response = HttpResponse("\n".join(lines), content_type=csv_mimetype) # Maybe use the type for tsv files?    
-        response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
+        
+        lines[0] = "Tissue,CellLine,Zscore,Altered";
+        # This first line is the count, range, and boxplot_stats.
+        
+        # As this range and boxplot_stats are now calculated by the Javasscript in svg_boxplots.js, this line can be removed from future R output, so in future we need to prepend to the list, rather than replacing the first line here:
+        #  lines.insert(0, "Tissue,CellLine,Zscore,Altered")
+        # or just: 
+        #  response = HttpResponse("Tissue,CellLine,Zscore,Altered\n" + (d.boxplot_data.replace(";","\n")), content_type=csv_mimetype)
+        response = HttpResponse("\n".join(lines), content_type=csv_mimetype)
+        if dataformat=='download':
+            # Add to the HttpResponse object with the CSV/TSV header and downloaded filename:
+            dest_filename = ('%s_%s_%s_pmid%s.csv' %(driver_name,target_name,histotype_name,study_pmid)).replace(' ','_') # To also replace any spaces with '_'
+            # NOTE: Using .csv as Windows (and Mac) file associations will then know to open file with Excel, whereas if is .tsv then Windows won't open it with Excel.
+            response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
         return response
             
     else:
         print("*** Invalid dataformat requested for get_boxplot() ***")
         return HttpResponse("Error, Invalid dataformat '"+dataformat+"' requested for get_boxplot()", content_type=plain_mimetype)
         
-    """
-=================
-   Not complete yet:
-   if delim_type=='csv':
-        dialect = csv.excel
-        content_type = csv_mimetype
-    elif delim_type=='tsv':
-        dialect = csv.excel_tab
-        content_type = tab_mimetype
-    else:
-        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
 
-    # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
-    response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?    
-    response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
-    
-    writer = csv.writer(response, dialect=dialect)  # An alternative would be: csv.unix_dialect
-      # csv.excel_tab doesn't display well
-      # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
-    
-    count = dependency_list.count()
-    study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
-    writer.writerows([
-        ["","A total of %d dependencies were found for: %s='%s', Tissue='%s', Study='%s'" % (count, search_by.title(), gene_name,histotype_full_name, study_name),], # Added some dummy columns so Excel knows from first row that is CSV
-        ["","Downloaded from CGDD on %s" %(timestamp),],
-        ["",],
-        ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
-
-    writer.writerow(search_by_driver_column_headings_for_download if search_by_driver
-               else search_by_target_column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. 
-=============
-    try:
-#      print("gene_name: %s %d %d %d" %(row['driver'], row['num_studies'], row['num_histotypes'], row['num_targets']))
-
-      # Using driver_id and target_id as faster as don't need to join with the Gene table to check the gene_name which is same as driver_id and traget_id anyway.
-      d = Dependency.objects.get(driver_id=driver_name,target_id=target_name, histotype=histotype_name, study_id=study_pmid)  # can this ever findmore than one row that matches - not at present as there is a unique contraint on the dependency table.
-      
-      # Double-check that name is same:
-      if d.driver_id!=driver_name or d.target_id!=target_name or d.histotype!=histotype_name or d.study_id!=study_pmid:
-        print("*** ERROR: driver '%s' '%s' or target '%s' '%s' or histotype '%s' '%s' or study '%s' '%s' mismatch" %(d.driver_id, driver_name,  d.target_id, target_name, d.histotype, histotype_name, d.study_id, study_pmid)
-        # return error message
-      else:      
-        ..... d.boxplot_data
-      
-    except ObjectDoesNotExist: # Not found by the objects.get()
-      print("*** ERROR: driver '%s' or target '%s' or histotype '%s' or study '%s' mismatch" %(driver_name, target_name, histotype_name, study_pmid)
-      return error
-
-    return HttpResponse(data, content_type=json_mimetype)   # can use: charset='UTF-8' instead of putting utf-8 in the content_type
-    """
-  
         
     
 def stringdb_interactions(required_score, protein_list):
-    #print("In: get_stringdb_interactions")
-    stringdb_options="network_flavor=confidence&limit=0&required_score="+required_score;  # &additional_network_nodes=0
-    # The online interactive stringdb uses: "required_score" 400 and: "limit" 0 (otherwise by default will add 10 more proteins)
-
-    # http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confidence&limit=0&required_score=700&identifiers=9606.ENSP00000269571%0D9606.ENSP00000357883%0D9606.ENSP00000345083
+    """ Retrieve list of protein_ids with interaction of >=required_score
+         'required_score' is typically 400, or 700 (for 40% or 70% confidence)
+         'protein_list' is ensembl protein_ids separated with semicolons ';'
+    NOTE: The pythonanywhere.com free account blocks requests to servers not on their whitelist. String-db.org has now been added to their whitelist, so this function works ok on free or paid accounts.
+    This function creates a request in format: http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confidence&limit=0&required_score=700&identifiers=9606.ENSP00000269571%0D9606.ENSP00000357883%0D9606.ENSP00000345083
+    """
     
-    protein_list = protein_list.replace(';', '%0D')  # To send to stringdb
+    stringdb_options="network_flavor=confidence&limit=0&required_score="+required_score;    
+    # The online interactive stringdb uses: "required_score" 400, and "limit" 0 (otherwise by default string-db will add 10 more proteins)
+    # Optionally add parameter:  &additional_network_nodes=0
+    
+    protein_list = protein_list.replace(';', '%0D')  # Replace semicolon with the url encoded newline character,  which String-db expects between protein ids.
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
-    #print(url)
     
-# or maybe use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
-# import requests
-# r = requests.get(url, stream=True)
-# for line in r.iter_lines():
-#   if line: print line
+    # For very large result sets could use streaming: http://stackoverflow.com/questions/16870648/python-read-website-data-line-by-line-when-available
+    # import requests
+    # r = requests.get(url, stream=True)
+    # for line in r.iter_lines():
+    #   if line: print line
 
     req = Request(url)
     try:
@@ -779,164 +574,136 @@ def stringdb_interactions(required_score, protein_list):
             return False, 'We failed to reach a server: ' + e.reason
         elif hasattr(e, 'code'):
             return False, 'The server couldn\'t fulfill the request. Error code:' + e.code
-    else:  # everything is fine
+    else:  # response is fine
         return True, response.read().decode('utf-8').rstrip().split("\n") # read() returns 'bytes' so need to convert to python string
 
 
-def get_stringdb_interactions(request, required_score, protein_list):
-
-    success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
+def get_stringdb_interactions(request, required_score, protein_list=None):
+    """ Returns the subset of protein protein_list that string-db reports have interactions with at least one other protein in the protein_list. This is to remove the unconnected proteins from the image """
     
-    if success:
-        protein_dict =  dict((protein,True) for protein in protein_list.split(';')) # Dict to check later if returned protein was in original list
-        if response=='':   # or response=="\n":
-            return HttpResponse("", content_type=plain_mimetype)
-        protein_dict2 = dict()
-        #print("response:",response)
-        for line in response: # 
-            if line == '': continue
-            cols = line.rstrip().split("\t")
-            # print("cols:",cols)
-            # print("line:",line.rstrip())
-            if len(cols)<2: print("Num cols = %d in line: '%s'" %(len(cols),line.rstrip()) )
-# Got error for:  http://string-db.org/api/psi-mi-tab/interactionsList?network_flavor=confidence&limit=0&required_score=700&identifiers=9606.ENSP00000269571%0D9606.ENSP00000357883%0D9606.ENSP00000345083
-# Internal Server Error: /gendep/get_stringdb_interactions/700/9606.ENSP00000269571;9606.ENSP00000357883;9606.ENSP00000345083/
-# Traceback (most recent call last):
-#  File "C:\Users\HP\AppData\Local\Programs\Python\Python35\lib\site-packages\django\core\handlers\base.py", line 149, in get_response
-#    response = self.process_exception_by_middleware(e, request)
-#  File "C:\Users\HP\AppData\Local\Programs\Python\Python35\lib\site-packages\django\core\handlers\base.py", line 147, in get_response
-#    response = wrapped_callback(request, *callback_args, **callback_kwargs)
-#  File "C:\Users\HP\Django_projects\cgdd\gendep\views.py", line 592, in get_stringdb_interactions
-#    if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
-# TypeError: Can't convert 'bytes' object to str implicitly
-# [07/May/2016 16:13:18] "GET /gendep/get_stringdb_interactions/700/9606.ENSP00000269571;9606.ENSP00000357883;9606.ENSP00000345083/ HTTP/1.1" 500 16932            
+    # The request can be optionally be sent by an HTML GET or POST. POST means no limit to number of proteins sent, whereas GET or Django url() params are limited by length of the URL the webbrowser permits.
+    if (protein_list is None) or (protein_list == ''):
+        protein_list = post_or_get_from_request(request,'protein_list')    
+    
+    # Fetch the subset of protein_list that  have actual interactions with other proteins in the list:
+    success, response = stringdb_interactions(required_score, protein_list)
+
+    if not success: return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
+
+    if response=='': return HttpResponse("", content_type=plain_mimetype) # No interacting proteins.
+    # was: or response=="\n", but the newline in empty response is rstrip'ed in stringdb_interactions()
+    
+    # Dictionary to check later if returned protein was in original list:
+    initial_protein_dict = dict((protein,True) for protein in protein_list.split(';'))
+    
+    err_msg = ''        
+    final_protein_dict = dict()
+    for line in response:
+        if line == '': continue
+        cols = line.rstrip().split("\t")
+        if len(cols)<2: err_msg+="\nNum cols = %d (but expected >=2) in line: '%s'" %(len(cols),line.rstrip())
+         
+        for i in (0,1): # col[0] and col[1] are the pair of interacting proteins
+            protein = cols[i].replace('string:', '') # as returned ids are prefixed with 'string:'
+            if protein in initial_protein_dict: final_protein_dict[protein] = True
+            else: err_msg+="\n*** Protein%d returned '%s' is not in original list ***" %(i+1,protein)
             
+    if err_msg != '':
+        print(err_msg)
+        return HttpResponse('ERROR:'+err_msg, content_type=plain_mimetype)
             
-            protein = cols[0].replace('string:', '') # as ids start with 'string:'
-            if protein in protein_dict: protein_dict2[protein] = True
-            else: print("*** Protein returned '%s' is not in original list ***" %(protein))
+    protein_list2 = ';'.join(final_protein_dict.keys())
+    return HttpResponse(protein_list2, content_type=plain_mimetype)
 
-            protein = cols[1].replace('string:', '') # as ids start with 'string:'
-            if protein in protein_dict: protein_dict2[protein] = True
-            else: print("*** Protein returned '%s' is not in original list ***" %(protein))
-
-        protein_list2 = ';'.join(protein_dict2.keys())
-            
-        #data = response.read().decode('utf-8') # Maybe don't need to decode it?
-        # lines = data.split("\n")  # string:9606.ENSP00000302530	string:9606.ENSP00000300093
-        # result = ""
-        #for line in lines:
-        #    print(line)
-        #    cols = line.split("\t")
-        #    if len(cols)<2: continue # As eg. has a newline at end so empty line at end
-        #    result += cols[0].replace('string:', '')+"\t"+cols[1].replace('string:', '')+"\n"
-        #print(protein_list2)
-        return HttpResponse(protein_list2, content_type=plain_mimetype) # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data
-    else:
-        #print(response)
-        return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
-    # Maybe handle any exception - eg. server doesn't respond
-
-
+    
     
 def cytoscape(request, required_score, protein_list=None, gene_list=None):
-    
+    """ Displays the cytoscape network of protein interactions.
+    This receives the protein_list and their corresponding gene_names as gene_list.
+    Could just receive:
+      - protein_list and lookup the corresponding gene_names in Gene table
+      - gene_list and lookup the corresponding protein ids in the Gene table
+      
+    """
     if (protein_list is None) or (protein_list == ''):
-        if   request.method == 'GET':  protein_list = request.GET.get('protein_list', '')
-        elif request.method == 'POST': protein_list = request.POST.get('protein_list', '')
-        else: protein_list = ''
+        protein_list = post_or_get_from_request(request,'protein_list')
 
     if (gene_list is None) or (gene_list == ''):
-        if   request.method == 'GET':  gene_list = request.GET.get('gene_list', '')
-        elif request.method == 'POST': gene_list = request.POST.get('gene_list', '')
-        else: gene_list = ''
+        gene_list = post_or_get_from_request(request,'gene_list')
        
     success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
     
-    if success:
-#        initial_nodes =  dict((protein,True) for protein in protein_list.split(';'))
+    if not success: return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
 
-        protein_list = protein_list.split(';')
-        gene_list = gene_list.split(';')
-        if len(protein_list) != len(gene_list):
-            return HttpResponse('ERROR: lengths of gene_list and protein_list are different', content_type=plain_mimetype)
+    protein_list = protein_list.split(';')
+    gene_list = gene_list.split(';')
+    if len(protein_list) != len(gene_list):
+        return HttpResponse('ERROR: lengths of gene_list and protein_list are different', content_type=plain_mimetype)
 
-        # Create a dictionary to check later if returned protein was in original list, and what the gene_name was for that protein_id:            
-        initial_nodes = dict()
-        for i in range(0, len(protein_list)): # Dict to check later if returned protein was in original list
-            initial_nodes[protein_list[i]] = gene_list[i] #  (protein,True)
+    # Create a dictionary to check later if returned protein was in original list, and what the gene_name was for that protein_id:            
+    initial_nodes = dict()
+    for i in range(0, len(protein_list)):
+        initial_nodes[protein_list[i]] = gene_list[i]
     
-        nodes = dict() # The protein nodes for cytoscape
-        edges = dict()   # The edges for cytoscape
-        for line in response:
-          # if line:
-            cols = line.rstrip().split("\t")
-            if len(cols)<2: print("Num cols = %d: '"+line+"'" %(len(cols)))
-            protein1 = cols[0].replace('string:', '') # as ids start with 'string:'
-            if protein1 in initial_nodes:
-                protein1 = protein1.replace('9606.', '')            
-                nodes[protein1] = True
-            else: print("*** Protein1 returned '%s' is not in original list ***" %(protein1))
-
-            protein2 = cols[1].replace('string:', '') # as ids start with 'string:'
-            if protein2 in initial_nodes:
-                protein2 = protein2.replace('9606.', '')
-                nodes[protein2] = True
-            else: print("*** Protein2 returned '%s' is not in original list ***" %(protein2))
-
-            edge = protein1+'#'+protein2
-            edge_reversed = protein2+'#'+protein1
-            if edge not in edges and edge_reversed not in edges:
-                edges[edge] = True
-
-        # node_list = sorted(nodes)
-        # Convert node list of protein_ids, to list of gene_names
+    nodes = dict() # The protein nodes for cytoscape
+    edges = dict() # The edges for cytoscape
+    err_msg = ''
+    for line in response:
+      # if line:
+        cols = line.rstrip().split("\t")
+        if len(cols)<2: err_msg += "\nNum cols = %d (expected >=2) in line: '%s'" %(len(cols),line.rstrip())
         
-        for protein in protein_list: # Can't use 'initial_nodes' here as it will be updated
-            initial_nodes[protein.replace('9606.', '')] = initial_nodes.pop(protein)
+        protein1 = cols[0].replace('string:', '') # as ids are prefixed with 'string:'
+        if protein1 in initial_nodes:
+            nodes[ protein1.replace('9606.', '') ] = True # remove the human tax id
+        else: err_msg += "\n*** Protein1 returned as '%s' is not in original list ***" %(protein1)
+
+        protein2 = cols[1].replace('string:', '')
+        if protein2 in initial_nodes:
+            nodes[ protein2.replace('9606.', '') ] = True
+        else: err_msg += "\n*** Protein2 returned as '%s' is not in original list ***" %(protein2)
+
+        edge = protein1+'#'+protein2
+        edge_reversed = protein2+'#'+protein1
+        if edge not in edges and edge_reversed not in edges:
+            edges[edge] = True
+
+    # node_list = sorted(nodes)
+
+    # Convert node list of protein_ids, to list of gene_names:
+    for protein in protein_list: # Can't use 'initial_nodes' here as it will be updated
+        initial_nodes[protein.replace('9606.', '')] = initial_nodes.pop(protein)
         
-        node_list = []
-        for protein in nodes:
-            node_list.append(initial_nodes[protein])
-        #print(node_list)
+    node_list = []
+    for protein in nodes:
+        node_list.append(initial_nodes[protein])
         
-        edge_list = [] # Will be an array of tuples.
-        for edge in edges:
-            proteins = edge.split('#')
-            if len(proteins) != 2:
-                print("**** Expected two proteins in edge, but got: "+edge)
-            edge_list.append( ( initial_nodes[proteins[0]], initial_nodes[proteins[1]] ) )
-        #    edge_list.append(edge.split('#')) 
-        # print(edge_list)
+    edge_list = [] # Will be an array of tuples.
+    for edge in edges:
+        proteins = edge.split('#')
+        if len(proteins) != 2:
+            err_msg += "\n**** Expected two proteins in edge, but got: "+edge
+        edge_list.append( ( initial_nodes[proteins[0]], initial_nodes[proteins[1]] ) )
 
-        context = {'node_list': node_list, 'edge_list': edge_list}
-        return render(request, 'gendep/cytoscape.html', context)
-
-        # return HttpResponse(protein_list2, content_type=plain_mimetype) # or really: 'text/tab-separated-values', content_type=json_mimetype BUT this is tsv data 
-    else:
-        #print(response)
-        return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
-    # Maybe handle any exception - eg. server doesn't respond
-
+    if err_msg != '':
+        print(err_msg)
+        return HttpResponse('ERROR:'+err_msg, content_type=plain_mimetype)
     
-    
-def qtip(tip):
-    # Returns the ajax request to qtips
-    return 
+    context = {'node_list': node_list, 'edge_list': edge_list}
+    return render(request, 'gendep/cytoscape.html', context)
+
+
     
 def gene_info(request, gene_name):
-    try:
-        gene = Gene.objects.get(gene_name=gene_name)
-        data = { 'success': True, 'gene_name': gene.gene_name, 'full_name': gene.full_name, 'synonyms': gene.prevname_synonyms, 'ids': gene_ids_as_dictionary(gene)}  # 
-    except ObjectDoesNotExist: # Not found by the objects.get()
-        data = {"success": False, 'full_name': "Gene '%s' NOT found in Gene table"%(gene_name), 'message': "Gene '%s' NOT found in Gene table" %(gene_name)}
-    return JsonResponse(data, safe=False)
+    try:        
+        data = gene_info_as_dictionary( Gene.objects.get(gene_name=gene_name) )
+        data['success'] = True # Add success: True to the json response.
+        return JsonResponse(data, safe=False)
         
-    
-def graph(request, target_id):
-    requested_target = get_object_or_404(Dependency, pk=target_id)
-    return render(request, 'gendep/graph.html', {'target': requested_target})
+    except ObjectDoesNotExist: # Not found by the objects.get()
+        return json_error("Gene '%s' NOT found in Gene table" %(gene_name))
 
+        
 def show_study(request, study_pmid):
     requested_study = get_object_or_404(Study, pk=study_pmid)
     # requested_study = get_object_or_404(Study, pk='Pending001') # Temportary for now.
@@ -978,17 +745,20 @@ def contact(request):
 
 
 
-search_by_driver_column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Ensembl_protein_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']                                 
-
-search_by_target_column_headings_for_download = ['Driver', 'Driver description', 'Entez_id',  'Ensembl_id', 'Ensembl_protein_id', 'Driver synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
+search_by_driver_column_headings_for_download = ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Ensembl_protein_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Z diff', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']                                 
+search_by_target_column_headings_for_download = ['Driver', 'Driver description', 'Entez_id',  'Ensembl_id', 'Ensembl_protein_id', 'Driver synonyms', 'Wilcox P-value', 'Effect size', 'Z diff', 'Tissue', 'Inhibitors', 'String interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Boxplot link']
 
 
 # ===========================================    
 def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_name, study_pmid, delim_type='csv'):
-    # Creates then downloads the current dependency result table as a tab-delimited file.
-    # The download get link needs to contain serach_by, gene, tissue, study parameters.
+    """ Creates then downloads the current dependency result table as a tab-delimited file.
+    The download get link needs to contain: serach_by, gene, tissue, study parameters.
 
-    # In Windows at least, 'csv' files are associated with Excel. To also associate tsv file with excel: In your browser, create a helper preference associating file type 'text/tab-separated values' and file extensions 'tsv' with application 'Excel'. Pressing Download will then launch Excel with the data.
+    In Windows at least, 'csv' files are associated with Excel, so will be opened by Excel. 
+    To also associate a '.tsv' file with excel: In your browser, create a helper preference associating file type 'text/tab-separated values' and file extensions 'tsv' with application 'Excel'. Pressing Download will then launch Excel with the '.tsv' data file.
+    
+    ***** Remember to add to the select_related lists below if other columns are required for output.
+    """
     
     mimetype = html_mimetype # was: 'application/json'
     
@@ -1004,452 +774,198 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
     # study_pmid = request.GET.get('study', "ALL_STUDIES")
 
     search_by_driver = is_search_by_driver(search_by) # Checks is valid and returns true if search_by='driver'
+        
+    # select_related = [ 'target__inhibitors', search_by, 'study' ] if search_by_driver else [ 'driver__inhibitors', search_by, 'study' ]   # Could add 'target__ensembl_protein_id' or 'driver__ensembl_protein_id'
     
+    # But for a more precise query (and so faster as retrieves fewer columns) is:
     if search_by_driver:
-        select_related = [ 'target__inhibitors', search_by, 'study' ]  #  'target__ensembl_protein_id',
+        select_related = [ 'target__gene_name', 'target__full_name', 'target__entrez_id', 'target__ensembl_id', 'target__ensembl_protein_id', 'target__prevname_synonyms' ]
     else:
-        select_related = [ 'driver__inhibitors', search_by, 'study' ]  # 'driver__ensembl_protein_id'
-    
-    error_msg, dependency_list, gene, histotype_full_name, study = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, select_related=select_related, order_by='wilcox_p' ) # select_related (set to 'driver' or 'target') will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
+        select_related = [ 'driver__gene_name', 'driver__full_name', 'driver__entrez_id', 'driver__ensembl_id', 'driver__ensembl_protein_id', 'driver__prevname_synonyms' ]
+    select_related.extend([ 'study__short_name', 'study__experiment_type', 'study__title' ]) # don't need 'study__pmid' (as is same as d.study_id)
+    # *** Remember to add to these select_related lists if other columns are required for output.
+                
+    error_msg, dependency_list = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, select_related=select_related, order_by='wilcox_p' ) # using 'select_related' will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
     
     if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
 
-    #gene_weblinks = gene.external_links('|')
-    # was: study__pmid=request.POST.get('study')
-    # [:20] use: 'target__gene_name' instead of 'target.gene_name'
-    # dependency_list_count = dependency_list.count()+1
-
-    timestamp = time.strftime("%d-%b-%Y") # To add time use: "%H:%M:%S")
-
-    dest_filename = ('dependency_%s_%s_%s_%s_%s.csv' %(search_by,gene_name,histotype_name,study_pmid,timestamp)).replace(' ','_') # To also replace any spaces with '_' NOTE: Is .csv as Windows will then know to open Excel, whereas if is tsv then won't
-
-    # current_url = request.get_full_path() # To display the host in title for developing on lcalhost or pythonanywhere server.
-    # current_url = request.build_absolute_uri()
-    #current_url =  request.META['SERVER_NAME']
-    current_url =  request.META['HTTP_HOST']
+    histotype_full_name = get_histotype_full_name(histotype_name)
+    if histotype_full_name is None: return HttpResponse("Error: Tissue '%s' NOT found in histotype list" %(histotype_name))
     
-    # Or better method: http://stackoverflow.com/questions/17866114/django-get-absolute-url
-    # from django.core.urlresolvers import reverse
-    # url = request.build_absolute_uri(reverse('blog:detail', args=[blog.slug]))
-    # BUT I want the static url...
-    
-    # Maybe use:  StaticFileStorage.url which effectively just prepends STATIC_URL to the path given,
-    # but in more complex setups (eg. on S3) it does more.  ..... Another great example of when you absolutely must use the static tag: if you’re using Django’s CachedStaticFilesStorage as described in my post about Setting up static file caching, because it uses a hash of the file’s contents as part of the file name (so css/styles.css might be saved as css/styles.55e7cbb9ba48.css) and no amount of carefully constructing STATIC_URL will help you here!
-    # from http://staticfiles.productiondjango.com/blog/stop-using-static-url-in-templates/
-    # Setting up staic file caching: http://staticfiles.productiondjango.com/blog/setting-up-static-file-caching/
-    
-    
-    # or create and register a 'absurl' tag for templates, which uses the above function ...
-    #or request.get_host() but might not work if site behind proxy 
-    # From: https://docs.djangoproject.com/en/1.9/howto/outputting-csv/
-    # Using the Sites framework might be better: https://docs.djangoproject.com/en/dev/ref/contrib/sites/#how-django-uses-the-sites-framework
-    # Simplest method is just to set the static url accordingly in the settings file: http://stackoverflow.com/questions/16573324/using-relative-vs-absolute-url-for-static-url-in-django
-    # set DEVELOPMENT to True or False, then:
-    # if DEVELOPMENT == True: STATIC_URL = '/static/'
-    # else: STATIC_URL = 'https://www.mywebsite.com/static/'
+    study = get_study(study_pmid)
+    if study is None: return HttpResponse("Error: Study pmid='%s' NOT found in Study table" %(study_pmid))
 
+    # Retrieve the host domain for use in the boxplot file links:
+    # current_url =  request.META['HTTP_HOST']
+
+    # Set the deliminators
+    #   Another alternative would be: csv.unix_dialect
+    #   csv.excel_tab doesn't display well.
     if delim_type=='csv':
         dialect = csv.excel
         content_type = csv_mimetype # can be called: 'application/x-csv' or 'application/csv'
     elif delim_type=='tsv':
         dialect = csv.excel_tab
         content_type = tab_mimetype
+    elif delim_type=='xlsx':   # A real Excel file.
+        content_type = excel_minetype
     else:
-        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv'"%(delim_type), mimetype)
+        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv' or 'xlsx'"%(delim_type), mimetype)
+
+    timestamp = time.strftime("%d-%b-%Y") # To add time use: "%H:%M:%S")
+
+    dest_filename = ('dependency_%s_%s_%s_%s_%s.%s' %(search_by,gene_name,histotype_name,study_pmid,timestamp,delim_type)).replace(' ','_') # To also replace any spaces with '_' 
+    # NOTE: Is '.csv' so that Windows will then know to open Excel, whereas if is '.tsv' then won't.
 
     # Create the HttpResponse object with the CSV/TSV header and downloaded filename:
     response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?    
     response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
-    
-    writer = csv.writer(response, dialect=dialect)  # An alternative would be: csv.unix_dialect
-      # csv.excel_tab doesn't display well
-      # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
-    
+
     count = dependency_list.count()
     study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
-    writer.writerows([
-        ["","A total of %d dependencies were found for: %s='%s', Tissue='%s', Study='%s'" % (count, search_by.title(), gene_name,histotype_full_name, study_name),], # Added some dummy columns so Excel knows from first row that is CSV
-        ["","Downloaded from CGDD on %s" %(timestamp),],
-        ["",],
-        ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
-
-    writer.writerow(search_by_driver_column_headings_for_download if search_by_driver
-               else search_by_target_column_headings_for_download) # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object. 
-
-    # inhibitors =  if search_by_driver else  ....
-    #    if inhibitors is None: inhibitors = ''
-               
-    # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:
-
-    if search_by_driver: # search_by='driver'
-      for d in dependency_list:  # Not using iteractor() as count() above will already have run query.
-         writer.writerow([
-            d.target.gene_name, # or d.target_id
-            d.target.full_name, d.target.entrez_id, d.target.ensembl_id, d.target.ensembl_protein_id,
-            d.target.prevname_synonyms, 
-            d.wilcox_p, d.effect_size,   # wilcox_p was stringformat:".0E",  		    
-            d.get_histotype_display(),
-            d.target.inhibitors,  #'', # d.inhibitors,  if search_by_driver else ...
-            'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
-            d.study.short_name,  d.study.pmid,  d.study.experiment_type,
-            # ADD THE FULL STATIC PATH TO THE url = .... BELOW, this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
-            'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()  # The full url path so can paste into browser.
-            ])
-
-    else: # search_by='target'
-      for d in dependency_list:  # Not using iteractor() as count() above will already have run query.
-         writer.writerow([
-            d.driver.gene_name,  # or d.driver_id
-            d.driver.full_name, d.driver.entrez_id, d.driver.ensembl_id, d.driver.ensembl_protein_id,
-            d.driver.prevname_synonyms, 
-            d.wilcox_p, d.effect_size,  		    
-            d.get_histotype_display(),
-            d.driver.inhibitors,   # '', # d.inhibitors,  if search_by_driver else ....
-            'Yes' if d.interaction else '',  # In future this will change to Medium/High/Highest
-            d.study.short_name,  d.study.pmid,  d.study.experiment_type,
-            # ADD THE FULL STATIC PATH TO THE url = .... BELOW, this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
-            'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()   # Using the full url path so can paste into browser.
-            ])
-
-    return response
+    file_description = "A total of %d dependencies were found for: %s='%s', Tissue='%s', Study='%s'" % (count, search_by.title(), gene_name, histotype_full_name, study_name)
+    file_download_text = "Downloaded from cancergd.org on %s" %(timestamp)
     
-
-
+    column_headings = search_by_driver_column_headings_for_download if search_by_driver else search_by_target_column_headings_for_download
     
-def enrichr(request, gene_list, gene_set_library):
+    if delim_type=='csv' or delim_type=='tsv':
+        writer = csv.writer(response, dialect=dialect)
+        # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
+            
+        writer.writerows([
+            ["",file_description,], # Added extra first column so Excel knows from first row that is CSV
+            ["",file_download_text,],
+            ["",],
+          ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
 
-# success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
-    
-  # =====================================================================
-  # Using Enrichr:
-  # From: http://amp.pharm.mssm.edu/Enrichr/help#api
-  # Uses the "requests" library, which can be installed with pip.
-  # A couple API endpoints require a user specify a gene set library. A list of libraries can be found here:  http://amp.pharm.mssm.edu/Enrichr/#stats
-  # =====================================================================
-  # Analyze gene list
-  # Method	POST
-  # URL	/Enrichr/addList
-  # Returns	JSON object with unique ID for analysis results, eg: { "userListId": 363320, "shortId": "59lh" }
-  # Parameters:
-  #    list = Newline-separated list of gene symbols to enrich
-  #    description (optional)	= String describing what the gene symbols represent
+        writer.writerow(column_headings)
+           # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object.         
 
-  #genes_str = '\n'.join([
-  #  'PHF14', 'RBM3', 'MSL1', 'PHF21A', 'ARL10', 'INSR', 'JADE2', 'P2RX7',
-  #  'LINC00662', 'CCDC101', 'PPM1B', 'KANSL1L', 'CRYZL1', 'ANAPC16', 'TMCC1',
-  #  'CDH8', 'RBM11', 'CNPY2', 'HSPA1L', 'CUL2', 'PLBD2', 'LARP7', 'TECPR2', 
-  #  'ZNF302', 'CUX1', 'MOB2', 'CYTH2', 'SEC22C', 'EIF4E3', 'ROBO2',
-  #  'ADAMTS9-AS2', 'CXXC1', 'LINC01314', 'ATF7', 'ATP5F1'
-  # ])
-  # description = 'Example gene list'
-  
-  description='CGDD query'
-  genes_str = gene_list.replace(';','\n')
-  
-  #print(genes_str)
-  
-  payload = {
-    'list': (None, genes_str),
-    'description': (None, description)
-  }
+    elif delim_type=='xlsx': # Real excel file
+        import xlsxwriter # need to install this 'xlsxwriter' python module
 
-  response = requests.post(ENRICHR_BASE_URL+'addList', files=payload)
-  if not response.ok:
-    return json_error("Error analyzing gene list", status_code='1')
-    # raise Exception('Error analyzing gene list')
-
-  data = json.loads(response.text)  # print(data)
-  user_list_id = data['userListId']  #user_list_id = 363320
-  
-  # =====================================================================
-  # View added gene list
-  # Method	GET
-  # URL	/Enrichr/view
-  # Returns	JSON object with unique ID for analysis results, eg: { "genes": ["PHF14", "RBM3", "MSL1", "PHF21A", etc...... ], "description": "Example gene list"}
-  #Parameters: userListId = Identifier returned from addList endpoint
-
-  # response = requests.get(ENRICHR_BASE_URL+'view?userListId=%s' % user_list_id)
-  # if not response.ok:
-  #  raise Exception('Error getting gene list')
-    
-  # data = json.loads(response.text)
-  # print(data)
-  # ...data['genes']  # I think this is just the list of genes submitted above.
-  
-  # =====================================================================
-  # Get enrichment results
-  # Method	GET
-  # URL	/Enrichr/enrich
-  # Returns: eg: { "KEGG_2015": [ [1, "ubiquitin mediated proteolysis", 0.06146387620182772,  -1.8593425456520887,  2.8168673182384705, ["CUL2"], 0.21981251622012696], [ 2, etc .....   ], etc ...]}
-  # Parameters:	
-  #    userListId = Identifier returned from addList endpoint
-  #    backgroundType = Gene set library to enrich against
-
-  # user_list_id = 363320
-  # gene_set_library = 'KEGG_2015'
-  
-  response = requests.get(
-    ENRICHR_BASE_URL+'enrich?userListId=%s&backgroundType=%s' % (user_list_id, gene_set_library)
-   )
-  if not response.ok:
-    return json_error("Error fetching enrichment results", status_code='2')
-    # raise Exception('Error fetching enrichment results')
-
-  #data = json.loads(response.text)  # print(data)
-  
-  #return JsonResponse(response.text, safe=False) # Send the full json response back to browser for now, not just the data[gene_set_library]
-  # Not using JsonResponse() as response.text is already in Json format, so don't want to try to convert it to json again.
-  return HttpResponse(response.text, content_type=json_mimetype) # Send the full json response back to browser for now, not just the data[gene_set_library]
-  
-  
-  # =====================================================================
-  # Find terms that contain a given gene
-  # Method	GET
-  # URL	/Enrichr/genemap
-  # Returns	Terms containing the specified gene, along with descriptions and optional categorizations, eg: {"gene": {"GeneSigDB": ["18535662-TableS2b","17671232-TableS2a", etc...],"TRANSFAC_and_JASPAR_PWMs": [...], etc...   }, "descriptions": [ .......etc
-  # Parameters	
-  #   gene = Gene to use in search for terms
-  #   json (optional) = Set "true" to return JSON rather plaintext
-  #   setup (optional) = Set "true" to category information for the libraries
-  """
-  gene = 'AKT1'
-  response = requests.get(ENRICHR_BASE_URL+'genemap?json=true&setup=true&gene=%s' % gene)
-  if not response.ok:
-    raise Exception('Error searching for terms')
-    
-  data = json.loads(response.text)
-  # print(data)
-  """
-  # =====================================================================
-  # Download file of enrichment results
-  # Method	GET
-  # URL	/Enrichr/export
-  # Returns	Text file of enrichment analysis results
-  # Parameters	
-  #   userListId = Identifier returned from addList endpoint
-  #   filename = Name of text file download
-  #   backgroundType = Gene set library for which to download results
-  """
-  # user_list_id = 363320
-  filename = 'example_enrichment'
-  gene_set_library = 'KEGG_2015'
-
-  url = ENRICHR_BASE_URL+'export?userListId=%s&filename=%s&backgroundType=&s' % (user_list_id, filename, gene_set_library)
-  response = requests.get(url, stream=True)
-
-  with open(filename + '.txt', 'wb') as f:
-    for chunk in response.iter_content(chunk_size=1024): 
-        if chunk:
-            f.write(chunk)
-  """
-  # =====================================================================    
-    
-
-#dialect = csv.Sniffer().sniff(csvfile.read(1024))
-#    csvfile.seek(0)
-#    reader = csv.reader(csvfile, dialect)
-#    The excel_tab class defines the usual properties of an Excel-generated TAB-delimited file. It is registered with the dialect name 'excel-tab'.
-
-#Dialect.delimiter    A one-character string used to separate fields. It defaults to ','.
-
-
-
-
-
-"""
-*** Finish this: download_dependencies_as_excel_file
-### An advantage of Excel format is if import tsv file Excel changes eg. MARCH10 or SEP4 to a date, whereas creating the Excle fiile doesn't
-# Also can add formatting, better url links, and include box-plot images.
-
-def show_excel(request):
-   # use a StringIO buffer rather than opening a file
-   output = StringIO()
-   w = csv.writer(output)
-   for i in range(10):
-      w.writerow(range(10))
-   # rewind the virtual file
-   output.seek(0)
-   return HttpResponse(output.read(),
-      )
-  
-  
-def download_dependencies_as_excel_file(request):
-    ## **** GOOD example: http://assist-software.net/blog/how-export-excel-files-python-django-application
-    # http://www.developer.com/tech/article.php/10923_3727616_2/Creating-Excel-Files-with-Python-and-Django.htm
-    import xlsxwriter  # need to install this python module
-    # http://xlsxwriter.readthedocs.org/en/latest/index.html
-    response = HttpResponse(content_type='application/vnd.ms-excel')
-    response['Content-Disposition'] = 'attachment; filename=%s.xlsx' %(filename)
-    # xlsx_data = WriteToExcel(weather_period, town)
-    # using xlsxwriter: http://xlsxwriter.readthedocs.org/worksheet.html
-
-    # Another good alternaive is OpenPyXL: https://openpyxl.readthedocs.org/en/2.5/tutorial.html
-    # eg: http://djangotricks.blogspot.co.uk/2013/12/how-to-export-data-as-excel.html
-    # "Office Open XML Format - XLSX (a.k.a. OOXML or OpenXML) is a zipped, XML-based file format developed by Microsoft. It is fully supported by Microsoft Office 2007 and newer versions....
-    
-    # In python can add short descriptions to functions I think, eg: export_xlsx.short_description = u"Export XLSX"
-    
-    # or pyExcelerator: http://www.developer.com/tech/article.php/10923_3727616_2/Creating-Excel-Files-with-Python-and-Django.htm
-    #  https://sourceforge.net/projects/pyexcelerator/ but last update is 2013
-    # As well as setting content_type, should this function (but probably is same effect):  return HttpResponse(output.read(), mimetype='application/ms-excel')
-    - answer is in Django >= 1.5 use content_type :
-    import io
-
-from django.http.response import HttpResponse
-
-from xlsxwriter.workbook import Workbook
-
-
-def your_view(request):
-
-    output = io.BytesIO()
-
-    workbook = Workbook(output, {'in_memory': True})
-    worksheet = workbook.add_worksheet()
-    worksheet.write(0, 0, 'Hello, world!')
-    workbook.close()
-
-    output.seek(0)
-
-    response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response['Content-Disposition'] = "attachment; filename=test.xlsx"
-
-    return response
-    
-    
-    
-    # or xlwt: https://pypi.python.org/pypi/xlwt  eg: http://stackoverflow.com/questions/20040965/how-to-export-data-in-python-with-excel-format
-    # Create an new Excel file and add a worksheet.
-    # workbook = xlsxwriter.Workbook('demo.xlsx')
-    
-    ### **** GOOD Example:  http://xlsxwriter.readthedocs.org/example_http_server3.html?highlight=django
-    output = StringIO()
-    maybe use BytesIO in Python 3??? - Most uses of StringIO need to be migrated to BytesIO, when used as a byte buffer. If used as a string buffer, the StringIO uses need to be left at StringIO. http://dafoster.net/articles/2013/04/09/making-an-existing-python-program-unicode-aware/
-    
-    **** GOOD: http://stackoverflow.com/questions/16393242/xlsxwriter-object-save-as-http-response-to-create-download-in-django
-    
-    workbook = xlsxwriter.Workbook(output)
-    worksheet = workbook.add_worksheet(optional_sheet_name)
-
-    worksheet.write('A1', 'Hello')
-    workbook.close() # is needed.
-
-    xlsx_data = output.getvalue()
-   workbook.set_properties({
-    'title':    'This is an example spreadsheet',
-    'subject':  'With document properties',
-    'author':   'John McNamara',
-    'manager':  'Dr. Heinz Doofenshmirtz',
-    'company':  'of Wolves',
-    'category': 'Example spreadsheets',
-    'keywords': 'Sample, Example, Properties',
-    'comments': 'Created with Python and XlsxWriter'}) 
-... also: 'status':
-     'hyperlink_base':
-    set_properties() - Set the document properties such as Title, Author etc.
-    # see: http://xlsxwriter.readthedocs.org/workbook.html
-    
-    output = StringIO.StringIO()
-    workbook = xlsxwriter.Workbook(output)  # as is small files, to avoid using temp files, maybe use: {'in_memory': True}
-...
-...
-    workbook.close()    
-    
- or if use with, then doesn't need close:
- with xlsxwriter.Workbook('hello_world.xlsx') as workbook:
-    worksheet = workbook.add_worksheet()
-
- 
-   worksheet.write('A1', 'Hello world')
- 
-    # Here we will adding the code to add data
- 
-
-    xlsx_data = output.getvalue()
-    
-    or 
-    worksheet = workbook.add_worksheet()
-    
-    bold = workbook.add_format({'bold': 1}) # Add a bold format to use to highlight cells.
-    exponent_format = workbook.add_format({'num_format': '0.00E+00'})     # Add a number format for cells with, eg 1 x 10-4.
-    
-    # also can set cell colours (eg: 'bg_color') and borders, etc http://xlsxwriter.readthedocs.org/format.html
-
-    row = 0
-    ws.write_row(row, 0 column_headings_for_download, bold)
-    # ['Dependency', 'Dependency description', 'Entez_id',  'Ensembl_id', 'Dependency synonyms', 'Wilcox P-value', 'Effect size', 'Tissue', 'Inhibitors', 'Known interaction', 'Study', 'PubMed Id', 'Experiment Type', 'Experiment summary']
-    # ws.set_row(0, None, bold) # To make title row bold
-    ws.set_column(1, 1, 20) # To make Description column (col 1) wider
-    ws.set_column(4, 4, 20) # To make Synonyms column (col 1) wider
-
-    for d in dependency_list:
-        row += 1
-        ws.write_string(row,  0, d.target.gene_name, bold)
-        ws.write_string(row,  1, d.target.full_name)
-        ws.write_string(row,  2, d.target.entrez_id)
-        ws.write_string(row,  3, d.target.ensembl_id)
-        ws.write_string(row,  4, d.target.prevname_synonyms)
-        ws.write_number(row,  5, d.wilcox_p, exponent_format)  # |stringformat:".0E",  # was, d.wilcox_p_power10_format  but <sup>-4</sup> not that meaningful in excel
-  	    ws.write_number(row,  6, d.effect_size)
-        ws.write_string(row,  7, d.get_histotype_display)
-        ws.write_string(row,  8, d.inhibitors)
-        ws.write_boolean(row, 9, d.interaction)
-        ws.write_string(row, 10, d.study.short_name)
-        ws.write_url(   row, 11, url=d.study.url, string=d.study.pmid, tip='PubmedId: '+d.study.pmid+' : '+d.study.title)
-        ws.write_string(row, 12, d.study.experiment_type)
-        # ws.write_string(row, 13, d.study.summary)
+        # An advantage of Excel format is if import tsv file Excel changes eg. MARCH10 or SEP4 to a date, whereas creating the Excle file doesn't
+        # Also can add formatting, better url links, and include box-plot images.
+        #import io            
+        #iobytes_output = io.BytesIO() # Workbook expects a string or bytes object, and cannot write it directly to response.
+        #workbook = xlsxwriter.Workbook(iobytes_output, {'in_memory': True})
+        workbook = xlsxwriter.Workbook(response)
+        # As output is small, {'in_memory': True} avoids using temp files on server
+        # or: with xlsxwriter.Workbook(iobytes_output, {'in_memory': True}) as workbook: (then don't need to close() it)
         
-        # ADD THE FULL STATIC PATH TO THE url = .... BELOW:
-        ws.write_url(   row, 14, url = 'gendep/boxplots/'+d.boxplot_filename, string=d.boxplot_filename, tip='Boxplot image')
-
-        # ws.insert_image(row, col, STATIC.....+d.boxplot_filename [, options]) # Optionally add the box-plots to excel file.
-        # FileResponse objects¶
-
-
-    # For large file could use:
-    # FileResponse is a subclass of StreamingHttpResponse optimized for binary files. It uses wsgi.file_wrapper if provided by the wsgi server, otherwise it streams the file out in small chunks. FileResponse expects a file open in binary mode like so:
-    # from django.http import FileResponse
-    # response = FileResponse(open('myfile.png', 'rb'))
-
+        workbook.set_properties({
+          'title':    file_description,
+          'subject':  'Cancer Genetic Dependencies',
+          'author':   'CancerGD.org',
+          'manager':  'Dr. Colm Ryan',
+          'company':  'Systems Biology Ireland',
+          'category': '',
+          'keywords': 'Sample, Example, Properties',
+          'comments': 'Created with Python and XlsxWriter. '+file_download_text,
+          'status': '',
+          'hyperlink_base': '',
+          })
+        
+        ws = workbook.add_worksheet() # can have optional sheet_name parameter
+        yellow = '#FFFFEE' # a light yellow
+        bold = workbook.add_format({'bold': True}) # Add a bold format to use to highlight cells.
+        # bold_cyan = workbook.add_format({'bold': True, 'bg_color': 'cyan'}) # Add a bold blue format.
+        # bold_yellow = workbook.add_format({'bold': True, 'bg_color': yellow}) # Add a bold blue format.
+        # bg_yellow = workbook.add_format({'bg_color': yellow})
+        # But when use background colour then hides the vertical grid lines that separate the cells
+        align_center = workbook.add_format({'align':'center'})
+        exponent_format = workbook.add_format({'num_format': '0.00E+00', 'align':'center'}) # For wilcox_p (eg 1 x 10^-4).
+        percent_format = workbook.add_format({'num_format': '0.00"%"', 'align':'center'}) # For effect_size.
+        two_decimal_places = workbook.add_format({'num_format': '0.00', 'align':'center'}) # For Z-diff.
 
         
-    response.write(xlsx_data)    # maybe add: mimetype='application/ms-excel'
+        # can also set border formats using:    set_bottom(), set_top(), set_left(), set_right()
+        # also can set cell bg colours (eg: 'bg_color'), etc http://xlsxwriter.readthedocs.org/format.html
+
+        ws.write_string( 1, 1, file_description )
+        ws.write_string( 2, 1, file_download_text )
+        ws.write_row   ( 4, 0, column_headings, bold)
+        #  ws.set_row(row, None, bold) # To make title row bold - but already set to bold above in write_row
+        ws.set_column(0, 0, 12) # To make Gene name column (col 0) a bit wider
+        ws.set_column(1, 1, 35) # To make Description column (col 1) wider
+        ws.set_column(3, 4, 16) # To make ensembl ids (col 3 and 4) wider
+        ws.set_column(5, 5, 35) # To make Synonyms column (col 5) wider
+        ws.set_column(6, 13, 11) # To make columns 6 to 13 a bit wider
+        ws.set_column(14, 14, 14) # To make Experiment_type (col 14) a bit wider
+        row = 4 # The last row to writen
+        
+    # Now write the dependency rows:
+    for d in dependency_list:  # Not using iteractor() as count() above will already have run the query, so is cached
+
+        # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:
+        if search_by_driver:
+            # Cannot use 'gene_id' as variable, as that will refer to the primary key of the Gene table, so returns a tuple.
+            gene_symbol= d.target.gene_name # d.target_id but returns name as a tuple, # same as: d.target.gene_name
+            full_name  = d.target.full_name
+            entrez_id  = d.target.entrez_id
+            ensembl_id = d.target.ensembl_id
+            protein_id = d.target.ensembl_protein_id
+            synonyms   = d.target.prevname_synonyms
+            inhibitors = d.target.inhibitors
+        else:  # search_by target
+            gene_symbol= d.driver.gene_name # d.driver_id, # same as: d.driver.gene_name
+            full_name  = d.driver.full_name
+            entrez_id  = d.driver.entrez_id
+            ensembl_id = d.driver.ensembl_id
+            protein_id = d.driver.ensembl_protein_id
+            synonyms   = d.driver.prevname_synonyms
+            inhibitors = d.driver.inhibitors
+        #print(gene_symbol, d.target.gene_name)
+
+        if delim_type=='csv' or delim_type=='tsv':
+            writer.writerow([
+                gene_symbol,
+                full_name, entrez_id, ensembl_id, protein_id, synonyms,
+                format(d.wilcox_p, ".1e").replace("e-0", "e-"),
+                format(d.effect_size*100, ".1f"),  # As a percentage with 1 decimal place
+                format(d.zdiff,".2f"), # Usually negative
+                d.get_histotype_display(),
+                inhibitors,
+                d.interaction,
+                d.study.short_name,  d.study_id,  d.study.experiment_type
+                ])
+                # d.study_id is same as 'd.study.pmid'
+        
+            # Could add weblinks to display the SVG boxplots by pasting link into webbrowser:
+            # this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
+            # 'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()
+            
+        elif delim_type=='xlsx':
+            row += 1
+            ws.write_string(row,   0, gene_symbol, bold)
+            ws.write_string(row,   1, full_name)
+            ws.write_string(row,   2, entrez_id)
+            ws.write_string(row,   3, ensembl_id)
+            ws.write_string(row,   4, protein_id)
+            ws.write_string(row,   5, synonyms)
+            ws.write_number(row,   6, d.wilcox_p,    exponent_format)
+            ws.write_number(row,   7, d.effect_size, percent_format)
+            ws.write_number(row,   8, d.zdiff,       two_decimal_places)
+            ws.write_string(row,   9, d.get_histotype_display())
+            ws.write_string(row,  10, inhibitors)
+            ws.write_string(row,  11, d.interaction, align_center)
+            ws.write_string(row,  12, d.study.short_name)
+            ws.write_url(   row,  13, url=d.study.url(), string=d.study_id, tip='PubmedId: '+d.study_id+' : '+d.study.title)  # cell_format=bg_yellow  # d.study_id is same as 'd.study.pmid'
+            ws.write_string(row,  14, d.study.experiment_type)
+            # ws.write_string(row, 15, d.study.summary)
+        
+            # ADD THE FULL STATIC PATH TO THE url = .... BELOW:
+            # ws.write_url(   row, 14, url = 'gendep/boxplots/'+d.boxplot_filename, string=d.boxplot_filename, tip='Boxplot image')
+            # ws.insert_image(row, col, STATIC.....+d.boxplot_filename [, options]) # Optionally add the box-plots to excel file.
+
+    # Close the Excel file
+    if delim_type=='xlsx':
+        workbook.close() # must close to save the contents.
+        # xlsx_data = output.getvalue()
+        # response.write(iobytes_output.getvalue())    # maybe add: mimetype='application/ms-excel'
+        # or:
+        # output.seek(0)
+        # response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
     return response
-
-"""
     
-"""
-  # Creates then downloads the currect dependency result table as an Excel file
-  from openpyxl import Workbook
-  from openpyxl.compat import range
-  from openpyxl.cell import get_column_letter
-  wb = Workbook()
-  driver =
-  tissue = All_tissues
-  study = 'pmid'+... or All_studies
-  dest_filename = 'dependency_%s_%s_%s.xlsx' %(driver,tissue,study)
-  ws1 = wb.active
-  ws1.title = "range names"
-  for row in range(1, 40):
-...     ws1.append(range(600))
-  #ws2 = wb.create_sheet(title="Pi")
-  # ws2['F5'] = 3.14
-
-  for row in range(10, 20):
-    for col in range(27, 54):
-      _ = ws1.cell(column=col, row=row, value="%s" % get_column_letter(col))
->>> print(ws3['AA10'].value)
-  # This will overwrite any existing file with the same name - so if another user tries to download this file at the same time, so maybe best to add a time stamp to file, then delay a second if file already exist, or add a suffix
-  wb.save(filename = dest_filename)
-"""
-
-#def graph(request, driver_name):
-#    return HttpResponse("You're looking at the graph for driver %s." % driver_name)
-
-#def results(request, question_id):
-#    response = "You're looking at the results of question %s."
-#    return HttpResponse(response % question_id)
-
-#def vote(request, question_id):
-#    return HttpResponse("You're voting on question %s." % question_id)
-

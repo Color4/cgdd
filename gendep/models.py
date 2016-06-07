@@ -222,9 +222,6 @@ class Dependency(models.Model):
             if not found: raise ValueError('Invalid value "%s" for histotype choices: %s' %(value, Dependency.HISTOTYPE_CHOICES))
         models.Model.__setattr__(self, name, value)
         
-    def boxplot_filename(self):
-       # This is needed for the download csv function (although is duplicated in the javascript to display the boxplots):
-       return self.driver.gene_name + "_" + self.target.gene_name+self.target_variant + "_" + self.histotype + "__PMID" + self.study.pmid + ".png"
 
 # For logging feedback (comments and queries) from the "Contact" page:
 class Comment(models.Model):

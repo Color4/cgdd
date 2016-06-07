@@ -94,4 +94,10 @@ which would retreive drivers containing 'ER', eg: ERBB2, RERE, DICER1, etc.
 http://{{current_url}}{% url 'gendep:get_gene_info' gene_name='ERBB2' %}
 </pre>
 
+<p>(4) You can also retrieve the boxplot data in CSV (comma-separated-value) format using 'get_boxplot' followed by driver, target, tissue and study-pubmed-id:</p>
+<pre class="script">
+http://{{current_url}}{% url 'gendep:get_boxplot' dataformat='csv' driver_name='ERBB2' target_name='MAK2P' histotype_name='PANCAN' study_pmid='26947069' %}
+</pre>
+
+	
 {% endblock %}

@@ -290,12 +290,15 @@ function show_search_info(data) {
   if (!(gene_name in gene_info_cache)) {gene_info_cache[gene_name] = data['gene_ids'];} // Store for later.
   
   $("#gene_weblinks").html(gene_external_links(data['gene_ids'], '|', true));
-  
-  $("#result_info").html( "For "+ search_by +" gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + qi['histotype_details'] + " in " + study_info(qi['study_pmid'])[idetails]);
-  
-  // was: qi['study_details']
 
+  var histotype_name = qi['histotype_name'];
+  var histotype_formatted = (histotype_name=="ALL_HISTOTYPES") ? "<b>"+histotype_display(histotype_name)+"All tissues</b>" : "tissue type <b>"+histotype_display(histotype_name)+"</b>";
+  
+  $("#result_info").html( "For "+ search_by +" gene <b>" + gene + "</b>, a total of <b>" + qi['dependency_count'] + " dependencies</b> were found in " + histotype_formatted + " in " + study_info(qi['study_pmid'])[idetails]);  
+  
   var download_csv_url = global_url_for_download_csv.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
+  
+  var download_excel_url = global_url_for_download_excel.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',qi['histotype_name']).replace('mystudy',qi['study_pmid']);
   
   //$("download_csv_button").html("Download as CSV file"); // reset as could have been set to "Downloading CSV file".
   // console.log("download_url: ",download_csv_url);
@@ -325,6 +328,15 @@ function show_search_info(data) {
    });
 
 
+   // $("#download_excel_form").attr("action", download_excel_url);
+   $("#download_excel_form")
+     .attr("action", download_excel_url)
+     .submit(function( event ) {	
+		show_message("download_excel_button", "Downloading Excel file...");
+	//return true;
+   });
+
+   
 /*  
   $("#download_csv_button").click(function() {
 	  $("#download_csv").html('Downloading CSV file.');
@@ -615,7 +627,7 @@ function show_enrichr() {
     return true; // to submit the form, otherwise false;
     }
 
-
+/*
 function fetch_enrichr_data(display_callback_function) {
 	// This is using the JSON API, via the pythonanywhere server: 
 	// Not used now, as just going directly to interactive view
@@ -656,7 +668,7 @@ function fetch_enrichr_data(display_callback_function) {
 		 
 	return false; // or maybe return true?
 }
-
+*/
 
 
 
@@ -1087,7 +1099,7 @@ function populate_table(data,t0) {
 
 	// result array indexes:
 	// igene can be either driver or target depending on 'search_by'.
-	var igene=0, iwilcox_p=1, ieffect_size=2, izdelta=3, ihistotype=4, istudy_pmid=5, iinteraction=6, iinhibitors=7, itarget_variant=8; //(will remove target_variant later - just used for now to ensure get the correct Achilles variant boxplot image)
+	var igene=0, iwilcox_p=1, ieffect_size=2, izdelta=3, ihistotype=4, istudy_pmid=5, iinteraction=6, iinhibitors=7; // itarget_variant=8; (removed target_variant - was only for Achilles variant boxplot image)
 	// In javascript array indexes are represented internally as strings, so maybe using string indexes is a bit faster??
 /*	
 ============================
@@ -1173,7 +1185,7 @@ var width150=""; // "width:150px; ";
       else {driver = d[igene];}
 		
 	  // The "this"	parameter correctly doesn't have quotes:
-	  var plot_function = "plot('"+ id +comma+ driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[izdelta] +comma+ d[itarget_variant] +"');";
+	  var plot_function = "plot('"+ id +comma+ driver + comma + target +comma+ d[ihistotype] +comma+ d[istudy_pmid] +comma+ d[iwilcox_p] +comma+ d[ieffect_size] +comma+ d[izdelta] +"');"; // +comma+ d[itarget_variant] 
 
       // Another way to pouplatte table is using DocumentFragment in Javascript:
       //      https://www.w3.org/TR/DOM-Level-2-Core/core.html#ID-B63ED1A3
@@ -1429,99 +1441,6 @@ function is_form_complete() {
   }
 
 
-// Zoom in on image: http://mark-rolich.github.io/Magnifier.js/
-// or: http://www.elevateweb.co.uk/image-zoom/examples
-//  or more simply: http://stackoverflow.com/questions/16568976/javascript-zoom-image-and-center-viewable-area
-  // Good answer: http://stackoverflow.com/questions/2028557/how-to-zoom-in-an-image-and-center-it
-  
-// Could possibly use $(this).parent() to set background colour for row, then store this in global variable, then in fancybox close event set row color back to normal...eg: http://stackoverflow.com/questions/4253558/how-to-get-the-html-table-particullar-cell-value-using-javascript
-function show_png_boxplot_in_fancybox(driver, target, histotype, study_pmid, wilcox_p, effect_size, zdelta_score,target_info, target_variant) {
-  // This is a separate function from plot(...) as this can be a called when Ajax succeeds.
-
-// eg: http://jsfiddle.net/STgGM/
-// Another way to draw the boxplots on HTML canvas using, eg: https://github.com/flot/flot/blob/master/README.md
-// http://www.flotcharts.org/
-// and use a library for IE<9
-
-  // var driver = global_selected_gene;
-  
-  var boxplot_image = driver+'_'+target+target_variant+'_'+histotype+'__PMID'+study_pmid+'.png';
-
-  var url_boxplot = global_url_static_boxplot_dir + driver.substring(0,1) + '/' + boxplot_image; // Images are stored in subdirectiories A, B, C,...X,Y,Z (using the first letter of the image name) which might speed up access to the files on the server.
-  var boxplot_width = 384;
-  var boxplot_height = 384;
-  
-  var legend_size = 'w16_cex8';  var legend_width = 153; //for w16_cex8
-  var legend_height = 384;
-  // other sizes: 'w20_cex9'; 'w18_cex85'; 'w16_cex8'; 'w15_cex75';
-  var legend_image = 'Legend_PMID'+study_pmid+'_'+legend_size+'.png';
-  var url_legend = global_url_static_image_dir +legend_image;
-  // Putting a table around the box plots as otherwise if click on gene near bottom of page the fancybox makes tall box as probably tries to put legend below the boxplot
-  // For table add: style="padding:0;border-collapse: collapse;" table {border-spacing: 2px;} td    {padding: 0px;} cellspacing="0" (see: http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css )
-  var mycontent = '<table align="center" style="padding:0; border-collapse: collapse; border-spacing: 0;"><tr><td style="padding:0;"><img src="' + url_boxplot + '" width="'+boxplot_width+'" height"'+boxplot_height+'" alt="Loading boxplot image...."/></td>' + '<td style="padding:0;"><img src="' + url_legend + '" width="'+legend_width+'" height"'+legend_height+'"/></td></tr></table>';
- // console.log(mycontent);
-  var study = study_info(study_pmid);
-//console.log(mycontent);
-//console.log(gene_info_cache[target]);
-//console.log(target_ids);
-    
-  var plot_title = '<p align="center" style="margin-top: 0;"><b>'+driver+'</b> altered cell lines have an increased dependency upon <b>'+target+'</b><br/>(p='+wilcox_p.replace('e', ' x 10<sup>')+'</sup> | effect size='+effect_size+'% | &Delta;Score='+zdelta_score+' | Tissues='+ histotype_display(histotype) +' | Source='+ study[ishortname] +')';
-  
-//console.log("target_info:", target_info);
-
-  if (typeof target_info === 'undefined') {plot_title += '<br/>Unable to retrieve synonyms and external links for this gene';}
-  else {
-      if (target !== target_info['gene_name']) {alert("Target name:"+target+" != target_info['gene_name']:"+target_info['gene_name'] );}
-	  var target_full_name = '<i>'+target_info['full_name']+'</i>';
-	  var target_synonyms  = target_info['synonyms'];
-	  if (target_synonyms !== '') {target_synonyms = ' | '+target_synonyms;} // To prefix with a '|'
-
-	  // 'ncbi_summary' is not part of the standard gene_info returned by AJAX
-	  // var ncbi_summary = target_info['ncbi_summary'];
-	  // if ((typeof ncbi_summary !=="undefined") && (ncbi_summary!=="")) {ncbi_summary='<p style="font-size:90%;">'+ncbi_summary+'</p>'}
-	  var target_external_links = gene_external_links(target_info['ids'], '|', false); // returns html for links to entrez, etc. The 'false' means returns the most useful selected links, not all links.
-
-	  plot_title += '<br/><b>'+target+'</b>'+target_synonyms+', '+target_full_name +'</br>'+ target+' Links: '+target_external_links;
-	  }
-  plot_title += '</p>';
-  
-//console.log(plot_title);
-
-  $.fancybox.open({
-  //$(".fancybox").open({
-    // href: url_boxplot,
-    preload: 0, // Number of gallary images to preload
-    //minWidth: 550, // To enable boxplot and image to be side-by-side, rather than legend below boxplot
-    //maxHeight: 550,
-	autoSize: false, // otherwise it resizes too tall.
-    padding: 2,  	// is space between image and fancybox, default 15
-    margin:  2, 	// is space between fancybox and viewport, default 20
-	width:  boxplot_width+legend_width+8, // default is 800
-	height: boxplot_height + 8, // default is 600 /// the title is below this again, ie. outside this, so the 25 is just to allow for the margins top and bottom 
-    aspectRatio: true,
-    fitToView: false,
-    arrows: false,
-	closeEffect : 'none',
-    helpers: {
-        title: {
-            type: 'inside'
-        },
-        overlay: {
-            showEarly: false  // as otherwise incorrectly sized box displays before images have arrived.
-        }
-    },
-
-    // href="{#% static 'gendep/boxplots/' %#}{{ dependency.boxplot_filename }}" 
-    // or $(...).content - Overrides content to be displayed - maybe for inline content
-	type: 'html', // 'iframe', // 'html', //'inline',
-    //content: 
-	content: mycontent,
-    title: plot_title,
-   });
-   
-   return false; // Return false to the caller so won't move on the page
-}
-  
 
 
 function next_dependency(this_td) {
