@@ -431,7 +431,7 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
         inhibitors = d.target.inhibitors if search_by_driver else d.driver.inhibitors
         if inhibitors is None: inhibitors = '' # shouldn't be None, as set by 'drug_inhibitors.py' script to ''.
         
-        # For driver or target below, the '_id' suffix gets the underlying gene name, rather than the foreign key Gene object, so more efficient as no SQL join needed.
+        # For driver or target below, the '_id' suffix gets the underlying gene name, rather than the foreign key Gene object, so more efficient as no SQL join needed: https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
         # Similarily 'study_id' returns the underlying pmid number from Dependency table rather than the Study object.
         # wilcox_p in scientific format with no decimal places (.0 precision), and remove python's leading zero from the exponent.
         results.append([
@@ -553,10 +553,9 @@ def stringdb_interactions(required_score, protein_list):
     """
     
     stringdb_options="network_flavor=confidence&limit=0&required_score="+required_score;    
-    # The online interactive stringdb uses: "required_score" 400, and "limit" 0 (otherwise by default string-db will add 10 more proteins)
-    # Optionally add parameter:  &additional_network_nodes=0
+    # The online interactive stringdb uses: "required_score" 400, and "limit" 0 (otherwise by default string-db will add 10 more proteins).  Optionally add parameter:  &additional_network_nodes=0
     
-    protein_list = protein_list.replace(';', '%0D')  # Replace semicolon with the url encoded newline character,  which String-db expects between protein ids.
+    protein_list = protein_list.replace(';', '%0D')  # Replace semicolon with the url encoded newline character that String-db expects between protein ids.
 
     url = "http://string-db.org/api/psi-mi-tab/interactionsList?"+stringdb_options+"&identifiers="+protein_list;
     
@@ -789,6 +788,35 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
     
     if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
 
+    print("Query SQL:",dependency_list.query)
+
+Query SQL:
+
+Raw SQL would be:
+
+
+SELECT 
+  "gendep_dependency"."id", "gendep_dependency"."driver", "gendep_dependency"."target", "gendep_dependency"."target_variant", "gendep_dependency"."mutation_type", "gendep_dependency"."wilcox_p", "gendep_dependency"."effect_size", "gendep_dependency"."za", "gendep_dependency"."zb", "gendep_dependency"."zdiff", "gendep_dependency"."interaction", "gendep_dependency"."pmid", "gendep_dependency"."study_table", "gendep_dependency"."histotype", "gendep_dependency"."boxplot_data",
+  T3."gene_name", T3."original_name", T3."is_driver", T3."is_target", T3."full_name", T3."ensembl_id", T3."ensembl_protein_id", T3."entrez_id", T3."cosmic_id", T3."cancerrxgene_id", T3."omim_id", T3."uniprot_id", T3."vega_id", T3."hgnc_id", T3."prevname_synonyms", T3."driver_num_studies", T3."driver_study_list", T3."driver_num_histotypes", T3."driver_histotype_list", T3."driver_num_targets", T3."target_num_drivers", T3."target_num_histotypes", T3."inhibitors", T3."ncbi_summary",
+  "gendep_study"."pmid", "gendep_study"."code", "gendep_study"."short_name", "gendep_study"."title", "gendep_study"."authors", "gendep_study"."experiment_type", "gendep_study"."abstract", "gendep_study"."summary", "gendep_study"."journal", "gendep_study"."pub_date", "gendep_study"."num_drivers", "gendep_study"."num_histotypes", "gendep_study"."num_targets"
+FROM "gendep_dependency"
+INNER JOIN "gendep_gene" T3 ON ("gendep_dependency"."target" = T3."gene_name")
+INNER JOIN "gendep_study" ON ("gendep_dependency"."pmid" = "gendep_study"."pmid")
+WHERE ("gendep_dependency"."driver" = ERBB2 AND "gendep_dependency"."histotype" = PANCAN AND "gendep_dependency"."wilcox_p" <= 0.05)
+ORDER BY "gendep_dependency"."wilcox_p"
+ASC
+
+[08/Jun/2016 01:19:49] "GET /gendep/download_csv/xlsx/driver/ERBB2/PANCAN/ALL_ST
+UDIES/ HTTP/1.1" 200 91646
+
+
+
+
+
+# ** Warning: If you are performing queries on MySQL, note that MySQL’s silent type coercion may cause unexpected results when mixing types. If you query on a string type column, but with an integer value, MySQL will coerce the types of all values in the table to an integer before performing the comparison. For example, if your table contains the values 'abc', 'def' and you query for WHERE mycolumn=0, both rows will match. To prevent this, perform the correct typecasting before using the value in a query.
+#    from: https://docs.djangoproject.com/en/1.9/topics/db/sql/
+    
+    
     histotype_full_name = get_histotype_full_name(histotype_name)
     if histotype_full_name is None: return HttpResponse("Error: Tissue '%s' NOT found in histotype list" %(histotype_name))
     
