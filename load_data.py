@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 
+#### Todo: Remove the globabls from read HGNC, etc....
+
 # The Windows 'py' launcher should also recognise the above shebang line.
 
 """ Script to import the data into the database tables """
 # NOTES:
-# (1) An alternative if loading data into empty database is using 'Fixtures': https://docs.djangoproject.com/en/1.9/howto/initial-data/
+# (1) An alternative for loading data into empty database is using 'Fixtures', however this data seems to complex for fixtures: https://docs.djangoproject.com/en/1.9/howto/initial-data/
 # or django-adapters: http://stackoverflow.com/questions/14504585/good-ways-to-import-data-into-django
 #                     http://django-adaptors.readthedocs.org/en/latest/
 
 # (2) No longer using the Achilles target variants - as only keeping the variant with the lowest (ie. best) p-value.
-# (3) Do the annotation with entrez, ensembl, etc as a separate script later.
-# (4) Add the ensembl_protein - as is used by StringDB for interactions.
+# (3) No longer fetching the boxplot png files, as using the boxplot text data to plot SVG in webbrowser.
+# (4) Do the annotation with entrez, ensembl, etc as a separate script later.
+# (5) Add the ensembl_protein - as is used by StringDB for interactions.
 
 
 import sys, os, csv, re
@@ -33,20 +36,37 @@ from gendep.models import Study, Gene, Dependency  # Removed: Histotype, Drug, C
 import warnings # To convert the MySQL data truncation (due to field max_length being too small) into raising an exception:
 warnings.filterwarnings('error', 'Data truncated .*') # regular expression to catch: Warning: Data truncated for column 'gene_name' at row 1
 
+# HGNC input file used by load_hgnc_dictionary(hgnc_infile):
+hgnc_infile = os.path.join('input_data','hgnc_complete_set.txt')
+
+
+# Set flag to output the info messages. Can redirect output to text file.
+INFO_MESSAGES = True
+
+def info(message):
+    if (INFO_MESSAGES):
+        print('INFO: %s\n', message)
+
+def debug(message):
+    print('DEBUG: %s\n', message)
+    
 def warn(message):
 	sys.stderr.write('* WARNING:  %s\n' % message)
 
+def warning(message):
+	warn(message)
+    
 def error(message):
 	sys.stderr.write('*** ERROR:  %s\n' % message)
         
 def fatal_error(message, code=1):
-    # raise RuntimeError(message)
-    # or:
-	sys.stderr.write('*** ERROR:  %s\n' % message)
+	sys.stderr.write('***** ERROR:  %s\n' % message)
 	sys.exit(code)
+    # or: raise RuntimeError(message)
 
 
 def find_or_add_study(pmid, code, short_name, title, authors, abstract, summary, experiment_type, journal, pub_date):
+  """ Finds or adds study in the Study table """
   s, created = Study.objects.get_or_create( pmid=pmid, defaults={'code': code, 'short_name': short_name, 'title': title, 'authors': authors, 'abstract': abstract, 'summary': summary, 'experiment_type': experiment_type, 'journal': journal, 'pub_date': pub_date} )
   return s
 
@@ -58,66 +78,81 @@ def find_or_add_histotype(histotype, full_name):
   # h, created = Histotype.objects.get_or_create(histotype=histotype, defaults={'full_name': full_name} )
 
   # As using the HISTOTYPE_CHOICES list in the Dependency class (instead of a Histotype table):
-  if not Dependency.is_valid_histotype(histotype):
+  if Dependency.is_valid_histotype(histotype):    
+      h = histotype
+   else: 
       error("Histotype %s NOT found in HISTOTYPE_CHOICES list: %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
       h = None
-  else: 
-      h = histotype
-  
+
   return h
 
 
-driver_name_warning_already_reported = dict() # To reduce multiple duplicate messages during loading of data.
+driver_name_warning_already_reported = dict() # To reduce multiple duplicate messages during loading of driver genes.
 def split_driver_gene_name(long_name):
   """ Splits a Driver name from format "genename_entrezid_ensemblid" (eg: CCND1_595_ENSG00000110092 ), as output by the R function "write.table(uv_results_kinome_combmuts_bytissue, ....." in the "run_intercell_analysis.R" script, into the three separate parts 
   
     parameter 'long_name' is the input name, eg: "CCND1_595_ENSG00000110092"
+    
+  Output is names[3] list of [ genename, entrezid, ensemblid ] eg: [ "CCND1", "595", "ENSG00000110092" ]
   
+  In the data from R, there are drivers with two or more ensembl gane names, so will just use the first ensembl name:
+  
+    EIF1AX_101060318_ENSG00000173674_ENSG00000198692
+    HIST1H3B_3020_ENSG00000132475_ENSG00000163041
+    TRIM48_101930235_ENSG00000150244_ENSG00000223417
+    RGPD3_653489_ENSG00000015568_ENSG00000153165_ENSG00000183054
+    MEF2BNB.MEF2B_729991_ENSG00000064489_ENSG00000254901
+    HIST1H2BF_8347_ENSG00000168242_ENSG00000180596_ENSG00000187990_ENSG00000197697_ENSG00000197846
+    NUTM2F_441457_ENSG00000130950_ENSG00000188152
+    H3F3B_3021_ENSG00000132475_ENSG00000163041
+    WDR33_84826_ENSG00000136709_ENSG00000173349
+    KRTAP4.11_728224_ENSG00000204880_ENSG00000212721
   """
   names = long_name.split('_') 
   if len(names)!=3 and long_name not in driver_name_warning_already_reported:
       error("Invalid number of parts in driver gene, (as expected 3 parts): '%s'" %(long_name))
-      driver_name_warning_already_reported[long_name] = None
+      driver_name_warning_already_reported[long_name] = None # Storing 'None' can be more memory efficient than 'True'
   if not names[1].isdigit() and long_name not in driver_name_warning_already_reported:
       error("Expected integer for Entrez id second part of name: '%s'"  %(long_name))
       driver_name_warning_already_reported[long_name] = None
   if names[2][:4] != 'ENSG' and names[2]!='NoEnsemblIdFound' and long_name not in driver_name_warning_already_reported:
       error("Expected 'ENSG' for start of driver ensembl name: '%s'" %(long_name))
       driver_name_warning_already_reported[long_name] = None
-  # eg: In the data from R, there are several drivers with two or more ensembl gane names:
-  #
-  #  EIF1AX_101060318_ENSG00000173674_ENSG00000198692
-  #  HIST1H3B_3020_ENSG00000132475_ENSG00000163041
-  #  TRIM48_101930235_ENSG00000150244_ENSG00000223417
-  #  RGPD3_653489_ENSG00000015568_ENSG00000153165_ENSG00000183054
-  #  MEF2BNB.MEF2B_729991_ENSG00000064489_ENSG00000254901
-  #  HIST1H2BF_8347_ENSG00000168242_ENSG00000180596_ENSG00000187990_ENSG00000197697_ENSG00000197846
-  #  NUTM2F_441457_ENSG00000130950_ENSG00000188152
-  #  H3F3B_3021_ENSG00000132475_ENSG00000163041
-  #  WDR33_84826_ENSG00000136709_ENSG00000173349
-  #  KRTAP4.11_728224_ENSG00000204880_ENSG00000212721
+      
   return names
 
 
-target_name_warning_already_reported = dict()
+target_name_warning_already_reported = dict()  # To reduce multiple duplicate messages during loading of target genes.
 def split_target_gene_name(long_name, isColt):
+  """ Splits a Target name read from output of the R function "write.table(uv_results_kinome_combmuts_bytissue, ....." in the "run_intercell_analysis.R" script.
+:
+      parameters:
+        'long_name' - is the input name, eg: "DCK_ENSG00000156136" 
+      
+        isColt - to indicate this is Colt study name format, as Campbell and Achilles format is "genename_ensemblid" (eg: DCK_ENSG00000156136 ), whereas Colt format is "genename_entrezid" (eg: ATP1A1_476 )
+        
+      The long_name can be genename_NoEnsemblIdFound if data input to R did not find a correponding ensembl id.
+      
+    Output is a names[3] list of: of [ genename, "", ensemblid ] or [ genename, entrezid, "" ], so has same number of elements in names array for target names as in driver names (returned by function 'split_driver_gene_name' above.)
+  """  
+  
+  names = long_name.split('_')
 
-  names = long_name.split('_')    # Target format is: DCK_ENSG00000156136 for Campbell and Achilles, but for Colt is: ATP1A1_476
   if len(names)!=2:
     if names[0] == 'CDK12' and len(names)==3 and names[2]=='CRK7': # as "CDK12_ENSG00000167258_CRK7" is an exception to target format (CRK7 is an alternative name)
       names.pop()   # Remove the last 'CRK7' name from the names list
     elif long_name not in target_name_warning_already_reported:
-      print('Invalid number of parts in target gene, (as expected 2 parts)',long_name)
+      warn('Invalid number of parts in target gene, (as expected 2 parts)',long_name)
       target_name_warning_already_reported[long_name] = None
 
   if isColt:
-    names.append('') # As Colt names have entrez id, but not ensembl id.  
+    names.append('') # As Colt names have entrez id, but not ensembl id, so add empty "" at end of names list.  
   else:
     if names[1][:4] != 'ENSG' and names[1]!='NoEnsemblIdFound' and long_name not in target_name_warning_already_reported:
       error("Expected 'ENSG' for start of target ensembl name: '%s'" %(long_name))
       target_name_warning_already_reported[long_name] = None
       
-    names.insert(1,'') # (or None, but Django stores None as empty string, rather than as null) to make same number of elements in names array for target names as in driver names.
+    names.insert(1,'') # Insert empty entrezid to makes names[3] list
     
   return names
 
@@ -125,17 +160,21 @@ def split_target_gene_name(long_name, isColt):
 
 hgnc = dict() # To read the HGNC ids into a dictionary
 #ihgnc = dict() # The column name to number for the above HGNC dict. 
-def load_hgnc_dictionary():
+def load_hgnc_dictionary(hgnc_infile):
+  """ Reads the HGNC gene ids into a dictionary to use for adding each gene's full_name, synomyns,  external ids to the Gene table """
+  # Could use Pandas to read the csv file, but Pandas is an extra dependency to install. Eg: import pandas as pd;   data = pd.read_csv("names.csv", nrows=1)
+  # Alternatively use a webservice, eg: http://www.genenames.org/help/rest-web-service-help
+  
   global hgnc, isymbol, ifull_name, istatus, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
   print("\nLoading HGNC data")
-  # Alternatively use the webservice: http://www.genenames.org/help/rest-web-service-help
-  infile = os.path.join('input_data','hgnc_complete_set.txt')
-  dataReader = csv.reader(open(infile), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
-  row = next(dataReader) # To read the first heading line. See: http://stackoverflow.com/questions/17262256/reading-one-line-of-csv-data-in-python
-  # or Pandas might be faster? eg: import pandas as pd;   data = pd.read_csv("names.csv", nrows=1)
-  # was if dataReader.line_num == 1: # The header line.
+    
+  dataReader = csv.reader(open(hgnc_infile), dialect='excel-tab')
+     # or: dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+  row = next(dataReader)
+
   ihgnc = dict() # The column name to number for the above HGNC dict. 
-  for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
+  for i in range(len(row)): ihgnc[row[i]] = i   # Store column numbers for each item in the input header line.
+  # Store these column numbers in globabl variables to access the array elements stored in the 'hgnc' dictionary:
   isymbol     = ihgnc.get('symbol')
   ifull_name  = ihgnc.get('name')            # eg: erb-b2 receptor tyrosine kinase 2
   istatus     = ihgnc.get('status')
@@ -154,16 +193,16 @@ def load_hgnc_dictionary():
     if row[istatus] == 'Entry Withdrawn':
        continue  # So skip this entry.
     else:
-      gene_name = row[isymbol] # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
+      gene_name = row[isymbol] # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is the first column which is HGNC number
       cosmic_name = row[icosmic_id]
       if cosmic_name !='' and cosmic_name != gene_name:
         error("COSMIC '%s' != gene_name '%s'" %(cosmic_name,gene_name))
       if gene_name in hgnc:
         error("Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s' \nrow: %s\nhgnc: %s" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id], hgnc[gene_name], row)  )
       hgnc[gene_name] = row # Store the whole row for simplicity.
-      # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
 
-
+      
+# Dictionary used by function 'fix_gene_name(name)' to update some gene names, eg: 'C9orf96' to 'STKLD1', or changing '.' to '-'
 namefixes = {
  'C9orf96':      'STKLD1', # as C9orf96 is the old name.
  'C8orf44.SGK3': 'C8orf44-SGK3',
@@ -194,58 +233,65 @@ namefixes = {
 }
       
 def fix_gene_name(name):
-  if len(name) > 25: error("gene_name '%s' >25 characters long" %(name))
+  """ Updates some gene names, eg: 'C9orf96' to 'STKLD1', or changing first or second '.' to '-' and checking the hgnc dictionary for the updated name.  Currently the may length of gene_name column in models.py is 25 characters.
+  """
+
+  if len(name) > 25: fatal_error("gene_name '%s' >25 characters long" %(name))
+  
   newname = ''
   
   if name in namefixes:
     newname = namefixes[name]  
-    print("Changed: '%s' => '%s'" %(name,newname))
+    info("Changed: '%s' => '%s'" %(name,newname))
     return newname
 
   elif name.find('.') > -1:
      s = name.split('.')
-     if len(s) == 2:
+     if len(s) == 1:
+       fatal_error("fix_gene_name() split on '.' failed. This should never happen. name: %s" %(name))
+     elsif len(s) == 2:
        newname = "%s-%s" %(s[0],s[1])
        if newname in hgnc:
-          print("Changed: '%s' => '%s'" %(name,newname))
+          info("Changed: '%s' => '%s'" %(name,newname))
           return newname
      elif len(s) == 3:
-       newname = "%s-%s.%s" %(s[0],s[1],s[2])
+       newname = "%s-%s.%s" %(s[0],s[1],s[2])  # Try changing name "a.b.c" => "a-b.c"
        if newname in hgnc:
-          print("Changed: '%s' => '%s'" %(name,newname))       
+          info("Changed: '%s' => '%s'" %(name,newname))       
           return newname       
-       newname = "%s.%s-%s" %(s[0],s[1],s[2])
+       newname = "%s.%s-%s" %(s[0],s[1],s[2])  # Try changing name "a.b.c" => "a.b-c"
        if newname in hgnc:
-          print("Changed: '%s' => '%s'" %(name,newname))
+          info("Changed: '%s' => '%s'" %(name,newname))
           return newname
-       newname = "%s-%s-%s" %(s[0],s[1],s[2])
+       newname = "%s-%s-%s" %(s[0],s[1],s[2])  # Try changing name "a.b.c" => "a-b-c"
        if newname in hgnc:
           return newname
-     else:  # eg. len(s) ==1 or >3
-       fatal_error("fix_gene_name() has %d '-' in name: %s" %(len(s),name))
+     else:  # has >3  '.'
+       fatal_error("fix_gene_name() has %d '.' in name: %s" %(len(s),name))
 
   return name
 
 
 ATARmap = dict()
 def load_mygene_hgnc_dictionary():
-  # Reads in the names for the genes used in the R analysis of Achilles data
+  """ Reads in the names from mygene data for the genes used in the R analysis of Achilles data """
+  
   global ATARmap, jsol_entrez, img_entrezgene, img_symbol, img_hgnc, ihgnc_ensembl_id, img_ensembl_id, iname_used_for_R
 
   # The following file is produced by parse_Achilles_QC_v243_rna_Gs_gct.py:
   output_file4_newnames = os.path.join("Achilles_data", "Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt")
-  print("\nLoading ATARmap mygne dictionary from file:", output_file4_newnames)
+  info("\nLoading ATARmap mygne dictionary from file:", output_file4_newnames)
   
   dataReader = csv.reader(open(output_file4_newnames), dialect='excel-tab')
   # Format for file:
   # sol.name        mg_symbol       entrez  mg_entrez  mg_hgnc  hgnc_ensembl     mg_ensembl       name_used_for_R
   # A2ML1_1_01110   A2ML1           144568  144568     23336    ENSG00000166535  ENSG00000166535  A2ML11_ENSG00000166535
 
-  row = next(dataReader) # To read the first heading line.
-  # if dataReader.line_num == 1: # The header line.
-  cols = dict() # The column name to number for the above HGNC dict. 
+  row = next(dataReader) # To read the first line which is the headings line of column names.
+
+  cols = dict() # The column name-to-number for the above HGNC dictionary lists. 
   for i in range(len(row)): cols[row[i]] = i       # Store column numbers for each header item
-  jsol_name  = cols['sol.name']  # eg: A2ML1_1_01110      
+  jsol_name  = cols['sol.name']  # eg: A2ML1_1_01110
   jsol_entrez = cols['entrez']
   img_entrezgene = cols['mg_entrez']
   img_symbol = cols['mg_symbol']
@@ -264,17 +310,16 @@ def load_mygene_hgnc_dictionary():
       #  warn("Duplicate name_used_for_R %s in file: " %(key),row)
       #ATARmap[key] = row
 
-
+      
+      
+      
 RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
 
-# *** maybe not needed:
-#from django.utils.encoding import smart_text;
-
-def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names is a tuple of: gene_name, entrez_id, ensembl_id
-  # if names[0] == 'PIK3CA' and is_driver: print("**** PIK3CA  is_driver: ",names)
-  #global RE_GENE_NAME
-#  if isAchilles: names[0] = names[0][:-1]  # Remove the final character from end of the string - but this will mean extra records for some dependecies
-  # The above trimming of the varaint number from Achilles is already done by the calling function.
+def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
+  """ Find or add a gene to the Gene table. 
+      names is a tuple or list of:  gene_name, entrez_id, ensembl_id
+     Trimming of the varaint number from Achilles name is already done by the calling function. 
+  """
 
   # Things to fix for Achilles data:
       # For gene 'DUX3': ensembl_id '' from HGNC doesn't match 'NoEnsemblIdFound' from Excel file
@@ -289,7 +334,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
   gene_name = names[0]
   entrez_id = names[1]
   if entrez_id == 'EntrezNotFound':
-    print("Entrez id='%s' for gene %s, changing to 'NoEntrezId'" %(entrez_id,gene_name))    
+    info("Entrez id='%s' for gene %s, changing to 'NoEntrezId'" %(entrez_id,gene_name))    
     entrez_id='NoEntrezId' # As 'EntrezNotFound' from Achilles data is too long for the 10 character entrez_id field.
     names[1] = entrez_id
   ensembl_id = names[2]
@@ -297,63 +342,38 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):  # names 
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
   assert RE_GENE_NAME.match(gene_name), "gene_name %s doesn't match regexp"%(gene_name)
   
-  # if gene_name == 'PIK3CA': print("PIK3CA Here 0")
   try:
-    # if gene_name == 'PIK3CA': print("PIK3CA Here A")
-    g = Gene.objects.get(gene_name=gene_name)
-    # Test driver status:
+    g = Gene.objects.get(gene_name=gene_name) # Gene already in Gene table
+    # Update the is_driver and is_target status:
     if is_driver and not g.is_driver:
-      print("Updating '%s' to is_driver" %(gene_name))
+      info("Updating '%s' to is_driver" %(gene_name))
       g.is_driver = is_driver
       g.save()
     if is_target and not g.is_target:
-      print("Updating '%s' to is_target" %(gene_name))
+      info("Updating '%s' to is_target" %(gene_name))
       g.is_target = is_target
       g.save()
       
-    # Test if ensemble_id is same:
+    # Test if stored ensemble_id is same:
     g_entrez_id = g.entrez_id
-    if entrez_id != '' and g_entrez_id != entrez_id:    
-      if g.entrez_id == '':
-        print("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
+    if entrez_id != '' and entrez_id != 'NoEntrezId' and g_entrez_id != entrez_id
+      if g.entrez_id == '' or g_entrez_id == 'NoEntrezId':
+        info("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
         g.save()        
       else:
         warn("For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the Excel file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
 
-    if ensembl_id!='' and g.ensembl_id != ensembl_id and ensembl_id!='NoEnsemblIdFound':
+    if ensembl_id!='' and ensembl_id!='NoEnsemblIdFound' and g.ensembl_id != ensembl_id:
       if g.ensembl_id == '' or g.ensembl_id=='NoEnsemblIdFound':
-        print("Updating Ensembl_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.ensembl_id,ensembl_id,is_driver,g.is_driver, g.is_target))
+        info("Updating Ensembl_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.ensembl_id,ensembl_id,is_driver,g.is_driver, g.is_target))
         g.ensembl_id=ensembl_id
         g.save()
       else:
         warn("For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from Excel file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
-      
-    """
- 1162 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
-WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
-WARNING: For gene 'THNSL1': Ensembl_id '('ENSG00000185875',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000185875' (<class 'str'>) from Excel file
- 1163 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
-WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
-WARNING: For gene 'PBK': Ensembl_id '('ENSG00000168078',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000168078' (<class 'str'>) from Excel file
- 1164 WARNING: For gene 'ARID1A': Entrez_id '('8289',)' (<class 'str'>) already saved in the Gene table doesn't match '8289' (<class 'str'>) from the Excel file
-WARNING: For gene 'ARID1A': Ensembl_id '('ENSG00000117713',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000117713' (<class 'str'>) from Excel file
-WARNING: For gene 'UCK2': Ensembl_id '('ENSG00000143179',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000143179' (<class 'str'>) from Excel file
-    
-    
-    
- 549 WARNING: For gene 'RB1': Entrez_id '('5925',)' already saved in the Gene table doesn't match '5925' from the Excel file
-WARNING: For gene 'RB1': Ensembl_id '('ENSG00000139687',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000139687' (<class 'str'>) from Excel file
- 550 WARNING: For gene 'RB1': Entrez_id '('5925',)' already saved in the Gene table doesn't match '5925' from the Excel file
-WARNING: For gene 'RB1': Ensembl_id '('ENSG00000139687',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000139687' (<class 'str'>) from Excel file
-WARNING: For gene 'RELA': Ensembl_id '('ENSG00000173039',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000173039' (<class 'str'>) from Excel file
- 551 WARNING: For gene 'RB1': Entrez_id '('5925',)' already saved in the Gene table doesn't match '5925' from the Excel file
-WARNING: For gene 'RB1': Ensembl_id '('ENSG00000139687',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000139687' (<class 'str'>) from Excel file
-WARNING: For gene 'RIOK3': Ensembl_id '('ENSG00000101782',)' (<class 'str'>) already saved in the Gene table doesn't match 'ENSG00000101782' (<class 'str'>) from Excel file
-    """
-    
-  except ObjectDoesNotExist: # Not found by the objects.get()
-    # if gene_name == 'PIK3CA': print("PIK3CA Here B")
+          
+  except ObjectDoesNotExist: # gene name not found in the gene table by the objects.get(), so need to add it:
+    # if gene_name == 'PIK3CA': debug("PIK3CA Here B")
     if gene_name not in hgnc:
       warn("Gene '%s' NOT found in HGNC dictionary" %(gene_name) )
       g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, entrez_id=entrez_id, ensembl_id=ensembl_id)
@@ -384,7 +404,7 @@ WARNING: For gene 'RIOK3': Ensembl_id '('ENSG00000101782',)' (<class 'str'>) alr
       if len(omim_id) >= 9:
           pos = omim_id.find('|')
           if pos > -1:
-            print("%s: using only first omid_id: %s" %(gene_name,omim_id))
+            info("%s: using only first omid_id: %s" %(gene_name,omim_id))
             omim_id = omim_id[:pos]
       
       g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
@@ -436,55 +456,16 @@ WARNING: For gene 'RIOK3': Ensembl_id '('ENSG00000101782',)' (<class 'str'>) alr
                # 'gene_family'      # eg: CD molecules|Minor histocompatibility antigens|Erb-b2 receptor tyrosine kinases
                # 'refseq_accession' # eg: NM_004448
                )
-      else: print("Invalid Iinfo_source='%s'" %(info_source))
+      else: error("Invalid Iinfo_source='%s'" %(info_source))
       """
-    # print( "*****", this_hgnc[iuniprot_id])
+    # debug( "*****", this_hgnc[iuniprot_id])
     # g.save() # Using create() above instead of Gene(...) and g.save.
     
-  # if gene_name == 'PIK3CA': print("PIK3CA Here C")
+  # if gene_name == 'PIK3CA': debug("PIK3CA Here C")
   return g
 
 
   
-def get_boxplot_histotype(histotype):
-    # As the R scripts used some different tissue names
-    # if   histotype == "PANCAN": return "allhistotypes"  # BUT the "run_Intercell_analysis.R" is changed now to use "PANCAN"
-    if histotype == "OSTEOSARCOMA": return "BONE"
-    # elif histotype == "BREAST": return "BREAST",
-    # elif histotype == "LUNG": return "LUNG",
-    # elif histotype == "": return "HEADNECK",
-    # elif histotype == "": return "PANCREAS",
-    # elif histotype == "": return "CERVICAL",
-    # elif histotype == "OVARY": return "OVARY",
-    # elif histotype == "OESOPHAGUS": return "OESOPHAGUS",
-    # elif histotype == "": return "ENDOMETRIUM",
-    # elif histotype == "": return "CENTRAL_NERVOUS_SYSTEM"
-    else: return histotype
-
-
-def fetch_boxplot_file(driver_gene, target_gene, histotype, isAchilles, isColt, target_variant=''):
-    global static_gendep_boxplot_dir
-    if isAchilles:
-      from_dir = Achilles_combined_boxplots_dir if histotype == "PANCAN" else Achilles_separate_boxplots_dir 
-      target_gene_name = target_gene.gene_name + target_variant
-      target_gene_original_name = target_gene.original_name + target_variant # As already fixed before running R
-        # This used old name: 'C8orf44.SGK3' # 'C8orf44-SGK3' is new name in hghc: 48354
-        # This used new name: 'STKLD1' # C9orf96 is the old name.
-    elif isColt:
-      if histotype == "PANCAN": error("Cannot have PANCAN for Colt data *****")
-      from_dir = Colt_separate_boxplots_dir
-      target_gene_name = target_gene.gene_name
-      target_gene_original_name = target_gene.original_name      
-    else:
-      from_dir = combined_boxplots_dir if histotype == "PANCAN" else separate_boxplots_dir
-      target_gene_name = target_gene.gene_name
-      target_gene_original_name = target_gene.original_name
-       
-    to_dir = static_gendep_boxplot_dir
-    old_histotype = get_boxplot_histotype(histotype)
-    fetch_boxplot(from_dir, to_dir, driver_gene.original_name, driver_gene.gene_name, target_gene_original_name, target_gene_name, old_histotype, histotype, study.pmid)
-    
-    
 
 def add_counts_of_study_tissue_and_target_to_drivers():
   print("Adding study, tissue and target counts to drivers")
@@ -548,7 +529,7 @@ def add_counts_of_driver_tissue_and_target_to_studies(campbell_study, campbell_n
 
 
 def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, isColt=True):
-  global FETCH_BOXPLOTS, ACHILLES_FETCH_BOXPLOTS, COLT_FETCH_BOXPLOTS
+
   if isAchilles and isColt: error("Cannot be both Achilles and Colt ******")
 
   print("*** ONLY UPDATING BOXPLOT DATA ***")
@@ -556,10 +537,6 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
   
   print("\nImporting table: ",result_file)
 
-  if isAchilles: print("ACHILLES FETCH_BOXPLOTS is: ",ACHILLES_FETCH_BOXPLOTS)
-  elif isColt:   print("COLT FETCH_BOXPLOTS is: ",COLT_FETCH_BOXPLOTS)
-  else:          print("FETCH_BOXPLOTS is: ",FETCH_BOXPLOTS)
-  
   target_dict = dict()  # To find and replace any dependecies thart have different wilcox_p, just keeping the dependency with the lowest wilcox_p value.
   
   dataReader = csv.reader(open(result_file), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
@@ -686,17 +663,10 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
     print("dependency_rows_updated:",dependency_rows_updated," dependency_rows_not_found_to_update:",dependency_rows_not_found_to_update)
     return
 
-    
-  # Now fetch the boxplots for those added:
-  count_boxplots = 0
-  if (isAchilles and ACHILLES_FETCH_BOXPLOTS) or (isColt and COLT_FETCH_BOXPLOTS) or ((not isAchilles and not isColt) and FETCH_BOXPLOTS) :
-     for d in dependencies:
-        fetch_boxplot_file(d.driver, d.target, d.histotype, isAchilles=isAchilles, isColt=isColt, target_variant=d.target_variant)
-        count_boxplots += 1
-        
+            
   print( "%d dependency rows were added to the database, %d replaced and %d not replaced, so %d target_variants" %(count_added,count_replaced, count_not_replaced, count_replaced+count_not_replaced))
   print( "%d dependency rows were skipped as wilcox_p > 0.05 or effect_size < 0.65" %(count_skipped))
-  print( "%d boxplot images were fetched" %(count_boxplots))
+
   print("Bulk_create dependencies ....")
   Dependency.objects.bulk_create(dependencies) # Comparisons for Postgres:  http://stefano.dissegna.me/django-pg-bulk-insert.html
   print("Finished importing table.")
@@ -969,7 +939,7 @@ if __name__ == "__main__":
      static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
      # exit()
        
-  load_hgnc_dictionary()
+  load_hgnc_dictionary(hgnc_infile)
   load_mygene_hgnc_dictionary()
   
 
