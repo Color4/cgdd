@@ -40,7 +40,7 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 hgnc_infile = os.path.join('input_data','hgnc_complete_set.txt')
 
 
-# Set flag to output the info messages. Can redirect output to text file.
+# Set flag to output the info messages. On command-line can use '>' redirect output these to a text file.
 INFO_MESSAGES = True
 
 def info(message):
@@ -317,8 +317,8 @@ RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
 
 def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   """ Find or add a gene to the Gene table. 
-      names is a tuple or list of:  gene_name, entrez_id, ensembl_id
-     Trimming of the varaint number from Achilles name is already done by the calling function. 
+      'names' - is a tuple or list of: [ gene_name, entrez_id, ensembl_id ]
+     Trimming of the variant number from the Achilles target gene names is already done by the calling function. 
   """
 
   # Things to fix for Achilles data:
@@ -327,7 +327,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       #     - is in the "Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt" as:
       #       GTF2H2D_1_10001 GTF2H2C_2       730394  730394  35418           ENSG00000274675
       # WARNING: For gene 'GTF2H2': Ensembl_id 'ENSG00000145736' already saved in the Gene table doesn't match '21' from Excel file
-      # Invalid number of parts in target gene, (as expected 2 parts) C4B_21_ENSG00000233312
+      # Invalid number of parts in target gene, (as expected 2 parts) but got: C4B_21_ENSG00000233312
       
   original_gene_name = names[0]
   names[0] = fix_gene_name(names[0])
@@ -344,7 +344,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   
   try:
     g = Gene.objects.get(gene_name=gene_name) # Gene already in Gene table
-    # Update the is_driver and is_target status:
+    # Update the is_driver and is_target status in the database (used for displaying the dropdrown search menu and displaying the drivers table):
     if is_driver and not g.is_driver:
       info("Updating '%s' to is_driver" %(gene_name))
       g.is_driver = is_driver
@@ -353,17 +353,18 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       info("Updating '%s' to is_target" %(gene_name))
       g.is_target = is_target
       g.save()
-      
-    # Test if stored ensemble_id is same:
+            
+    # Test if stored entrez_id is same as already in database:
     g_entrez_id = g.entrez_id
     if entrez_id != '' and entrez_id != 'NoEntrezId' and g_entrez_id != entrez_id
       if g.entrez_id == '' or g_entrez_id == 'NoEntrezId':
         info("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
-        g.save()        
+        g.save()
       else:
         warn("For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the Excel file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
 
+    # Test if stored ensemble_id is same:
     if ensembl_id!='' and ensembl_id!='NoEnsemblIdFound' and g.ensembl_id != ensembl_id:
       if g.ensembl_id == '' or g.ensembl_id=='NoEnsemblIdFound':
         info("Updating Ensembl_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.ensembl_id,ensembl_id,is_driver,g.is_driver, g.is_target))

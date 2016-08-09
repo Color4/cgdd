@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="{% static 'gendep/fancybox/source/jquery.fancybox.css' %}" type="text/css" />
   
 {% comment%}
-  <!-- DataTables -->  
+  <!-- DataTables - could use in future instead of jquery-scroller table -->  
   <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/t/ju/jqc-1.12.0,dt-1.10.11,sc-1.4.1,se-1.1.2/datatables.min.css"/>
   <script type="text/javascript" src="https://cdn.datatables.net/t/ju/jqc-1.12.0,dt-1.10.11,sc-1.4.1,se-1.1.2/datatables.min.js"></script>
 {% endcomment %}  
@@ -29,7 +29,7 @@
   <script type="text/javascript" src="{% static 'gendep/datatables/datatables.min.js' %}"></script>
 {% endcomment %}
 
-    <!-- For saving SVG image as PNG -->
+  <!-- For saving SVG image as PNG -->
   <!--script src="gendep/static/gendep/saveSvgAsPng.js"></script-->
   <!-- script src="{% static 'gendep/saveSvgAsPng.js' %}"></script -->
   <!-- but will use the one below instead in future -->
@@ -104,7 +104,7 @@
 
 <script type="text/javascript">
 
-// Global variables set by Django template engine's url() tag:
+// Global variables set by Django template engine's url() tag - need 'static' tag as their path changes if local dev server or pythonanywhere production server:
 var global_url_for_faq = "{% url 'gendep:faq' %}"; 
 var global_url_static_image_dir = "{% static 'gendep/images/' %}";
 var global_url_static_boxplot_dir = "{% static 'gendep/boxplots/' %}";
@@ -141,13 +141,6 @@ var global_url_for_stringdb_interactionsList = "{% url 'gendep:get_stringdb_inte
 var global_url_for_stringdb_interactive_networkList_score400 = 
 "http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score400+"&advanced_menu=yes&identifiers=";
 
-// The following URL is now moved to the 'string_interactive_form', so need to set any options in that form's action
-var global_url_for_stringdb_interactive_networkList = 
-"http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifiers=";
-
-var global_url_for_stringdb_interactive_one_network = 
-"http://string-db.org/newstring_cgi/show_network_section.pl?"+stringdb_options_score700+"&advanced_menu=yes&identifier=";
-
 var global_max_stringdb_proteins_ids = 300; // Using POST now instead of GET(which had max of 73 proteins, as max GET in IE, and older browsers is 2000 charcters)
 
 
@@ -162,7 +155,8 @@ var global_selected_gene_info = ''; // The gene external ids
 
 var gene_info_cache = {}; // To cache gene_info retrieved by AJAX call for the tooltips, to save having to call it again
 // Ajax with default 'cache: true' option should cache these json GET requests anyway?
-var boxplot_cache = {};
+
+var boxplot_cache = {}; // Used by the "svg_boxplots.js" script to cache boxplots for faster redisplay.
 
 // var dependency_array = [];
 
@@ -226,184 +220,8 @@ function histotype_display(histotype) {
   }
 }
 
-/*
-from my SVG page - check is same as above.
-// A dictionary might be faster:
-function histotype_display(histotype) { // This is a duplicate of the one in index.html
-  switch (histotype) {	
-    case "BREAST": return "Breast";// break;	
-    case "LUNG": return "Lung";// break;	
-    case "HEADNECK": return "Head &amp; Neck";// break;	
-    case "OESOPHAGUS": return "Esophagus";// break;	
-    case "BONE": return "Osteosarcoma"; // same as below.
-    case "OSTEOSARCOMA": return "Osteosarcoma";// break;	
-    case "OVARY": return "Ovary";// break;	
-    case "ENDOMETRIUM": return "Endometrium";// break;	
-    case "PANCREAS": return "Pancreas";// break;	
-    case "CERVICAL": return "Cervical";// break;	
-    case "CENTRAL_NERVOUS_SYSTEM": return "CNS";// break;	
-    case "HAEMATOPOIETIC_AND_LYMPHOID_TISSUE": return "Blood &amp; Lymph";// break;	
-    case "INTESTINE": return "Intestine";// break;	
-    case "KIDNEY": return "Kidney";// break;	
-    case "PROSTATE": return "Prostate";// break;	
-    case "SKIN": return "Skin";// break;	
-    case "SOFT_TISSUE": return "Soft tissue";// break;	
-    case "STOMACH": return "Stomach";// break;	
-    case "URINARY_TRACT": return "Urinary tract";// break;	
-    case "PANCAN": return "Pan cancer";// break;	
-    case "ALL_HISTOTYPES": return "All tissues";// break;
-    default: return 'Error: Histotype "'+histotype+'" Not Found';
-  }
-}
-*/
 
 
-//function gene_info(gene_name) {
-//    var url = global_url_gene_info_for_mygene.replace('mygene',gene_name);	
-//}
-
-
-// Column filtering for DataTables: http://stackoverflow.com/questions/17629060/how-to-place-datatables-column-filter-on-top
-// Older version: https://datatables.net/forums/discussion/5033/datatables-column-filter-add-on-for-the-data-table
-// https://datatables.net/reference/api/column().search()
-
-// ***Like this (except at top: https://datatables.net/examples/api/multi_filter.html
-// https://datatables.net/development/filtering
-
-// *** Good info about setting column widths in tablesorter:
-//   **** http://stackoverflow.com/questions/16368345/columns-width-with-tablesorterfilter
-//      https://github.com/Mottie/tablesorter/issues/296
-
-/*
-// http://stackoverflow.com/questions/22274379/table-not-building
-Maybe better to use:
- applyTable(dataArr);
- 
-function applyTable(arrayIn) {
-    $('#topdiv').tablesorter({
-        theme: 'default',
-        //widgets : ['zebra','columns'],
-        widgetOptions: {
-            build_source: arrayIn,
-            build_headers: {
-                rows: 1,
-                widths: ['33%', '33%', '33%']
-            }
-        }
-    });
-}
-
-**** Use thie json object mewthod to build the table:
-https://mottie.github.io/tablesorter/docs/example-widget-build-table.html
-
-as json object can include classes and dat-info for the td tags...
-'data-info'
-eg:
-
-$(function() {
-  // object or JSON
-  var dataObject = {
-    headers : [
-      [
-        // each object/string is a cell
-        { text: 'First Name', class: 'fname', width: '10%' }, // row 0 cell 1
-        'Last Name',                                          // row 0 cell 2
-        { text: 'Age', class: 'age', 'data-sorter' : false }, // row 0 cell 3
-        'Total',                                              // row 0 cell 4
-        { text: 'Discount', class : 'sorter-false' },         // row 0 cell 5
-        { text: 'Date', class : 'date' }                      // row 0 cell 6
-      ]
-    ],
-    footers : 'clone', // clone headers or assign array like headers
-    rows : [
-      // TBODY 1
-      [ 'Peter', 'Parker',   28, '$9.99',   '20%', 'Jul 6, 2006 8:14 AM'   ], // row 1
-      [ 'John',  'Hood',     33, '$19.99',  '25%', 'Dec 10, 2002 5:14 AM'  ], // row 2
-      [ 'Clark', 'Kent',     18, '$15.89',  '44%', 'Jan 12, 2003 11:14 AM' ], // row 3
-
-      // TBODY 2
-      { newTbody: true, class: 'tablesorter-infoOnly' },
-      { cells : [ { html: '<strong>Info Row</strong>', colSpan: 6 } ] },      // row 4
-
-      // TBODY 3
-      { newTbody: true },
-      [ 'Bruce', 'Evans',    22, '$13.19',  '11%', 'Jan 18, 2007 9:12 AM'  ], // row 5
-      [ 'Bruce', 'Almighty', 45, '$153.19', '44%', 'Jan 18, 2001 9:12 AM'  ], // row 6
-
-      { class: 'specialRow',                                                  // row 7
-        cells: [
-          // each object/string is a cell
-          { text: 'Fred', class: 'fname' },                                   // row 7 cell 1
-          { text: 'Smith', class: 'lname' },                                  // row 7 cell 2
-          { text: 18, class: 'age', 'data-info': "fake ID!, he's only 16" },  // row 7 cell 3
-          { text: '$22.44', class: 'total' },                                 // row 7 cell 4
-          '8%',                                                               // row 7 cell 5
-          { text: 'Aug 20, 2012 10:15 AM', class: 'date' }                    // row 7 cell 6
-        ],
-        'data-info' : 'This row likes turtles'
-      }
-    ]
-  };
-
-  $('#object2Table').tablesorter({
-    theme: 'blue',
-    widgets: ['zebra'],
-    data : dataObject, // same as using build_source (build_source would override this)
-    widgetOptions : {
-      // *** build object options ***
-      build_objectRowKey    : 'rows',    // object key containing table rows
-      build_objectCellKey   : 'cells',   // object key containing table cells (within the rows object)
-      build_objectHeaderKey : 'headers', // object key containing table headers
-      build_objectFooterKey : 'footers'  // object key containing table footers
-    }
-  });
-
-});
-
-
-only double quotes (") can be used to wrap attributes, all keys must be wrapped in quotes, no comments, etc.
-Always verify that the JSON is valid (use JSONLint) and realize that browsers like Chrome will not allow you to access locally hosted (desktop) JSON files. Test it with Firefox instead.
-
--- see the json object on webpage for more details
-
-eg: if I build json file like:
-{"headers":[....
- "rows": [....
-   {cells:[
-          { text: 'Fred', class: 'fname' },                                   // row 7 cell 1
-          { text: 'Smith', class: 'lname' },                                  // row 7 cell 2
-          { text: 18, class: 'age', 'data-info': "fake ID!, he's only 16" },  // row 7 cell 3
-          { text: '$22.44', class: 'total' },                                 // row 7 cell 4
-          '8%',                                                               // row 7 cell 5
-          { text: 'Aug 20, 2012 10:15 AM', class: 'date' }                    // row 7 cell 6
-        ],
-        'data-info' : 'This row likes turtles'
-      },
-	  [
-	  
-	  ]
-	]
-	
-}
-*/
-
-// Resizable columns: http://mottie.github.io/tablesorter/docs/example-widget-resizable.html
-
-// although Mottie says the scroller widget has a lot of issues:
-// http://stackoverflow.com/questions/26955168/header-messed-on-applying-tablesorter-plugin
-//  What ended up working for me is to get rid of fixed column widths and use percentages set in the header like: <th style="width:10%"> for the first couple of columns, then the rest seemed to line up okay.
-
-// or use overflow: td {  max-width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-// The main issue with this would be the overflowed text would be hidden, so if you want the user to be able to read all the text, one idea would be to add it to the td's title attribute.
-// Or, use css3 word-break: break-all (browser support & demo):
-// td {  max-width: 100px; word-break: break-all; }
-//    http://stackoverflow.com/questions/32868982/how-to-set-fixed-table-widthnot-cell-in-table-sorter
-// and can use the overflow tooltip: https://github.com/mitchogaard/jquery-overflow-tooltip
-
-// Scroller demo: https://mottie.github.io/tablesorter/docs/example-widget-scroller.html
-// https://github.com/Mottie/tablesorter/issues/634
-//  https://github.com/Mottie/tablesorter/blob/master/docs/example-widget-scroller.html
-// https://github.com/Mottie/tablesorter/issues/215
 
 function initialise_result_table_and_tooltips() {
   // Parser for the 'wilcox_p' column(eg. "4 x 10<sup>-3</sup>") to back scientific number:
@@ -422,27 +240,12 @@ function initialise_result_table_and_tooltips() {
 		initialized : function(table){console.log("result_table: initialised")}, // do something after tablesorter has initialized.
 
 		showProcessing: true,
-		delayInit: false, // true, // true to display table sooner
+		delayInit: false, // or true to display table a bit sooner
 		theme: 'blue',
 		widgets: ["filter", "scroller"], // "resizable", 
-		// jquery.tablesorter.widgets.js (includes the jQuery UI theme, columns styling, resizable columns, filter, sticky header and save sort widgets).
-		//widthFixed: true, // false,
-// if add paging:
-// ajaxProcessing	Function	null	This function is required to return the ajax data obtained from your server into a useable format for tablesorter to apply to the table (v2.1, v2.17.3).		
 		
 		widgetOptions: {
 			scroller_height: 400,
-			// In tablesorter v2.19.0 the scroll bar width is auto-detected
-            // add a value here to override the auto-detected setting
-            //scroller_barWidth : null,
-			
-// maybe: $.tablesorter.fixColumnWidth( table );
-// resizable	Boolean	true	// Resizable widget: If this option is set to false, resized column widths will not be saved. Previous saved values will be restored on page reload (v2.4).
-//resizable_addLastColumn	Boolean	false	Resizable widget: If this option is set to true, a resizing anchor will be included in the last column of the table (v2.8.3).	Example
-//resizable_targetLast	Boolean	false	Resizable widget: When true, the last column will be targeted for resizing (v2.21.3).	
-//resizable_throttle	Boolean	false	Resizable widget: Set this option to throttle the resizable events (v2.17.4).	  
-            // headers widths applied at initialization & resizable reset - this setting includes any non-resizable cells (resizable-false)	  
-			// resizable_widths: [ '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%', "15%"], // or use eg: '20px'
 			filter_functions: { // 0-based column indexes:
                 1: {
                     //  "<0.05" :  function(e, n, f, i) {return  n <= 0.05;}, (Not used as all less than 0.05)
@@ -459,8 +262,7 @@ function initialise_result_table_and_tooltips() {
 				   "Highest": function(e, n, f, i) {return e == 'Highest';}
 				},
 				8: {
-				   "Any"    : function(e, n, f, i) {return e != '';}
-				   // or could use 'inhibitors, '
+				   "Any"    : function(e, n, f, i) {return e != '';}  // or could use 'inhibitors, '
 				}
             }
         },
@@ -476,14 +278,13 @@ function initialise_result_table_and_tooltips() {
        $("#string_link").html("for "+num_rows+" rows <span style='font-size: 70%;'>(max: "+global_max_stringdb_proteins_ids+")</span>"); // the -1 is because of the filter widget row
     });
 
-    $("#result_table").bind('refreshComplete', function(e,table) {console.log("result_table: refreshComplete")});
+    //$("#result_table").bind('refreshComplete', function(e,table) {console.log("result_table: refreshComplete")});
     // fires after tablesorter has completed executing the refreshWidget method.
-    $("#result_table").bind('tablesorter-ready', function(e,table) {console.log("result_table: tablesorter-ready")});
-    // This event occurs after an "updateComplete" and "pagerComplete" event.
-    $("#result_table").bind('updateComplete', function(e,table) {console.log("result_table: updateComplete")});
+    //$("#result_table").bind('tablesorter-ready', function(e,table) {console.log("result_table: tablesorter-ready")});
+    // This event occurs after an "updateComplete" and "pagerComplete" event:
+    //$("#result_table").bind('updateComplete', function(e,table) {console.log("result_table: updateComplete")});
 
 
-	
 	// Initialise the Tooltips
 	$('#result_table_tbody, #result_table_thead').tooltip({
 	  items: "[data-gene], [data-study], [data-exptype], [data-note]",
@@ -542,39 +343,17 @@ function initialise_result_table_and_tooltips() {
       else if ( element.is( "[data-note]" ) ) {
 	      return element.attr("data-note");
         }
-      //else if ( element.is( "[drug]" ) ) {
-      //    return element.attr("drug"); // drug contains the list of inhibitors
-      //  }		
       }    // end of 'content:'
    });  // end of tooltip
 }
-
-/*
-// Is initialised by the open() now in function plot(...)
-    $(".fancybox").fancybox({
-        preload: 0, // Number of gallary images to preload
-        //minWidth: 600,
-        //maxHeight: 500,
-        aspectRatio: true,
-        fitToView: false,
-        arrows: false,
-		closeEffect : 'none',
-        helpers: {
-            title: {
-                type: 'inside'
-            },
-            overlay: {
-                showEarly: false
-            }
-        }
-    });
-*/	
 
 
 $(document).ready(function() {
 
     $("#search_button").click(function(event){
-var t0 = performance.now();
+    
+var t0, log_timings = true;
+if (log_timings) {t0 = performance.now();}
 	
         if ( ! is_form_complete() ) {return false;}
 		show_message("search_button", "Searching..."); // So button changes for 3 seconds
@@ -597,15 +376,18 @@ var t0 = performance.now();
 		
 		var url = global_url_for_dependency_search.replace('mysearchby',search_by).replace('mygene',gene).replace('myhistotype',histotype).replace('mystudy',study);
 		
-console.log("Setup: ",performance.now()-t0); t0 = performance.now();
+if (log_timings) {console.log("Setup: ",performance.now()-t0); t0 = performance.now();}
 		$.ajax({
             url: url,
             dataType: 'json', 
         })
         .done(function(data, textStatus, jqXHR) {
-var timings = data['timings']; for (timing in timings) {console.log(timing);}
+        
 
-console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
+if (log_timings) {
+  var timings = data['timings']; for (timing in timings) {console.log(timing);}
+  console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
+  }
 
 			//show_message("result_progress_div", "Data received from server. Building results table ....", 0); // 0 means not cleared by timer event.
 			console.log("Data received from server. Building results table ...."); // 0 means not cleared by timer event.
@@ -614,7 +396,7 @@ console.log("Ajax done: ",performance.now()-t0); t0 = performance.now();
 
 			show_search_info(data);
 		    t0 = populate_table(data,t0);
-console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
+if (log_timings) {console.log("Table populated: ",performance.now()-t0); t0 = performance.now();}
 			//show_message("result_progress_div", "Results table built."); // message clears after 3 seconds.
 			console.log("Results table built."); // message clears after 3 seconds.
 			
@@ -624,8 +406,8 @@ console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 	
   $("#result_table").trigger("update"); 
   
-// set sorting column and direction, this will sort on the first and third column 
- var sorting = [[2,1],[0,0]];   // sort on the first column 
+
+ var sorting = [[2,1],[0,0]]; // set sorting column and direction, this will sort on the first and third column. 
  $("#result_table").trigger("sorton",[sorting]); 	
 	
             // OR: $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
@@ -633,7 +415,7 @@ console.log("Table populated: ",performance.now()-t0); t0 = performance.now();
 			
 			
 			$("#result_div").show();
-console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();			
+if (log_timings) {console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();}			
 			//$("#result_progress_div").html(""); // using timeout show_message() above, as table not yet visible here. 
 		})
 		.fail(function(jqXHR, textStatus, errorThrown) {
@@ -647,10 +429,10 @@ console.log("Showed result div: ",performance.now()-t0); t0 = performance.now();
     // Initialise the driver autocomplete search box:
     $("#gene").autocomplete({
         source: {% if search_by == 'target' %}target_array{% else %}driver_array{% endif %},
-		// using the above array (but is reset to target_array if user selects search_by='target' - maybe better ro use ajax if target_array as target array will be large.
+		// using the above array (but is reset to target_array if user selects search_by='target' - maybe better to use ajax if target_array as target array will be large.
         // It is possible to format the list items using the focus and select functions and html, etc:	
         minLength: 2,  // number of letters need to type for drop-down menu to appear.
-        delay: 1,  // 1 millisecond delay.
+        delay: 1,  // 1 millisecond delay before displaying list of items matching input characters.
         autoFocus: true,
 		//focus: set_tissue_and_study_options,
 		select: set_tissue_and_study_options,
@@ -768,47 +550,6 @@ function set_tissue_and_study_options(event, ui) {
 		//console.log("Study menu:",options_html);		
 	};
 
-{% comment %}
-// ===== AJAX test start ===
-/*
-// Another method: from: http://jsfiddle.net/neerajkumarsingh/tqyn3/
-$(document).ready(function() {
-            $("#gene").click(function(event){
-				
-               $.getJSON('/jquery/result.json', function(jd) {
-                  $('#stage').html('<p> Name: ' + jd.name + '</p>');
-                  $('#stage').append('<p>Age : ' + jd.age+ '</p>');
-                  $('#stage').append('<p> Sex: ' + jd.sex+ '</p>');
-               });
-					
-            });
-         });
-*/
-// ===========
-
-
-
-/*
-// Another method
-var jsonData = '[{"rank":"9","content":"Alon","UID":"5"},{"rank":"6","content":"Tala","UID":"6"}]';
-
-$.ajax({
-    url: '/echo/json/',
-    type: 'POST',
-    data: {
-        json: jsonData
-    },
-    success: function (response) {
-        var trHTML = '';
-        $.each(response, function (i, item) {
-            trHTML += '<tr><td>' + item.rank + '</td><td>' + item.content + '</td><td>' + item.UID + '</td></tr>';
-        });
-        $('#records_table').append(trHTML);
-    }
-});
-*/
-// ===== AJAX test end ===
-{% endcomment %}
 
 
 </script>
@@ -907,8 +648,6 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 {# <a id="download_csv" href="">[Download tabbed file]</a> #}
 
 
-{# <a href="javascript:void(0);" id="string_interactive" onclick="show_stringdb(stringdb_interactive);" target="_blank"><input type="button" value="interactive"/></a> #}
-
 <!--  http://stackoverflow.com/questions/339923/set-cellpadding-and-cellspacing-in-css -->
 <table style="padding: 10px;  border-spacing: 0; border-collapse: collapse; margin-top: 0; margin-bottom: 0; margin-right: 0; margin-left: auto;"><tr>
 <td>
@@ -926,10 +665,11 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 </td>
 <td>
   <!-- a href="javascript:void(0);" id="string_link" onclick="show_stringdb_image();" target="_blank">String images for all rows</a -->    
-  <input type="button" id="string_image" value="Stringdb Image" data-value="Stringdb Image" onclick="show_stringdb(stringdb_image);" />
-  <!-- input type="button" id="string_interactive" value="interactive" onclick="show_stringdb(stringdb_interactive);" /   Using the a href below instead avoids the popup window blocker -->
+  <input type="button" id="string_image" value="Stringdb Image" data-value="Stringdb Image" onclick="show_stringdb(stringdb_image);" />   
 </td>
 <td>
+  {# full string interactive URL is: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&caller_identity=CGDD&required_score=700&limit=0&advanced_menu=yes&identifiers=..... "> #}
+  <!-- Using the a href below instead of js onclick="", avoids the popup window blocker -->
   <form id="string_interactive_form" method="post" action="http://string-db.org/newstring_cgi/show_network_section.pl" target="_blank">
     <input type="hidden" name="identifiers" id="string_protein_identifiers" value=""/>
     <!-- input name="identifier" id="string_protein_identifier" value="" type="hidden"/--> <!-- maybe single interaction isn't needed ?-->
@@ -947,9 +687,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
     <input type="hidden" id="cytoscape_protein_list" name="protein_list"/>
     <input type="hidden" id="cytoscape_gene_list" name="gene_list"/>
     <input type="submit" id="cytoscape_submit_button" value="Cytoscape.js" data-value="Cytoscape.js"/>
-	{# was: onclick="show_cytoscape();"  now using forms onsubmit= #}
-  </form>  
-  <!-- input type="button" id="cytoscape_submit_button" value="Cytoscape" data-value="Cytoscape" onclick="show_cytoscape();" /-->    
+  </form>
 </td>
 <td>
   &nbsp;   
@@ -967,35 +705,6 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <td><span id="string_link"></span></td>
 </tr></table>
 
-
-{# full string interactive URL is: http://string-db.org/newstring_cgi/show_network_section.pl?network_flavor=confidence&caller_identity=CGDD&required_score=700&limit=0&advanced_menu=yes&identifiers=..... "> #}
-
-
-
-{# <p style="color: green">This web interface is has been updated to make it faster and tips and boxplots should work correctly now.</p> #}
-
-{% comment %}
-<!-- In Chrome the total width of all the <th> elements is 975px, so make these add up -->
-<!-- was: data-placeholder="< 0.05" data-placeholder="&le; 0.05" data-value="T" "\u2264 0.05"  just using '<' for simplicity instead of '&le;' -->
-<!-- data-placeholder=">= 65.0" -->
-<!-- Setting table cell widths: http://stackoverflow.com/questions/6486237/style-css-table-td -->
-<table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
-<thead id="result_table_thead"><tr>
-  <th data-placeholder="Search" id="dependency_col_name" data-note="Genes with dependency on selected the gene. Click on a gene name to view boxplot">Dependency</th>
-  <th data-placeholder="<0.05" class="filter-select sorter-pvalue" style="text-align:center;" data-note="Wilcox p-value"> P-value </th>
-  <th data-placeholder=">= 65.0" style="text-align:center;" data-note="Common language effect size (see FAQ page for details)">Effect size (%)</th>
-  <th data-placeholder="< -1" style="text-align:center;" data-note="Z-score difference (Mutant median - Wild Type median)">&Delta;Score</th>  
-  <th class="filter-select filter-onlyAvail" style="text-align:center;">Tissue</th>
-  <th class="filter-select filter-onlyAvail" style="text-align:center;">Study</th>
-  <th class="filter-select filter-onlyAvail" style="text-align:center;">Experiment</br>Type</th>
-  <th class="filter-select" style="text-align:center;" data-note="Known functional interaction between driver and target/dependent gene, from string-db.org (Score &gt;400:Medium, &gt;700:High; &gt;900:Highest). Click on score see string image">String<br>Interaction</th>
-  <th class="filter-select" style="text-align:center;" data-note="Inhibitors from DGIdb">Inhibitors</th>
-</tr></thead>
-<tbody id="result_table_tbody">
-</tbody>
-</table>
-
-{% endcomment %}
 
 <table id="result_table" class="tablesorter dep_table" style="font-size:80%;">
 <thead id="result_table_thead"><tr>
@@ -1017,16 +726,6 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 </table>
 </div>
 {% endblock %}
-
-{% comment %}
-Old code:
-</td></tr><tr><td align="center">
-<p id="plot_title"></p>
-<img id="plot_image"/>
-<p id="plot_description" style="font-size: 95%;"></p>
-{% endcomment %}
-
-
 
 {% block links_bottom %}
 <!-- or better to use defer or async keywords, but for IE<10 need window.onload.... : http://stackoverflow.com/questions/436411/where-is-the-best-place-to-put-script-tags-in-html-markup -->
