@@ -537,11 +537,11 @@ else {mu_points.push(parseFloat(col[iy]))}
 	svg.appendChild(e);
     }
     
-   create_legend_table(wt_tissue_counts,mu_tissue_counts);
+   create_legend_table(wt_tissue_counts,mu_tissue_counts, NA_total);
 }
 
 
-function create_legend_table(wt_tissue_counts,mu_tissue_counts) {
+function create_legend_table(wt_tissue_counts,mu_tissue_counts, NA_total) {
     // Creates the tissue legend table, with totals and check-boxes to show/hide points.
 	var legend_thead = '<thead><tr><th rowspan="2">Show</th><th rowspan="2">Tissue</th><th colspan="3">Cell lines</th></tr><tr style="font-size: 95%"><th>Wild type</th><th>Altered</th><th>Total</th></tr></thead>';
   	
@@ -652,7 +652,7 @@ function add_tooltips() {
 
 
 
-function svg_rect(xcenter,width, ylower,yupper id, e) {
+function svg_rect(xcenter,width, ylower,yupper, id, e) {
     // Creates (or update existing rect if parameter 'e' is already defined) the SVG boxes for the boxplot
 
     if (typeof e == "undefined") {

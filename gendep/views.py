@@ -788,12 +788,11 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
     
     if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
 
-    print("Query SQL:",dependency_list.query)
-
+    # print("Query SQL:",dependency_list.query)
+    """
 Query SQL:
 
 Raw SQL would be:
-
 
 SELECT 
   "gendep_dependency"."id", "gendep_dependency"."driver", "gendep_dependency"."target", "gendep_dependency"."target_variant", "gendep_dependency"."mutation_type", "gendep_dependency"."wilcox_p", "gendep_dependency"."effect_size", "gendep_dependency"."za", "gendep_dependency"."zb", "gendep_dependency"."zdiff", "gendep_dependency"."interaction", "gendep_dependency"."pmid", "gendep_dependency"."study_table", "gendep_dependency"."histotype", "gendep_dependency"."boxplot_data",
@@ -806,12 +805,8 @@ WHERE ("gendep_dependency"."driver" = ERBB2 AND "gendep_dependency"."histotype" 
 ORDER BY "gendep_dependency"."wilcox_p"
 ASC
 
-[08/Jun/2016 01:19:49] "GET /gendep/download_csv/xlsx/driver/ERBB2/PANCAN/ALL_ST
-UDIES/ HTTP/1.1" 200 91646
-
-
-
-
+[08/Jun/2016 01:19:49] "GET /gendep/download_csv/xlsx/driver/ERBB2/PANCAN/ALL_STUDIES/ HTTP/1.1" 200 91646
+    """
 
 # ** Warning: If you are performing queries on MySQL, note that MySQL’s silent type coercion may cause unexpected results when mixing types. If you query on a string type column, but with an integer value, MySQL will coerce the types of all values in the table to an integer before performing the comparison. For example, if your table contains the values 'abc', 'def' and you query for WHERE mycolumn=0, both rows will match. To prevent this, perform the correct typecasting before using the value in a query.
 #    from: https://docs.djangoproject.com/en/1.9/topics/db/sql/

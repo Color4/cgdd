@@ -207,7 +207,7 @@ class Dependency(models.Model):
         
 
 class Comment(models.Model):
-   """ Stores feedback (comments and queries) from the "Contact" page, in case sending the email fails """
+    """ Stores feedback (comments and queries) from the "Contact" page, in case sending the email fails """
     name        = models.CharField('Name', max_length=50) # Otional help_text="Please use the following format: <em>YYYY-MM-DD</em>."
     email       = models.CharField('Email', max_length=50)
     # interest    = models.TextField('Interest') # Area of interest of person making the comment

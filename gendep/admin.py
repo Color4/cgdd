@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Study, Gene, Dependency
+from .models import Study, Gene, Dependency, Comment
 
 """ Classes for formatting of the Dejango Admin pages """ 
 
