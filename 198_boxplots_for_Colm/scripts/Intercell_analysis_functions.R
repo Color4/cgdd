@@ -28,14 +28,52 @@ require(mixtools)
 # "#003D4C" blue
 
 
-icrpal <- palette(c("#C9DD03", "#FFD602", "#F9A100", "#EE7EA6", "#A71930", "#CCCCCC","#726E20" , "#6E273D", "#F00034", "#ADAFAF", "#003D4C"))
+# icrpal <- palette(c("#C9DD03", "#FFD602", "#F9A100", "#EE7EA6", "#A71930", "#CCCCCC","#726E20" , "#6E273D", "#F00034", "#ADAFAF", "#003D4C"))
 
 # SJB - Achilles:
 # "HEADNECK" "CERVICAL" are not in Achilles - so need to comment them out below as mini_boxplot uses legend_actual_tissues
 # Added for Achilles: HAEMATOPOIETIC_AND_LYMPHOID_TISSUE, INTESTINE, KIDNEY, LIVER, PROSTATE, SKIN, SOFT_TISSUE, STOMACH, URINARY_TRACT
 # Achilles - Numbers of celllines for each tissue type: BONE=6,  BREAST=12, CENTRAL_NERVOUS_SYSTEM=34, ENDOMETRIUM=2, HAEMATOPOIETIC_AND_LYMPHOID_TISSUE=30, INTESTINE=21, KIDNEY=10, LIVER=1, LUNG=23, OESOPHAGUS=10, OVARY=29, PANCREAS=17, PROSTATE=3, SKIN=7, SOFT_TISSUE=2, STOMACH=4, URINARY_TRACT=3
+
+if (data_set == "Campbell") {	
+  legend_pretty_tissues = c(
+	"Osteosarcoma",
+	"Breast",
+	"Lung",
+	"Head & Neck",
+	"Pancreas",
+	"Cervical",
+	"Ovary",
+	"Esophagus",
+	"Endometrium",
+	"CNS"
+	)
+  legend_actual_tissues = c(
+	"BONE",
+	"BREAST",
+	"LUNG",
+	"HEADNECK",
+	"PANCREAS",
+	"CERVICAL",
+	"OVARY",
+	"OESOPHAGUS",
+	"ENDOMETRIUM",
+	"CENTRAL_NERVOUS_SYSTEM"
+	)
+  legend_col=c(
+	"yellow",
+	"deeppink",
+	"darkgrey",
+	"firebrick4",
+	"purple",
+	"blue",
+	"cadetblue",
+	"green",
+	"orange",	
+	"darkgoldenrod4"
+	)
 	
-if (isAchilles) {
+} else if (data_set == "Achilles") {
   legend_pretty_tissues = c(
 	"Osteosarcoma",
 	"Breast",
@@ -57,26 +95,6 @@ if (isAchilles) {
 	"Stomach",
 	"Urinary tract"
 	)	
-} else if(isCampbell) {	
-  legend_pretty_tissues = c(
-	"Osteosarcoma",
-	"Breast",
-	"Lung",
-	"Head & Neck",
-	"Pancreas",
-	"Cervical",
-	"Ovary",
-	"Esophagus",
-	"Endometrium",
-	"CNS"
-	)
-} else if(isColt) {	 # Only Breast
-  legend_pretty_tissues = c(
-	"Breast"
-	)
-}
-
-if (isAchilles) {
   legend_actual_tissues = c(
 	"BONE",
 	"BREAST",
@@ -97,27 +115,7 @@ if (isAchilles) {
 	"SOFT_TISSUE",
 	"STOMACH",
 	"URINARY_TRACT"
-	)
-} else if (isCampbell) {
-  legend_actual_tissues = c(
-	"BONE",
-	"BREAST",
-	"LUNG",
-	"HEADNECK",
-	"PANCREAS",
-	"CERVICAL",
-	"OVARY",
-	"OESOPHAGUS",
-	"ENDOMETRIUM",
-	"CENTRAL_NERVOUS_SYSTEM"
-	)
-} else if(isColt) {	 # Only Breast, but dummy BONE added for plotting
-  legend_actual_tissues = c(
-	"BREAST"
-    )
-}
-
-if (isAchilles) {
+	)	
   legend_col=c(
 	"yellow",
 	"deeppink",
@@ -139,30 +137,26 @@ if (isAchilles) {
     "black",
     "yellowgreen"
 	)
-} else if (isCampbell) {	
-  legend_col=c(
-	"yellow",
-	"deeppink",
-	"darkgrey",
-	"firebrick4",
-	"purple",
-	"blue",
-	"cadetblue",
-	"green",
-	"orange",	
-	"darkgoldenrod4"
+
+} else if(data_set == "Colt") {	  # Only Breast, but dummy BONE added in tissues file for plotting
+  legend_pretty_tissues = c(
+	"Breast"
 	)
-} else if (isColt) {
+  legend_actual_tissues = c(
+	"BREAST"
+    )
   legend_col=c(
 	"deeppink"
     )
-}
-
+	
+} else {
+  stop(paste("ERROR: Invalid data_set: '",data_set,"' but should be 'Campbell', 'Achilles' or 'Colt'"))
+  }
 	
 names(legend_col) <- legend_actual_tissues
 
-# SJB - list copied from the "run_intercell_analysis.R" downloaded from github GeneFunctionTeam repo on 12 March 2016
-# Define the set of 21 genes with
+# SJB - list of 21 copied from the "run_intercell_analysis.R" downloaded from github GeneFunctionTeam repo on 12 March 2016
+# Define the set of 23 genes with
 # good represention (≥ 7 mutants).
 # This list can be used to filter
 # the complete set of tests
