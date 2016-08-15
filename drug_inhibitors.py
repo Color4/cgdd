@@ -48,10 +48,16 @@ params = {
 
 #genes = []
 #genes['genes'] = self.genes
-
+interaction_sources = ["CIViC","CancerCommons","ChEMBL","ClearityFoundationBiomarkers","ClearityFoundationClinicalTrial",
+"DoCM","DrugBank","GuideToPharmacologyInteractions","MyCancerGenome","MyCancerGenomeClinicalTrial","PharmGKB","TALC","TEND",
+"TTD","TdgClinicalTrial"]
+interaction_sources.remove("MyCancerGenome")
+interaction_sources.remove("MyCancerGenomeClinicalTrial")
 
 def get_interactions(gene_list):
-  url = "http://dgidb.genome.wustl.edu/api/v1/interactions.json?interaction_types=inhibitor&genes=" + ",".join(gene_list)
+  url = "http://dgidb.genome.wustl.edu/api/v1/interactions.json?" + \
+    "interaction_types=inhibitor&genes=" + ",".join(gene_list) + \
+    "&interaction_sources=" + ",".join(interaction_sources)
   r = requests.get(url)
   #print(r.status_code == requests.codes.ok)
   r.raise_for_status()
