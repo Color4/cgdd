@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   {% load staticfiles %}
-  {% block title %}<title>Cancer Genetic Dependencies Database (CGDD)</title>{% endblock %}
+  {% block title %}<title>CancerGD.org: a database of Cancer Genetic Dependencies</title>{% endblock %}
   {% block links_top %}{% endblock %} {# Putting non-essential scripts at bottom can speedup display of webpage #}
   {# Need to call my style sheet after jQuery one, so that mine overwrites the jquery defaults #}
   <link rel="icon" type="image/png" href="{% static 'gendep/images/favicon-32x32.png' %}" sizes="32x32" />
@@ -15,7 +15,7 @@
 
 <div id="header">
 <table align="center" style="padding: 0;"><tr><td rowspan="2">
-<img src="{% static 'gendep/images/CGDD_logo3_smallest.png' %}" alt="Cancer Genetic Dependencies Database (CGDD)" width="101" height="62"/>
+<img src="{% static 'gendep/images/CGDD_logo3_smallest.png' %}" alt="CancerGD.org" width="101" height="62"/>
 </td><td>
  &nbsp; &nbsp; <a href="{% url 'gendep:home' %}">Home/Search</a>
  &nbsp; &nbsp; <a href="{% url 'gendep:home_search_by' search_by='target' %}">ByTarget</a>
@@ -29,7 +29,7 @@
  &nbsp; &nbsp; <a href="{% url 'gendep:contact' %}">Contact</a>
 </td>
 <tr><td> 
-<h1>Cancer Genetic Dependencies Database</h1>
+<h1>CancerGD.org: a database of Cancer Genetic Dependencies</h1>
 </td></tr></table>
 </div>
 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
