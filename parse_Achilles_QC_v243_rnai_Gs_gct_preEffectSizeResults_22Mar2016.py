@@ -31,24 +31,29 @@ AADAT_2_00101   AADAT   0.540022249007015
 
 """
 
-import os, csv
+import sys, os, csv
 import mygene
 
 analysis_dir = "Achilles_data"
+preprocess_dir = "preprocess_genotype_data/rnai_datasets"
 
-achilles_file = os.path.join(analysis_dir, "Achilles_QC_v2.4.3.rnai.Gs.gct")
+achilles_file = os.path.join(preprocess_dir, "Achilles_QC_v2.4.3.rnai.Gs.gct")
 shRNA_mapping_file = os.path.join(analysis_dir, "shRNA_to_gene_mapping_CP0004_20131120_19mer_trans_v1.chip")
 ATAR_mapping_file =  os.path.join(analysis_dir, "shRNAs_used_in_ATARiS_gene_solutions_Achilles_QC_v2.4.3.shRNA.table.txt")
 
-read_R_cnv_muts_file = "198_boxplots_for_Colm/data_sets/func_mut_calls/combined_exome_cnv_all_muts_150225.txt"
-read_R_kinome_file = "198_boxplots_for_Colm/data_sets/siRNA_Zscores/Intercell_v18_rc4_kinome_zp0_for_publication.txt"
+# Pre-Aug-2016:
+# read_R_cnv_muts_file = "198_boxplots_for_Colm/data_sets/func_mut_calls/combined_exome_cnv_all_muts_150225.txt"
+# read_R_kinome_file = "198_boxplots_for_Colm/data_sets/siRNA_Zscores/Intercell_v18_rc4_kinome_zp0_for_publication.txt"
+
+# Updated on 16-Aug-2016:
+read_R_cnv_muts_file = "preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_all_muts_v1.txt"
+read_R_kinome_file = "preprocess_genotype_data/rnai_datasets/Intercell_v18_rc4_kinome_zp0_for_publication.txt"
 
 
-analysis_dir = "Achilles_data"
-output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R_kinome_v3_12Mar2016.txt")
-output_file2 = os.path.join(analysis_dir, "Achilles_tissues_v3_12Mar2016.txt")
+output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R_kinome_v4_17Aug2016.txt")
+output_file2 = os.path.join(analysis_dir, "Achilles_tissues_v4_17Aug2016.txt")
 output_file3 = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map.txt")
-output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt")
+output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R_v4_17Aug2016.txt")
 
 
 """
@@ -228,6 +233,28 @@ def write_solname_to_entrez_map_file(outfile,new_names_dict=None):
       fout.write("\n")
 
 
+"""
+http://www.utf8-chartable.de/unicode-utf8-table.pl?start=896&number=128
+
+Mutation registry for Igα deficiency  => Alpha
+ Mutation registry for IgBeta  => Beta
+ IFNGR1base: Mutation registry for IFNγ1-recept => Gamma
+ IFNGR2base: Mutation registry for IFN<CE><B3>2  => Gamma
+ IMGT; the international ImMunoGeneTics information system <C2><AE>|
+    (registered)
+IGHMbase: Mutation registry for <C2><B5>  => micro
+IMGT; the international ImMunoGeneTics information system ®
+    
+U+03B1	α	ce b1	GREEK SMALL LETTER ALPHA
+
+λ	ce bb	GREEK SMALL LETTER LAMDA
+
+IGLL1base: Mutation registry for
+
+utation registry for Interleukin-12 receptor ß1 de  => Beta (although is the German character)
+"""
+
+
 hgnc = dict() # To read the HGNC ids into a dictionary
 synonyms_to_hgnc = dict()
 #ihgnc = dict() # The column name to number for the above HGNC dict. 
@@ -239,6 +266,7 @@ def load_hgnc_dictionary():
   dataReader = csv.reader(open(infile), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   num_synonmys_already_exist = 0
   for row in dataReader:
+    # print("row:",row)
     if dataReader.line_num == 1: # The header line.
       ihgnc = dict() # The column name to number for the above HGNC dict. 
       for i in range(len(row)): ihgnc[row[i]] = i       # Store column numbers for each header item
@@ -276,7 +304,7 @@ def compare_ATARmap_with_hgnc_add_ensemblid():
     mg_name = ATrow[img_symbol]
     AT_name, num, barcode = key.split('_')   # eg: A2ML1_1_01110
     #print("\nATARmap KEY: '%s' names: AT='%s' mg='%s'\n" %(key,AT_name,mg_name))
-    print("")
+    #print("")
     if mg_name !=  AT_name: name_list = (mg_name,AT_name)
     else: name_list = (mg_name,)
     HGNC_ensembl_id = ''
@@ -326,10 +354,14 @@ def get_ensembl_and_symbol_from_mygene(entrez_id):
     if 'ensembl.gene' in result:
       ensembl_id = result['ensembl.gene']
     elif 'ensembl' in result:
-      ensembl_list = result['ensembl']
+      ensembl = result['ensembl']
       ensembl_id = ''
-      for gene in ensembl_list:
-        ensembl_id += gene['gene']
+      if isinstance(ensembl, dict):
+        ensembl_id = ensembl['gene'] # As is a dict() as just a list containing one item      
+      else:
+        for ensembl_item in ensembl:
+          if ensembl_id != '': ensembl_id += ';' # separate list using semi-colons        
+          ensembl_id += ensembl_item['gene']
     else: 
       ensembl_id = ''
       print("*** Ensembl_id NOT in MyGene for Entrez_id: '%s'" %(entrez_id), result)
@@ -372,11 +404,18 @@ def get_ensembl_and_symbol_list_from_mygene(entrez_id_list):
     if 'ensembl.gene' in result:
       ensembl_id = result['ensembl.gene']
     elif 'ensembl' in result:
-      ensembl_list = result['ensembl']
+      #print("result=",result)
+      ensembl = result['ensembl']           # ensembl can contain one: {'gene': 'ENSG00000143322'} or several: [{'gene': 'ENSG00000281879'}, {'gene': 'ENSG00000175164'}]
       ensembl_id = ''
-      for gene in ensembl_list:
-        if ensembl_id != '': ensembl_id += ';' # separate list using semi-colons
-        ensembl_id += gene['gene']
+      #print("ensembl=",ensembl)
+      if isinstance(ensembl, dict):
+        ensembl_id = ensembl['gene'] # As is a dict() as just a list containing one item      
+      elif isinstance(ensembl, (list, tuple)):
+        for ensembl_item in ensembl:
+          if ensembl_id != '': ensembl_id += ';' # separate list using semi-colons
+          ensembl_id += ensembl_item['gene']
+      else: print("*** ERROR, expected list or dict: ",ensembl)
+      
     else:
       ensembl_id = ''
       print("*** Ensembl_id NOT in MyGene for Entrez_id: %s" %(entrez_id), result)
@@ -566,17 +605,21 @@ def build_ATARmap():
   add_mygene_to_ATARmap()
   load_hgnc_dictionary()
   compare_ATARmap_with_hgnc_add_ensemblid()
+  not_ok_count = 0
+  ok_count = 0
   for key in ATARmap:
     if len(ATARmap[key]) != ihgnc_ensembl_id+1:
       print(len(ATARmap[key]), ihgnc_ensembl_id+1, ATARmap[key],"\n")
-    else: print("OK")
+      not_ok_count += 1
+    else: ok_count += 1
+  print("OK count=",ok_count)
+  print("Not OK count=",not_ok_count)
   write_solname_to_entrez_map_file(output_file3)
   
 
   
 def read_ATARmap_from_file():
   global ATARmap, jsol_name, jsol_entrez, img_entrezgene, img_symbol, img_hgnc, ihgnc_ensembl_id, img_ensembl_id
-  
   print("\nLoading ATARmap from file:", output_file3)
   dataReader = csv.reader(open(output_file3), dialect='excel-tab')  # dataReader = csv.reader(open(csv_filepathname), 
   # Format for file: "......"
@@ -622,8 +665,10 @@ def read_cellines_from_R_analysis_file(infile,colname):
       R_cellines[key] = True
   return R_cellines
     
+
     
-# build_ATARmap(); sys.exit  # To build and write the ATARmap file.
+#build_ATARmap(); sys.exit()  # To build and write the ATARmap file.
+
 read_ATARmap_from_file()  # To read the previously built ATARmap file.
 # sys.exit
 
@@ -658,34 +703,6 @@ if len(list_of_lists) != num_rows+1: print("**ERROR: len(list_of_lists)=%s != nu
 if len(list_of_lists[0]) != num_cols+2:  print("**ERROR: len(list_of_lists)=%s != num_cols+2=%d" %(len(list_of_lists[0]),num_cols+2))
 
 
-# List of drivers from run_......R
-# Define the set of 21 genes with
-# good represention (≥ 7 mutants).
-# This list can be used to filter
-# the complete set of tests
-cgc_vogel_genes = (
-	"CCND1_595_ENSG00000110092",
-	"CDKN2A_1029_ENSG00000147889",
-	"EGFR_1956_ENSG00000146648",
-	"ERBB2_2064_ENSG00000141736",
-	"GNAS_2778_ENSG00000087460",
-	"KRAS_3845_ENSG00000133703",
-	"SMAD4_4089_ENSG00000141646",
-	"MDM2_4193_ENSG00000135679",
-	"MYC_4609_ENSG00000136997",
-	"NF1_4763_ENSG00000196712",
-	"NOTCH2_4853_ENSG00000134250",
-	"NRAS_4893_ENSG00000213281",
-	"PIK3CA_5290_ENSG00000121879",
-	"PTEN_5728_ENSG00000171862",
-	"RB1_5925_ENSG00000139687",
-	"MAP2K4_6416_ENSG00000065559",
-	"SMARCA4_6597_ENSG00000127616",
-	"STK11_6794_ENSG00000118046",
-	"TP53_7157_ENSG00000141510",
-	"ARID1A_8289_ENSG00000117713",
-	"FBXW7_55294_ENSG00000109670"
-	)
     
 print("Writing transformed files")    
 gene_ensembl_names = dict()
@@ -798,7 +815,9 @@ def cell_lines_in_common():
 #  cell_line_codes_dict = get_only_codes_dict(cell_line_dict)
 
 # Now check if cellines match with existing cnv/mutation files:
-  R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "cell_line")
+#  R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "cell_line")
+  
+  R_cellines = read_cellines_from_R_analysis_file(read_R_cnv_muts_file, "Gene")  
   #R_cellline_codes = get_only_codes_dict(R_cellines)
   inboth = diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_cnv_muts_celllines")
   #inboth_codes = diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
@@ -818,7 +837,7 @@ def cell_lines_in_common():
   diff_dictionaries(cell_line_dict,R_cellines,"Achilles","existing R_kinome_celllines")
   # diff_dictionaries(cell_line_codes_dict,R_cellline_codes,"Achilles codes","existing R_cnv_muts_celllines codes")
 
-"NCI"
+# "NCI"
 
   
 

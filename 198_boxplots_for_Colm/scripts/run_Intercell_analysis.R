@@ -12,7 +12,10 @@
 # Common inputs for all datasets #
 # ------------------------------ #
 
-setwd("C:/Users/HP/Django_projects/cgdd/198_boxplots_for_Colm/analyses/") # was: setwd("~/Dropbox/198_boxplots_for_Colm/analyses/")
+# On Windows:
+#setwd("C:/Users/HP/Django_projects/cgdd/198_boxplots_for_Colm/analyses/") # was: setwd("~/Dropbox/198_boxplots_for_Colm/analyses/")
+# On Mac:
+setwd("/Users/sbridgett/Documents/UCD/cgdd/198_boxplots_for_Colm/analyses/")
 
 # Original genotype files (pre-August 2016):
 combmuts_func_file <- "../data_sets/func_mut_calls/combined_exome_cnv_func_muts_150225.txt"
@@ -20,9 +23,9 @@ combmuts_all_file <- "../data_sets/func_mut_calls/combined_exome_cnv_all_muts_15
 combmuts_classes_file <- "../data_sets/func_mut_calls/combined_exome_cnv_mut_classes_150225.txt" # contains the mutation types (1 to 5)
 
 # From Colms email - 11 Aug 2016 - The new genotype files:
-#combmuts_func_file <- "../../preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_func_muts_v1.txt" # (indicates if there is a functional mutation)
-#combmuts_all_file <- "../../preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_all_muts_v1.txt"  # (indicates if there is any mutation)
-#combmuts_classes_file <- "../../preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_func_mut_types_v1.txt" # (indicates mutation types: 1 or 2)
+combmuts_func_file <- "../../preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_func_muts_v1.txt" # (indicates if there is a functional mutation)
+combmuts_all_file <- "../../preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_all_muts_v1.txt"  # (indicates if there is any mutation)
+combmuts_classes_file <- "../../preprocess_genotype_data/genotype_output/GDSC1000_cnv_exome_func_mut_types_v1.txt" # (indicates mutation types: 1 or 2)
 
 
 # ----------------------------------------------------- #

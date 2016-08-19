@@ -80,7 +80,7 @@ def find_or_add_histotype(histotype, full_name):
   # As using the HISTOTYPE_CHOICES list in the Dependency class (instead of a Histotype table):
   if Dependency.is_valid_histotype(histotype):    
       h = histotype
-   else: 
+  else:
       error("Histotype %s NOT found in HISTOTYPE_CHOICES list: %s" %(histotype, Dependency.HISTOTYPE_CHOICES))
       h = None
 
@@ -142,7 +142,7 @@ def split_target_gene_name(long_name, isColt):
     if names[0] == 'CDK12' and len(names)==3 and names[2]=='CRK7': # as "CDK12_ENSG00000167258_CRK7" is an exception to target format (CRK7 is an alternative name)
       names.pop()   # Remove the last 'CRK7' name from the names list
     elif long_name not in target_name_warning_already_reported:
-      warn('Invalid number of parts in target gene, (as expected 2 parts)',long_name)
+      warn("Invalid number of parts in target gene, (as expected 2 parts): '%s'" %(long_name))
       target_name_warning_already_reported[long_name] = None
 
   if isColt:
@@ -249,7 +249,7 @@ def fix_gene_name(name):
      s = name.split('.')
      if len(s) == 1:
        fatal_error("fix_gene_name() split on '.' failed. This should never happen. name: %s" %(name))
-     elsif len(s) == 2:
+     elif len(s) == 2:
        newname = "%s-%s" %(s[0],s[1])
        if newname in hgnc:
           info("Changed: '%s' => '%s'" %(name,newname))
@@ -279,8 +279,9 @@ def load_mygene_hgnc_dictionary():
   global ATARmap, jsol_entrez, img_entrezgene, img_symbol, img_hgnc, ihgnc_ensembl_id, img_ensembl_id, iname_used_for_R
 
   # The following file is produced by parse_Achilles_QC_v243_rna_Gs_gct.py:
-  output_file4_newnames = os.path.join("Achilles_data", "Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt")
-  info("\nLoading ATARmap mygne dictionary from file:", output_file4_newnames)
+  output_file4_newnames = os.path.join("Achilles_data", "Achilles_solname_to_entrez_map_with_names_used_for_R_v4_17Aug2016.txt")
+  
+  info("\nLoading ATARmap mygne dictionary from file: %s" %(output_file4_newnames))
   
   dataReader = csv.reader(open(output_file4_newnames), dialect='excel-tab')
   # Format for file:
@@ -356,13 +357,13 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
             
     # Test if stored entrez_id is same as already in database:
     g_entrez_id = g.entrez_id
-    if entrez_id != '' and entrez_id != 'NoEntrezId' and g_entrez_id != entrez_id
+    if entrez_id != '' and entrez_id != 'NoEntrezId' and g_entrez_id != entrez_id:
       if g.entrez_id == '' or g_entrez_id == 'NoEntrezId':
         info("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
         g.save()
       else:
-        warn("For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the Excel file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
+        warn("For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the R results file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
 
     # Test if stored ensemble_id is same:
     if ensembl_id!='' and ensembl_id!='NoEnsemblIdFound' and g.ensembl_id != ensembl_id:
@@ -533,8 +534,8 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
 
   if isAchilles and isColt: error("Cannot be both Achilles and Colt ******")
 
-  print("*** ONLY UPDATING BOXPLOT DATA ***")
-  ONLY_UPDATE_BOXPLOT_DATA = True
+  #print("*** ONLY UPDATING BOXPLOT DATA ***")
+  ONLY_UPDATE_BOXPLOT_DATA = False
   
   print("\nImporting table: ",result_file)
 
@@ -573,7 +574,7 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
   
   for row in dataReader:      
     # As per Colm's email 17-March-2016: "I would suggest we start storing dependencies only if they have p<0.05 AND CLES >= 0.65. "
-    
+
     # Convert to numbers:
     # print(row)
     # print(row[idriver], row[itarget], row[iwilcox], row[ieffect_size])    
@@ -831,7 +832,7 @@ def add_tissue_and_study_lists_for_each_driver():
 """
     
 
-def unmark_drivers_not_in_the_21genes():
+def unmark_drivers_not_in_the_21genes(): # BUT this is no longer needed
   # SJB - list copied from the "run_intercell_analysis.R" downloaded from github GeneFunctionTeam repo on 12 March 2016
   # Define the set of 21 genes with good represention (≥ 7 mutants).
   # This list can be used to filter the complete set of tests
@@ -933,12 +934,6 @@ if __name__ == "__main__":
   #sys.exit()
   #exit()
 
-##if __name__ == "__sjb_ignore_these__":  
-  # global static_gendep_boxplot_dir As this isn't a def then don't need global here.
-  if static_gendep_boxplot_dir is None or static_gendep_boxplot_dir == '':
-     error("static_gendep_boxplot_dir is empty")
-     static_gendep_boxplot_dir = "gendep/static/gendep/boxplots"
-     # exit()
        
   load_hgnc_dictionary(hgnc_infile)
   load_mygene_hgnc_dictionary()
@@ -953,16 +948,16 @@ if __name__ == "__main__":
     print("*** NOT deleting Dependency rows for now, as no change in Studies or Genes ****")
     
 
-    
     Campbell_study, Achilles_study, Colt_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets = add_the_three_studies()
-  
-    Campbell_results_pancan= "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     
+    analysis_dir = "198_boxplots_for_Colm/analyses"
+    Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+
     # "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
     csv_filepathname=os.path.join(analysis_dir, Campbell_results_pancan)
     read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
-    Campbell_results_bytissue = "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Campbell_results_bytissue = "univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     
     # "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
@@ -974,13 +969,13 @@ if __name__ == "__main__":
     # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
     # cannot compute exact p-value with ties
     
-    Achilles_results_pancan =  "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Achilles_results_pancan =  "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_17Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     # "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)    
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
-    Achilles_results_bytissue = "univariate_results_Achilles_v2_for23drivers_bytissue_kinome_combmuts_5May2016witheffectsize_and_zdiff_and_boxplotdata.txt"
+    Achilles_results_bytissue = "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_17Aug2016witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
     
@@ -994,7 +989,7 @@ if __name__ == "__main__":
     #/n
 
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
-    Colt_results_bytissue = "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Colt_results_bytissue = "univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
         
     # "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
