@@ -160,6 +160,9 @@ names(legend_col) <- legend_actual_tissues
 # good represention (≥ 7 mutants).
 # This list can be used to filter
 # the complete set of tests
+
+# On 15 Aug 2016, The gene 	"NOTCH2_4853_ENSG00000134250" was removed from this list, and 14 new genes added.
+
 cgc_vogel_genes_with_n7 <- c(
 	"CCND1_595_ENSG00000110092",
 	"CDKN2A_1029_ENSG00000147889",
@@ -171,7 +174,6 @@ cgc_vogel_genes_with_n7 <- c(
 	"MDM2_4193_ENSG00000135679",
 	"MYC_4609_ENSG00000136997",
 	"NF1_4763_ENSG00000196712",
-	"NOTCH2_4853_ENSG00000134250",
 	"NRAS_4893_ENSG00000213281",
 	"PIK3CA_5290_ENSG00000121879",
 	"PTEN_5728_ENSG00000171862",
@@ -182,8 +184,22 @@ cgc_vogel_genes_with_n7 <- c(
 	"TP53_7157_ENSG00000141510",
 	"ARID1A_8289_ENSG00000117713",
 	"FBXW7_55294_ENSG00000109670",
-	"BRAF_673_ENSG00000157764",  # Added BRAF on 14 April 2016 for future runs
-	"CDH1_999_ENSG00000039068"   # Added CDH1 on 15 April 2016 for future runs
+	"BRAF_673_ENSG00000157764",    # Added BRAF on 14 April 2016 for future runs
+	"CDH1_999_ENSG00000039068",    # Added CDH1 on 15 April 2016 for future runs
+	"NCOR1_9611_ENSG00000141027",  # Added NCOR1 on 15 Aug 2016 for future runs
+	"RNF43_54894_ENSG00000108375", # Added NCOR1 on 15 Aug 2016 for future runs 
+	"BCOR_54880_ENSG00000183337",
+	"EP300_2033_ENSG00000100393",
+	"CDKN2C_1031_ENSG00000123080",
+	"PIK3R1_5295_ENSG00000145675", 
+	"KDM6A_7403_ENSG00000147050",
+	"ASXL1_171023_ENSG00000171456",
+	"MSH2_4436_ENSG00000095002",
+	"ARID1B_57492_ENSG00000049618",
+	"APC_324_ENSG00000134982",
+	"CTNNB1_1499_ENSG00000168036",
+	"BRCA2_675_ENSG00000139618",
+	"MSH6_2956_ENSG00000116062"    # Added NCOR1 on 15 Aug 2016 for future runs 
 	)
 	
 	
@@ -772,7 +788,7 @@ make_mini_box_dot_plots <- function(
 			# Draw the absline while xpdf=FALSE (changed to TRUE for legend), otherwise line draw accross whole image, instead of just accross the plots area.
 
 			# Trim the target_variant last character from the gene names for Achilles data:
-			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
+			if (data_set == "Achilles") {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 #print("C")
 			# mtext() - write text onto the margins of a plot:
 			# where: side is (1=bottom, 2=left, 3=top, 4=right).
@@ -953,7 +969,7 @@ if (writeheader){cat(names(results), "boxplot_data\n", file=fileConn, sep="\t")}
 			#par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 1.4)) # <-- for legend at right.  SJB: original was: width=2.5, height=3
 
 			# Trim the target_variant last character from the gene names for Achilles data:
-			if (isAchilles) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
+			if (data_set == "Achilles") {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 #print(sprintf("driver:%s,target:%s",marker_gene,target_gene), quote = FALSE)
 
 			
