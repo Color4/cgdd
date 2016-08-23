@@ -424,20 +424,25 @@ else {mu_points.push(parseFloat(col[iy]))}
     var Yi = Math.round(y / collusionTestRadius);
 
 	var pointType = "circle", svgType = "circle";
-	// The mutation types mapping is:
+	// Pre-Aug-2016 mutation types mapping was:
 	//   1,2,3 = mutation
     //   4,5 = copy number (is one a deletion and one an amplification?)
+    // Now simply:
+	//   1 = mutation
+    //   2 = copy number (is one a deletion and one an amplification?)    
     if (!isWT) {
 	  switch (col[imutant]) {		  
 	    case "1":
-	    case "2":
-	    case "3":		
 		  // pointType = "square";   svgType = "rect"; break; // Square not drawn correctly yet.
 		  pointType = "diamond";  svgType = "polygon"; break;		  
-        case "4":
-	    case "5":
+
+	    case "2":
           pointType = "triangle"; svgType = "polygon"; break;
 		// if needed a 5-point star could be another shape
+	    
+//	    case "3":		
+//      case "4":
+//	    case "5":
 	    default: alert("Invalid point type: '"+col[imutant]+"'")
 	  }
 	}
@@ -617,8 +622,15 @@ function add_tooltips() {
 		var mutant = col[imutant];
 
         var mutant_type='';
-		if ((mutant=='1') || (mutant=='2') || (mutant=='3')) {mutant_type="Mutation (type "+mutant+")<br/>";}
-		else if ((mutant=='4') || (mutant=='5')) {mutant_type="Copy number (type "+mutant+")</br>"}
+        
+        // Pre-August-2016 mutant codes:
+		// if ((mutant=='1') || (mutant=='2') || (mutant=='3')) {mutant_type="Mutation (type "+mutant+")<br/>";}
+		// else if ((mutant=='4') || (mutant=='5')) {mutant_type="Copy number (type "+mutant+")</br>"}
+
+		if (mutant=='1') {mutant_type="Mutation (type "+mutant+")<br/>";}
+		else if (mutant=='2') {mutant_type="Copy number (type "+mutant+")</br>"}
+		else {mutant_type="Unexpected mutant_type (type "+mutant+")</br>"}
+		
         // To add the mutation type, use: +(mutant!="0" ? "MutantType....<br/>" : "")
         return '<b>'+col[icellline]+'</b><br/>'+mutant_type+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
 	    }
