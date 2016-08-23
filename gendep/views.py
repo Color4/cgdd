@@ -333,6 +333,9 @@ def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wil
 
     q = q.filter(wilcox_p__lte = wilcox_p) # Only list significant hits (ie: p<=0.05). '__lte' means 'less than or equal to'
 
+    print("build_dependency Query SQL:",q.query)
+    print("build_dependency select_related:",select_related)
+        
     if select_related is not None: 
         if isinstance(select_related, str) and select_related != '':
             q = q.select_related(select_related)
@@ -345,10 +348,49 @@ def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wil
      
     if order_by != None and order_by != '':
         q = q.order_by(order_by)  # usually 'wilcox_p', but could be: order_by('target_id') to order by target gene name
-        
+
     return error_msg, q
+
+
+def build_rawsql_dependency_query(search_by, gene_name, histotype_name, study_pmid, query_type, wilcox_p=0.05, order_by='wilcox_p'): # select_related=None):
+    """ Builds raw SQL query """
     
+    error_msg = ''
     
+    filter = "D.%s = %%s AND D.wilcox_p <= %%s" %(search_by)
+    params = [gene_name, wilcox_p]
+    
+    if histotype_name != "ALL_HISTOTYPES":
+        filter += " AND D.histotype = %s" # Correctly uses: =histotype_name, not: =histotype_full_name        
+        params.append(histotype_name)
+
+    if study_pmid != "ALL_STUDIES":
+        filter += " AND D.study = %s"  # Could use: (study = study) but using study_id should be more efficient as no table join needed.
+        params.append(study_pmid)
+
+    select = 'target' if search_by=='driver' else 'driver'
+
+    columns = "D.id, D.%s, D.wilcox_p, D.effect_size, D.zdiff, D.interaction, D.pmid, D.histotype" %(select)  # Raw query must include the primary key (D.id)
+                
+    related_columns = ", G.inhibitors, G.ensembl_protein_id"
+    related_join = " INNER JOIN gendep_gene G ON (D.%s = G.gene_name)" %(select) # Used for both query_types.
+
+    if query_type == 'dependency_gene_study':
+        related_columns += ", G.full_name, G.entrez_id, G.ensembl_id, G.prevname_synonyms, S.short_name, S.experiment_type, S.title"  # don't need 'study__pmid' (as is same as d.study_id)
+        related_join += " INNER JOIN gendep_study S ON (D.pmid = S.pmid)"        
+    elif query_type != 'dependency_gene':
+        error_msg += " ERROR: *** Invalid 'query_type': %s ***" %(query_type)
+        
+    # Not searching for: gendep_dependency.driver, gendep_dependency.target_variant, gendep_dependency.mutation_type, gendep_dependency.boxplot_data, etc
+
+    rawsql = ("SELECT " + columns + related_columns +
+              " FROM gendep_dependency D" + related_join +
+              " WHERE (%s) ORDER BY D.%s ASC") %(filter, order_by)
+             
+    print("build_rawsql:",rawsql)
+    return error_msg, Dependency.objects.raw(rawsql, params)
+
+        
 
 def gene_ids_as_dictionary(gene):
     """ To return info about alternative gene Ids as dictionary, for an JSON object for AJAX """
@@ -385,7 +427,7 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
     timing_array = []  # Using an array to preserve order of times on output.
     start = datetime.now()
     
-    ajax_results_cache_version = '1' # version of the data in the database and of this JSON format. Increment this on updates that change the database data or this JSON format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
+    ajax_results_cache_version = '2' # version of the data in the database and of this JSON format. Increment this on updates that change the database data or this JSON format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
     
     # Avoid storing a 'None' value in the cache as then difficult to know if was a cache miss or is value of the key
     cache_key = search_by+'_'+gene_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
@@ -396,13 +438,22 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
         return HttpResponse(cache_data, json_mimetype) # version=ajax_results_cache_version)
 
     search_by_driver = is_search_by_driver(search_by) # otherwise is by target
-
-    # Specify 'select_related' columns on related tables, otherwise the template will do a separate SQL query for every dependency row to retrieve the driver/target data (ie. hundreds of SQL queries on the Gene table)
-    # Can add more select_related columns if needed, eg: for target gene prevname_synonyms: target__prevname_synonyms
     select_related = [ 'target__inhibitors', 'target__ensembl_protein_id' ] if search_by_driver else [ 'driver__inhibitors', 'driver__ensembl_protein_id' ]
-    
-    error_msg, dependency_list = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) 
+
+    print("build_dependency_query:", "search_by:",search_by, "gene_name:",gene_name, "histotype_name:",histotype_name, "study_pmid:",study_pmid, "select_related:",select_related)
+
+    RAW = True
+    if RAW:
+      error_msg, dependency_list = build_rawsql_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', query_type='dependency_gene') 
+    else:
+      # Specify 'select_related' columns on related tables, otherwise the template will do a separate SQL query for every dependency row to retrieve the driver/target data (ie. hundreds of SQL queries on the Gene table)
+      # Can add more select_related columns if needed, eg: for target gene prevname_synonyms: target__prevname_synonyms    
+      error_msg, dependency_list = build_dependency_query(search_by,gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) 
+      
     if error_msg != '': return json_error("Error: "+error_msg)
+      
+    
+    print("Query SQL:",dependency_list.query)
     
     gene = get_gene(gene_name)
     if gene is None: return json_error("Error: Gene '%s' NOT found in Gene table" %(gene_name))
@@ -418,7 +469,8 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
     count = 0
     
     # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again in this function. This iteractor version seems slightly faster than non-iterator version.
-    for d in dependency_list.iterator():
+#    for d in dependency_list.iterator(): <-- RawQuery doesn't have iterator()
+    for d in dependency_list:
         count += 1
 
         interaction = d.interaction
@@ -618,10 +670,10 @@ def get_stringdb_interactions(request, required_score, protein_list=None):
     
 def cytoscape(request, required_score, protein_list=None, gene_list=None):
     """ Displays the cytoscape network of protein interactions.
-    This receives the protein_list and their corresponding gene_names as gene_list.
+    This receives the protein_list (eg: "9606.ENSP00000363021;9606.ENSP00000364815;9606.ENSP00000379888") and their corresponding gene_names as gene_list (eg. "RPA2;VARS;RPS8").
     Could just receive:
-      - protein_list and lookup the corresponding gene_names in Gene table
-      - gene_list and lookup the corresponding protein ids in the Gene table
+      - receive protein_list and lookup the corresponding gene_names in Gene table
+      - or receive gene_list and lookup the corresponding protein ids in the Gene table
       
     """
     if (protein_list is None) or (protein_list == ''):
@@ -682,7 +734,14 @@ def cytoscape(request, required_score, protein_list=None, gene_list=None):
         proteins = edge.split('#')
         if len(proteins) != 2:
             err_msg += "\n**** Expected two proteins in edge, but got: "+edge
-        edge_list.append( ( initial_nodes[proteins[0]], initial_nodes[proteins[1]] ) )
+        elif proteins[0].replace('9606.', '') not in initial_nodes:
+            err_msg += "\n**** Protein1 %s in edge %s, isn't in the initial_nodes: %s" %(proteins[0],edge,initial_nodes)
+        elif proteins[1].replace('9606.', '') not in initial_nodes:
+            err_msg += "\n**** Protein2 %s in edge %s, isn't in the initial_nodes: %s" %(proteins[1],edge,initial_nodes)
+        else:    
+            node1 = initial_nodes[proteins[0].replace('9606.', '')]
+            node2 = initial_nodes[proteins[1].replace('9606.', '')]
+            edge_list.append( ( node1, node2 ) )
 
     if err_msg != '':
         print(err_msg)
@@ -759,34 +818,34 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
     ***** Remember to add to the select_related lists below if other columns are required for output.
     """
     
-    mimetype = html_mimetype # was: 'application/json'
+    # mimetype = html_mimetype # was: 'application/json'
     
     # see: http://stackoverflow.com/questions/6587393/resource-interpreted-as-document-but-transferred-with-mime-type-application-zip
     
     # For downloading large csv files, can use streaming: https://docs.djangoproject.com/en/1.9/howto/outputting-csv/#streaming-large-csv-files
     
     # request_method = request.method # 'POST' or 'GET'
-    # if request_method != 'GET': return HttpResponse('Expected a GET request, but got a %s request' %(request_method), mimetype)
+    # if request_method != 'GET': return HttpResponse('Expected a GET request, but got a %s request' %(request_method), html_mimetype)
     # search_by = request.GET.get('search_by', "")  # It's an ajax POST request, rather than the usual ajax GET request
     # gene_name = request.GET.get('gene', "")
     # histotype_name = request.GET.get('histotype', "ALL_HISTOTYPES")
     # study_pmid = request.GET.get('study', "ALL_STUDIES")
 
     search_by_driver = is_search_by_driver(search_by) # Checks is valid and returns true if search_by='driver'
-        
-    # select_related = [ 'target__inhibitors', search_by, 'study' ] if search_by_driver else [ 'driver__inhibitors', search_by, 'study' ]   # Could add 'target__ensembl_protein_id' or 'driver__ensembl_protein_id'
+
+    # *** Remember to add to these select_related lists if other columns are required for output:
+    RAW = True
+    if RAW:
+        error_msg, dependency_list = build_rawsql_dependency_query(search_by, gene_name, histotype_name, study_pmid, order_by='wilcox_p', query_type='dependency_gene_study') 
+    else:                
+        select = 'target' if search_by_driver else 'driver'        
+        # select_related = [ 'target__inhibitors', search_by, 'study' ] if search_by_driver else [ 'driver__inhibitors', search_by, 'study' ]   # Could add 'target__ensembl_protein_id' or 'driver__ensembl_protein_id'    
+        # But for a more precise query (and so faster as retrieves fewer columns) is:
+        select_related = [ select+'__gene_name', select+'__full_name', select+'__entrez_id', select+'__ensembl_id', select+'__ensembl_protein_id', select+'__prevname_synonyms', 
+                         'study__short_name', 'study__experiment_type', 'study__title' ]  # don't need 'study__pmid' (as is same as d.study_id)
+        error_msg, dependency_list = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # using 'select_related' will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
     
-    # But for a more precise query (and so faster as retrieves fewer columns) is:
-    if search_by_driver:
-        select_related = [ 'target__gene_name', 'target__full_name', 'target__entrez_id', 'target__ensembl_id', 'target__ensembl_protein_id', 'target__prevname_synonyms' ]
-    else:
-        select_related = [ 'driver__gene_name', 'driver__full_name', 'driver__entrez_id', 'driver__ensembl_id', 'driver__ensembl_protein_id', 'driver__prevname_synonyms' ]
-    select_related.extend([ 'study__short_name', 'study__experiment_type', 'study__title' ]) # don't need 'study__pmid' (as is same as d.study_id)
-    # *** Remember to add to these select_related lists if other columns are required for output.
-                
-    error_msg, dependency_list = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, select_related=select_related, order_by='wilcox_p' ) # using 'select_related' will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
-    
-    if error_msg != '': return HttpResponse("Error: "+error_msg, mimetype)
+    if error_msg != '': return HttpResponse("Error: "+error_msg, html_mimetype)
 
     # print("Query SQL:",dependency_list.query)
     """
@@ -833,7 +892,7 @@ ASC
     elif delim_type=='xlsx':   # A real Excel file.
         content_type = excel_minetype
     else:
-        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv' or 'xlsx'"%(delim_type), mimetype)
+        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv' or 'xlsx'"%(delim_type), html_mimetype)
 
     timestamp = time.strftime("%d-%b-%Y") # To add time use: "%H:%M:%S")
 
@@ -844,151 +903,202 @@ ASC
     response = HttpResponse(content_type=content_type) # Maybe use the  type for tsv files?    
     response['Content-Disposition'] = 'attachment; filename="%s"' %(dest_filename)
 
-    count = dependency_list.count()
+    count = 0
+    if not RAW: count = dependency_list.count()
+    
     study_name = "All studies" if study_pmid=='ALL_STUDIES' else study.short_name
-    file_description = "A total of %d dependencies were found for: %s='%s', Tissue='%s', Study='%s'" % (count, search_by.title(), gene_name, histotype_full_name, study_name)
+    # Using 'and' rather than comma below as a comma would split the line in csv files:
+    query_text = "%s='%s' and Tissue='%s' and Study='%s'" % (search_by.title(), gene_name, histotype_full_name, study_name)
+    
     file_download_text = "Downloaded from cancergd.org on %s" %(timestamp)
     
     column_headings = search_by_driver_column_headings_for_download if search_by_driver else search_by_target_column_headings_for_download
+
+    if delim_type == 'csv' or delim_type == 'tsv':
+        write_csv_or_tsv_file(response, dependency_list, search_by_driver, query_text, column_headings, file_download_text, delim_type, dialect)
+    else: # elif delim_type=='xlsx': # Real excel file
+        write_xlsx_file(response, dependency_list, search_by_driver, query_text, column_headings, file_download_text)
     
-    if delim_type=='csv' or delim_type=='tsv':
-        writer = csv.writer(response, dialect=dialect)
-        # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE,  Dialect.delimiter,  Dialect.lineterminator
-            
-        writer.writerows([
-            ["",file_description,], # Added extra first column so Excel knows from first row that is CSV
-            ["",file_download_text,],
-            ["",],
-          ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
-
-        writer.writerow(column_headings)
-           # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object.         
-
-    elif delim_type=='xlsx': # Real excel file
-        import xlsxwriter # need to install this 'xlsxwriter' python module
-
-        # An advantage of Excel format is if import tsv file Excel changes eg. MARCH10 or SEP4 to a date, whereas creating the Excle file doesn't
-        # Also can add formatting, better url links, and include box-plot images.
-        #import io            
-        #iobytes_output = io.BytesIO() # Workbook expects a string or bytes object, and cannot write it directly to response.
-        #workbook = xlsxwriter.Workbook(iobytes_output, {'in_memory': True})
-        workbook = xlsxwriter.Workbook(response)
-        # As output is small, {'in_memory': True} avoids using temp files on server
-        # or: with xlsxwriter.Workbook(iobytes_output, {'in_memory': True}) as workbook: (then don't need to close() it)
-        
-        workbook.set_properties({
-          'title':    file_description,
-          'subject':  'Cancer Genetic Dependencies',
-          'author':   'CancerGD.org',
-          'manager':  'Dr. Colm Ryan',
-          'company':  'Systems Biology Ireland',
-          'category': '',
-          'keywords': 'Sample, Example, Properties',
-          'comments': 'Created with Python and XlsxWriter. '+file_download_text,
-          'status': '',
-          'hyperlink_base': '',
-          })
-        
-        ws = workbook.add_worksheet() # can have optional sheet_name parameter
-        yellow = '#FFFFEE' # a light yellow
-        bold = workbook.add_format({'bold': True}) # Add a bold format to use to highlight cells.
-        # bold_cyan = workbook.add_format({'bold': True, 'bg_color': 'cyan'}) # Add a bold blue format.
-        # bold_yellow = workbook.add_format({'bold': True, 'bg_color': yellow}) # Add a bold blue format.
-        # bg_yellow = workbook.add_format({'bg_color': yellow})
-        # But when use background colour then hides the vertical grid lines that separate the cells
-        align_center = workbook.add_format({'align':'center'})
-        exponent_format = workbook.add_format({'num_format': '0.00E+00', 'align':'center'}) # For wilcox_p (eg 1 x 10^-4).
-        percent_format = workbook.add_format({'num_format': '0.00"%"', 'align':'center'}) # For effect_size.
-        two_decimal_places = workbook.add_format({'num_format': '0.00', 'align':'center'}) # For Z-diff.
-
-        
-        # can also set border formats using:    set_bottom(), set_top(), set_left(), set_right()
-        # also can set cell bg colours (eg: 'bg_color'), etc http://xlsxwriter.readthedocs.org/format.html
-
-        ws.write_string( 1, 1, file_description )
-        ws.write_string( 2, 1, file_download_text )
-        ws.write_row   ( 4, 0, column_headings, bold)
-        #  ws.set_row(row, None, bold) # To make title row bold - but already set to bold above in write_row
-        ws.set_column(0, 0, 12) # To make Gene name column (col 0) a bit wider
-        ws.set_column(1, 1, 35) # To make Description column (col 1) wider
-        ws.set_column(3, 4, 16) # To make ensembl ids (col 3 and 4) wider
-        ws.set_column(5, 5, 35) # To make Synonyms column (col 5) wider
-        ws.set_column(6, 13, 11) # To make columns 6 to 13 a bit wider
-        ws.set_column(14, 14, 14) # To make Experiment_type (col 14) a bit wider
-        row = 4 # The last row to writen
-        
-    # Now write the dependency rows:
-    for d in dependency_list:  # Not using iteractor() as count() above will already have run the query, so is cached
-
-        # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:
-        if search_by_driver:
-            # Cannot use 'gene_id' as variable, as that will refer to the primary key of the Gene table, so returns a tuple.
-            gene_symbol= d.target.gene_name # d.target_id but returns name as a tuple, # same as: d.target.gene_name
-            full_name  = d.target.full_name
-            entrez_id  = d.target.entrez_id
-            ensembl_id = d.target.ensembl_id
-            protein_id = d.target.ensembl_protein_id
-            synonyms   = d.target.prevname_synonyms
-            inhibitors = d.target.inhibitors
-        else:  # search_by target
-            gene_symbol= d.driver.gene_name # d.driver_id, # same as: d.driver.gene_name
-            full_name  = d.driver.full_name
-            entrez_id  = d.driver.entrez_id
-            ensembl_id = d.driver.ensembl_id
-            protein_id = d.driver.ensembl_protein_id
-            synonyms   = d.driver.prevname_synonyms
-            inhibitors = d.driver.inhibitors
-        #print(gene_symbol, d.target.gene_name)
-
-        if delim_type=='csv' or delim_type=='tsv':
-            writer.writerow([
-                gene_symbol,
-                full_name, entrez_id, ensembl_id, protein_id, synonyms,
-                format(d.wilcox_p, ".1e").replace("e-0", "e-"),
-                format(d.effect_size*100, ".1f"),  # As a percentage with 1 decimal place
-                format(d.zdiff,".2f"), # Usually negative
-                d.get_histotype_display(),
-                inhibitors,
-                d.interaction,
-                d.study.short_name,  d.study_id,  d.study.experiment_type
-                ])
-                # d.study_id is same as 'd.study.pmid'
-        
-            # Could add weblinks to display the SVG boxplots by pasting link into webbrowser:
-            # this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
-            # 'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()
-            
-        elif delim_type=='xlsx':
-            row += 1
-            ws.write_string(row,   0, gene_symbol, bold)
-            ws.write_string(row,   1, full_name)
-            ws.write_string(row,   2, entrez_id)
-            ws.write_string(row,   3, ensembl_id)
-            ws.write_string(row,   4, protein_id)
-            ws.write_string(row,   5, synonyms)
-            ws.write_number(row,   6, d.wilcox_p,    exponent_format)
-            ws.write_number(row,   7, d.effect_size, percent_format)
-            ws.write_number(row,   8, d.zdiff,       two_decimal_places)
-            ws.write_string(row,   9, d.get_histotype_display())
-            ws.write_string(row,  10, inhibitors)
-            ws.write_string(row,  11, d.interaction, align_center)
-            ws.write_string(row,  12, d.study.short_name)
-            ws.write_url(   row,  13, url=d.study.url(), string=d.study_id, tip='PubmedId: '+d.study_id+' : '+d.study.title)  # cell_format=bg_yellow  # d.study_id is same as 'd.study.pmid'
-            ws.write_string(row,  14, d.study.experiment_type)
-            # ws.write_string(row, 15, d.study.summary)
-        
-            # ADD THE FULL STATIC PATH TO THE url = .... BELOW:
-            # ws.write_url(   row, 14, url = 'gendep/boxplots/'+d.boxplot_filename, string=d.boxplot_filename, tip='Boxplot image')
-            # ws.insert_image(row, col, STATIC.....+d.boxplot_filename [, options]) # Optionally add the box-plots to excel file.
-
-    # Close the Excel file
-    if delim_type=='xlsx':
-        workbook.close() # must close to save the contents.
-        # xlsx_data = output.getvalue()
-        # response.write(iobytes_output.getvalue())    # maybe add: mimetype='application/ms-excel'
-        # or:
-        # output.seek(0)
-        # response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
     return response
     
+
+
+def write_csv_or_tsv_file(response, dependency_list, search_by_driver, query_text, column_headings, file_download_text, delim_type, dialect):
+    # delim_type is:'csv' or 'tsv'
+    
+    import io
+    # writer = csv.writer(response, dialect=dialect)
+    response_stringio = io.StringIO()
+    writer = csv.writer(response_stringio, dialect=dialect)
+        # Maybe: newline='', Can add:  quoting=csv.QUOTE_MINIMAL, or csv.QUOTE_NONE, or csv.QUOTE_NONNUMERIC;  Dialect.delimiter,  Dialect.lineterminator
+
+    writer.writerows([
+    #     ["",file_description,], # Added extra first column so Excel knows from first row that is CSV. BUT don't know the row count here, so will prepend this at end to the html response.
+        ["",file_download_text,],
+        ["",],
+    ]) # Note needs the comma inside each square bracket to make python interpret each line as list than that string
+
+    writer.writerow(column_headings)  # The writeheader() with 'fieldnames=' parameter is only for the DictWriter object.
+
+    # Now write the dependency rows:
+    count = 0
+    for d in dependency_list:  # Not using iteractor() as count() above will already have run the query, so is cached, as the rawsql doesn't support iterator()
+        count+=1        
+        # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:        
+        # Cannot use 'gene_id' as variable, as that will refer to the primary key of the Gene table, so returns a tuple.
+        gene_symbol = d.target_id if search_by_driver else d.driver_id  # d.target_id but returns name as a tuple, # same as: d.target.gene_name
+        
+# As using RawSQL then the following aren't needed:        
+#            gene_symbol= d.target.gene_name # d.target_id but returns name as a tuple, # same as: d.target.gene_name
+#            full_name  = d.target.full_name
+#            entrez_id  = d.target.entrez_id
+#            ensembl_id = d.target.ensembl_id
+#            protein_id = d.target.ensembl_protein_id
+#            synonyms   = d.target.prevname_synonyms
+#            inhibitors = d.target.inhibitors
+#        else:  # search_by target
+#            gene_symbol= d.driver.gene_name # d.driver_id, # same as: d.driver.gene_name
+#            full_name  = d.driver.full_name
+#            entrez_id  = d.driver.entrez_id
+#            ensembl_id = d.driver.ensembl_id
+#            protein_id = d.driver.ensembl_protein_id
+#            synonyms   = d.driver.prevname_synonyms
+#            inhibitors = d.driver.inhibitors
+        #print(gene_symbol, d.target.gene_name)
+        
+#        print(help(d))
+
+#        for x in d.__dict__.keys():
+#            if not x.startswith('_'):
+#                print(x,d.__dict__[x])
+#        print("")                
+
+        writer.writerow([
+            gene_symbol,
+            d.full_name, d.entrez_id, d.ensembl_id, d.ensembl_protein_id, d.prevname_synonyms,
+            format(d.wilcox_p, ".1e").replace("e-0", "e-"),
+            format(d.effect_size*100, ".1f"),  # As a percentage with 1 decimal place
+            format(d.zdiff,".2f"), # Usually negative
+            Dependency.histotype_full_name(d.histotype),  # was: d.get_histotype_display()
+            d.inhibitors,
+            d.interaction,
+            d.short_name,  d.study_id,  d.experiment_type         
+        ])
+                # d.study_id is same as 'd.study.pmid'        
+        # Could add weblinks to display the SVG boxplots by pasting link into webbrowser:
+        # this 'current_url' is a temporary fix: (or use: StaticFileStorage.url )
+        # 'http://'+current_url+'/static/gendep/boxplots/'+d.boxplot_filename()
+
+            
+    # Finally slose the StringIO file:
+    file_description = "A total of %d dependencies were found for: " %(count) + query_text    
+    # Start with a comma or tab to add an extra first column so Excel knows from first row that is CSV.
+    # The "\n" could be "\r\n" if windows dialect of csv writer was used:
+    response.write( ("," if delim_type=='csv' else "\t") + file_description + "\n" + response_stringio.getvalue() )   # getvalue() similar to:  response_stringio.seek(0); response_stringio.read()
+    response_stringio.close() # To free the memory.
+
+           
+           
+
+def write_xlsx_file(response, dependency_list, search_by_driver, query_text, column_headings, file_download_text):    
+#    elif delim_type=='xlsx': # Real excel file
+
+    import xlsxwriter # need to install this 'xlsxwriter' python module
+
+    # An advantage of Excel format is if import tsv file Excel changes eg. MARCH10 or SEP4 to a date, whereas creating the Excle file doesn't
+    # Also can add formatting, better url links, and include box-plot images.
+    # Can write directly to the response which is a file-like object. (Alternatively can write to io.stringio first.
+    workbook = xlsxwriter.Workbook(response, {'in_memory': True})
+    # As output is small, {'in_memory': True} avoids using temp files on server, and avoids the error: "HttpResponse has no attribute seek"        
+    # or: with xlsxwriter.Workbook(iobytes_output, {'in_memory': True}) as workbook: (then don't need to close() it)
+        
+    # From: https://groups.google.com/forum/#!topic/python-excel/0vWPLht7K64
+    # Change the default font from Calibri 11 to Arial 10 (as Mac Numbers app doesn't have Calibri so needs to convert to MS font): 
+    workbook.formats[0].font_name = 'Arial'
+    workbook.formats[0].font_size = 10
+           
+    ws = workbook.add_worksheet() # can have optional sheet_name parameter
+    yellow = '#FFFFEE' # a light yellow
+    bold = workbook.add_format({'bold': True}) # Add a bold format to use to highlight cells.
+    # bold_cyan = workbook.add_format({'bold': True, 'bg_color': 'cyan'}) # Add a bold blue format.
+    # bold_yellow = workbook.add_format({'bold': True, 'bg_color': yellow}) # Add a bold blue format.
+    # bg_yellow = workbook.add_format({'bg_color': yellow})
+    # But when use background colour then hides the vertical grid lines that separate the cells
+    align_center = workbook.add_format({'align':'center'})
+    exponent_format = workbook.add_format({'num_format': '0.00E+00', 'align':'center'}) # For wilcox_p (eg 1 x 10^-4).
+    percent_format = workbook.add_format({'num_format': '0.00"%"', 'align':'center'}) # For effect_size.
+    two_decimal_places = workbook.add_format({'num_format': '0.00', 'align':'center'}) # For Z-diff.
+
+        
+    # can also set border formats using:    set_bottom(), set_top(), set_left(), set_right()
+    # also can set cell bg colours (eg: 'bg_color'), etc http://xlsxwriter.readthedocs.org/format.html
+
+    description_row = 1 # As create the description at end when count is available.
+    # ws.write_string( description_row, 1, file_description )
+    ws.write_string( 2, 1, file_download_text )
+    ws.write_row   ( 4, 0, column_headings, bold)
+    #  ws.set_row(row, None, bold) # To make title row bold - but already set to bold above in write_row
+    ws.set_column(0, 0, 12) # To make Gene name column (col 0) a bit wider
+    ws.set_column(1, 1, 35) # To make Description column (col 1) wider
+    ws.set_column(3, 4, 16) # To make ensembl ids (col 3 and 4) wider
+    ws.set_column(5, 5, 35) # To make Synonyms column (col 5) wider
+    ws.set_column(6, 13, 11) # To make columns 6 to 13 a bit wider
+    ws.set_column(14, 14, 14) # To make Experiment_type (col 14) a bit wider
+    row = 4 # The last row to writen
+
+    # Now write the dependency rows:
+    count = 0
+    for d in dependency_list:  # Not using iteractor() as count() above will already have run the query, so is cached, as the rawsql doesn't support iterator()
+        count+=1        
+        # If could use 'target AS gene' or 'driver AS gene' in the django query then would need only one output:        
+        # Cannot use 'gene_id' as variable, as that will refer to the primary key of the Gene table, so returns a tuple.
+        gene_symbol = d.target_id if search_by_driver else d.driver_id  # d.target_id but returns name as a tuple, # same as: d.target.gene_name
+                
+        row += 1
+        ws.write_string(row,   0, gene_symbol, bold)
+        ws.write_string(row,   1, d.full_name)
+        ws.write_string(row,   2, d.entrez_id)
+        ws.write_string(row,   3, d.ensembl_id)
+        ws.write_string(row,   4, d.ensembl_protein_id)
+        ws.write_string(row,   5, d.prevname_synonyms)
+        ws.write_number(row,   6, d.wilcox_p,    exponent_format)
+        ws.write_number(row,   7, d.effect_size, percent_format)
+        ws.write_number(row,   8, d.zdiff,       two_decimal_places)
+        ws.write_string(row,   9, Dependency.histotype_full_name(d.histotype))
+        ws.write_string(row,  10, d.inhibitors)
+        ws.write_string(row,  11, d.interaction, align_center)
+        ws.write_string(row,  12, d.short_name)
+        ws.write_url(   row,  13, url=Study.url(d.study_id), string=d.study_id, tip='PubmedId: '+d.study_id+' : '+d.title)  # cell_format=bg_yellow  # d.study_id is same as 'd.study.pmid'
+        # WAS:  ws.write_url(   row,  13, url=d.study.url(), string=d.study_id, tip='PubmedId: '+d.study_id+' : '+d.study.title)  # cell_format=bg_yellow  # d.study_id is same as 'd.study.pmid'            
+        ws.write_string(row,  14, d.experiment_type)
+        # ws.write_string(row, 15, d.study.summary)
+        
+        # ADD THE FULL STATIC PATH TO THE url = .... BELOW:
+        # ws.write_url(   row, 14, url = 'gendep/boxplots/'+d.boxplot_filename, string=d.boxplot_filename, tip='Boxplot image')
+        # ws.insert_image(row, col, STATIC.....+d.boxplot_filename [, options]) # Optionally add the box-plots to excel file.
+            
+    # Finally: 
+    file_description = "A total of %d dependencies were found for: " %(count) + query_text
+    
+    # Close the Excel file:
+    ws.write_string( description_row, 1, file_description )
+    workbook.set_properties({
+        'title':    file_description,
+        'subject':  'Cancer Genetic Dependencies',
+        'author':   'CancerGD.org',
+        'manager':  'Dr. Colm Ryan',
+        'company':  'Systems Biology Ireland',
+        'category': '',
+        'keywords': 'Sample, Example, Properties',
+        'comments': 'Created with Python and XlsxWriter. '+file_download_text,
+        'status': '',
+        'hyperlink_base': '',
+    })
+    workbook.close() # must close to save the contents.
+    
+    # xlsx_data = output.getvalue()
+    # response.write(iobytes_output.getvalue())    # maybe add: mimetype='application/ms-excel'
+    # or:
+    # output.seek(0)
+    # response = HttpResponse(output.read(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+

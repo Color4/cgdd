@@ -2,9 +2,11 @@
 
 // Global variables in this script:
 
+var SHOW_NEXT_PREV_BUTTONS = false; // false to hide the 'Previous', 'Close' and 'Next' boxplot buttons.
+
 var tissue_colours = {
-    //"BONE":         "yellow",
-  "OSTEOSARCOMA": "yellow", // same as BONE above
+  "BONE":         "yellow",  // BONE includes OSTEOSARCOMA, as Achilles BONE contains OSTEOSARCOMA non-OSTEOSARCOMA cell-lines.
+  // "OSTEOSARCOMA": "yellow", // same as BONE above
   "BREAST":       "deeppink",  // Colt only contains Breast
   "LUNG":         "darkgrey",
   "HEADNECK":     "firebrick",  // Not in Achilles data  (The original "firebrick4" colour doesn't work in IE) - NOT in dependency data from the 23 drivers, so don't show on legend.
@@ -406,7 +408,8 @@ function beeswarm(lines,wtxc,muxc,boxwidth) {
   for (var i=1; i<lines.length; i++) { // corectly starts at i=1, as lines[0] is the boxplot dimensions.
     var col = lines[i].split(",");
     var tissue = col[itissue];
-	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+	// if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+	if (tissue=="OSTEOSARCOMA") {tissue="BONE"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.	
 
 	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
 	
@@ -1148,17 +1151,18 @@ function show_svg_boxplot_in_fancybox(dependency_td_id, driver, target, histotyp
       + '<td><input type="button" id="download_all_legend" value="All tissues" data-value="All tissues" onclick="download_legend(\'all\');" style="font-size:80%; padding: 1px;"/></td>'
       + '</tr>');
 
-    // Buttons for moving to the Next or Previous boxplot, or Closing the fancybox:
-    // Changed to using the <button>....</button> tags instead of <input type="button"... /> as can include line breaks inside the button>, eg: <button> I see this <br/>is a long <br/> sentence here.</button>
-    // Can even put images inside these button tags text.
-    $("#next_prev_boxplot_buttons_table").html(
-      '<tr>' 
-    + '<td style="padding: 1px 5px;"><button id="previous_boxplot_button" data-value="Previous boxplot" style="font-size:75%;"></button></td>'
-    + '<td style="padding: 1px 5px;"><button id="close_boxplot_button" data-value="Close boxplot" onclick="$.fancybox.close();" style="font-size:75%;">Close</br>boxplot</button></td>'
-    + '<td style="padding: 1px 5px;"><button id="next_boxplot_button" data-value="Next boxplot" style="font-size:75%;"></button></td>'
-    + '</tr>'  
-    );   
-   
+    if (SHOW_NEXT_PREV_BUTTONS) {
+      // Buttons for moving to the Next or Previous boxplot, or Closing the fancybox:
+      // Changed to using the <button>....</button> tags instead of <input type="button"... /> as can include line breaks inside the button>, eg: <button> I see this <br/>is a long <br/> sentence here.</button>
+      // Can even put images inside these button tags text.
+      $("#next_prev_boxplot_buttons_table").html(
+        '<tr>' 
+      + '<td style="padding: 1px 5px;"><button id="previous_boxplot_button" data-value="Previous boxplot" style="font-size:75%;"></button></td>'
+      + '<td style="padding: 1px 5px;"><button id="close_boxplot_button" data-value="Close boxplot" onclick="$.fancybox.close();" style="font-size:75%;">Close</br>boxplot</button></td>'
+      + '<td style="padding: 1px 5px;"><button id="next_boxplot_button" data-value="Next boxplot" style="font-size:75%;"></button></td>'
+      + '</tr>'  
+      );   
+    }   
    
   } // end of if (!svg_fancybox_loaded) { ....
 
@@ -1183,8 +1187,10 @@ function show_svg_boxplot_in_fancybox(dependency_td_id, driver, target, histotyp
   
   var this_td =   svg=document.getElementById(dependency_td_id);
   
-  set_previous_next_boxplot_buttons($("#previous_boxplot_button"), 'Previous', previous_dependency(this_td));
-  set_previous_next_boxplot_buttons($("#next_boxplot_button"),     'Next',     next_dependency(this_td));
+  if (SHOW_NEXT_PREV_BUTTONS) {  
+    set_previous_next_boxplot_buttons($("#previous_boxplot_button"), 'Previous', previous_dependency(this_td));
+    set_previous_next_boxplot_buttons($("#next_boxplot_button"),     'Next',     next_dependency(this_td));
+  }
 
   return false; // Return false to the caller so won't move on the page
 }	

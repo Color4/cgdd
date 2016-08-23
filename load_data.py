@@ -391,7 +391,9 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       # or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
 #      if info_source == 'HGNC':
 
-      prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else '|') + this_hgnc[isynonyms]
+      prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else ' | ') + this_hgnc[isynonyms].replace('|', ' | ') # Pad the synonyms with spaces as easier to read.
+      
+      # Added the above synonyms padding to the database manually for now using: update gendep_gene set prevname_synonyms = replace(prevname_synonyms, '|', ' | ');
       
       full_name  = this_hgnc[ifull_name]       # eg: erb-b2 receptor tyrosine kinase 2      
       entrez_id  = this_hgnc[ientrez_id]       # eg: 2064
@@ -609,7 +611,8 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
     if tissue_type=='PANCAN': histotype = 'PANCAN' 
     elif tissue_type=='BYTISSUE' and itissue!=-1:
         histotype = row[itissue]   # As using CharField(choices=...) and now is validated in the model.
-        if histotype == "BONE": histotype = "OSTEOSARCOMA" # As in the Cambell(2016) R results this is called BONE, but converted to "OSTEOSARCOMA" in Tables S1K
+#        if histotype == "BONE": histotype = "OSTEOSARCOMA" # As in the Cambell(2016) R results this is called BONE, but converted to "OSTEOSARCOMA" in Tables S1K
+        if histotype == "OSTEOSARCOMA": histotype = "BONE" # Achilles has some non-Osteoscarcoma bone tumore cell-lines (whereas Cambell(2016) is just Osteoscarcomas) 
     else: print("Invalid tissue_type='%s' or itissue=%d" %(tissue_type,itissue))
     
     mutation_type='Both'  # Default to 'Both' for current data now.

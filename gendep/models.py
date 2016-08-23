@@ -99,14 +99,13 @@ class Study(models.Model):
         return self.pmid
         
     # These url() and weblink() functions could be moved to "cgdd_functions.js" javascript.
-    # This weblink (and url) function is still used in the studies.html template:
-    def url(self):
+    # This weblink (and url) function is still used in the studies.html template and in view.py for downloading as excel file:
+    def url(self_or_studyid): # Using optional pmid as a parameter so can be called as: Study.url('1234') without needing the study instance
         #        if self.pmid[0:7] == 'Pending': href = reverse('gendep:study', kwargs={'pmid': self.pmid})
         #if self.pmid[0:7] == 'Pending': href = reverse('gendep:study')
         # Fix the problem with reverse() later.
-        if self.pmid[0:7] == 'Pending': href = '/gendep/study/%s/' %(self.pmid)
-        else: href = 'http://www.ncbi.nlm.nih.gov/pubmed/%s' %(self.pmid)
-        return href
+        pmid = self_or_studyid if isinstance(self_or_studyid, str) else self_or_studyid.pmid        
+        return ('/gendep/study/%s/' if pmid[0:7]=='Pending' else 'http://www.ncbi.nlm.nih.gov/pubmed/%s') %(pmid)
         
     def weblink(self):
         return '<a class="tipright" href="%s" target="_blank">%s<span>%s, %s et al, %s, %s</span></a>' %(self.url(), self.short_name, self.title, self.authors[0:30], self.journal, self.pub_date)
@@ -125,7 +124,8 @@ class Dependency(models.Model):
       ("LUNG",                               "Lung"),#          "Lu"),
       ("HEADNECK",                           "Head & Neck"),#   "HN"), # In Campbell, Not in Achilles
       ("OESOPHAGUS",                         "Esophagus"),#     "Es"),  # or "Oesophagus"
-      ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R
+      ("BONE",                               "Bone"),        #  "Bo"),  was "BONE", in R - but using Bone, as Achilles has some non-Osteosarcoma bone cell-lines
+      # ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R
       ("OVARY",                              "Ovary"),#         "Ov"),
       # More added below for Achilles data - may need to add these to the index template
 	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
@@ -181,18 +181,19 @@ class Dependency(models.Model):
         
     boxplot_data = models.TextField('Boxplot data in CSV format', blank=True, default='') # The cell-lines and zscores for plotting the boxplot with javascript SVG.
     
-    def is_valid_histotype(h):
+    def is_valid_histotype(h): # was:    def is_valid_histotype(h):    
        for row in Dependency.HISTOTYPE_CHOICES:
           if row[0] == h: return True
        return False
-    
-    def histotype_full_name(h):
+       
+# ?????? - maybe use a static method?    
+    def histotype_full_name(h):  # was:     def histotype_full_name(h):
         for row in Dependency.HISTOTYPE_CHOICES:
             if row[0] == h: return row[1]
         return "Unknown"
        
-    def __str__(self):
-        return self.target.gene_name
+#    def __str__(self):
+#        return self.target.gene_name
     
     # Based on: https://groups.google.com/forum/#!topic/django-users/SzYgjbrYVCI
     def __setattr__(self, name, value):
