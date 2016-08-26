@@ -87,14 +87,16 @@ if (data_set == "Campbell") {
 	"Endometrium",
 	"CNS",
 	"Blood & Lymph",
-	"Intestine",
+    "Large Intestine", # Updated from "Intestine" Aug 2016,
 	"Kidney",
 	"Liver",
+    "Pleura", # Added Aug 2016	
 	"Prostate",
 	"Skin",
 	"Soft tissue",
 	"Stomach",
-	"Urinary tract"
+	"Urinary tract",
+    "Other"	  # Added Aug 2016	
 	)	
   legend_actual_tissues = c(
 	"BONE",
@@ -108,14 +110,16 @@ if (data_set == "Campbell") {
 	"ENDOMETRIUM",
 	"CENTRAL_NERVOUS_SYSTEM",
 	"HAEMATOPOIETIC_AND_LYMPHOID_TISSUE",
-	"INTESTINE",
+    "LARGE_INTESTINE", # Updated from "INTESTINE" Aug 2016
 	"KIDNEY",
 	"LIVER",
+    "PLEURA", # Added Aug 2016
 	"PROSTATE",
 	"SKIN",
 	"SOFT_TISSUE",
 	"STOMACH",
-	"URINARY_TRACT"
+	"URINARY_TRACT",
+    "OTHER"	  # Added Aug 2016
 	)	
   legend_col=c(
 	"yellow",
@@ -132,11 +136,13 @@ if (data_set == "Campbell") {
     "saddlebrown",
 	"indianred",
 	"slategray",
+  "slategray",  # **** Still to fix this colour for: "Pleura", # Added Aug 2016	
 	"turquoise",
 	"peachpuff",
 	"lightgrey",
     "black",
-    "yellowgreen"
+    "yellowgreen",
+"slategray" # **** Still to fix colour for: "Other"	  # Added Aug 2016	    
 	)
 
 } else if(data_set == "Colt") {	  # Only Breast, but dummy BONE added in tissues file for plotting
@@ -879,6 +885,9 @@ print(sprintf("driver:%s,target:%s",marker_gene,target_gene))
 }
 
 
+
+# Better to change this function so that it doesn't need tissue_actual_names list:
+
 write_box_dot_plot_data <- function(
 	results,
 	zscores,
@@ -1111,7 +1120,7 @@ data_rows_count <- 0  # Index for the 'data_rows' vector, which is number of cel
 			j <- NULL
 			for(j in 1:length(tissue_actual_names)){
 				tissue <- tissue_actual_names[j]
-#print(tissue)				
+# print(tissue)	
 				wt_rows_by_tissue <- which(
 					wt_mut_grps_strings == "wt" &
 					tissues[,tissue] == 1

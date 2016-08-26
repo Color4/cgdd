@@ -127,7 +127,7 @@ def split_driver_gene_name(long_name):
 
 
 target_name_warning_already_reported = dict()  # To reduce multiple duplicate messages during loading of target genes.
-def split_target_gene_name(long_name, isColt):
+def split_target_gene_name(long_name, isAchilles, isColt):
   """ Splits a Target name read from output of the R function "write.table(uv_results_kinome_combmuts_bytissue, ....." in the "run_intercell_analysis.R" script.
 :
       parameters:
@@ -149,8 +149,8 @@ def split_target_gene_name(long_name, isColt):
       warn("Invalid number of parts in target gene, (as expected 2 parts): '%s'" %(long_name))
       target_name_warning_already_reported[long_name] = None
 
-  if isColt:
-    names.append('') # As Colt names have entrez id, but not ensembl id, so add empty "" at end of names list.  
+  if isColt or isAchilles:
+    names.append('') # As Colt and Achilles names have entrez id, but not ensembl id, so add empty "" at end of names list.  
   else:
     if names[1][:4] != 'ENSG' and names[1]!='NoEnsemblIdFound' and long_name not in target_name_warning_already_reported:
       error("Expected 'ENSG' for start of target ensembl name: '%s'" %(long_name))
@@ -164,9 +164,9 @@ def split_target_gene_name(long_name, isColt):
 
 driver_alterations = dict()
 def load_driver_alterations_dictionary():
-   """ Reads the Driver Alterations into dictionary to add to the Gene table for each driver gene """
+  """ Reads the Driver Alterations into dictionary to add to the Gene table for each driver gene """
    
-  dataReader = csv.reader(open(driver_alteration_details_file), dialect='excel-tab')
+  dataReader = csv.reader(open(driver_alteration_details_file), dialect='excel') # as this input file is comma-separated (ie. CSV), not tab-separated.
      # or: dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   row = next(dataReader) # The header line.
   if row[0]!="Gene" or row[1]!="Alterations Considered":
@@ -405,7 +405,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
     if is_driver and alteration_considered=='': warn("alteration_considered is missing for driver '%s'" %('_'.join(names)))
     
     if gene_name not in hgnc:
-      warn("Gene '%s' NOT found in HGNC dictionary" %(gene_name) )
+      warn("Gene '%s' (entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(gene_name,entrez_id,ensembl_id) )
       g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, alteration_considered=alteration_considered, entrez_id=entrez_id, ensembl_id=ensembl_id)
     else:
       this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
@@ -630,7 +630,7 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
 
     driver_gene = find_or_add_gene(names, is_driver=True, is_target=False, isAchilles=isAchilles, isColt=isColt)
 
-    names = split_target_gene_name(row[itarget], isColt)
+    names = split_target_gene_name(row[itarget], isAchilles=isAchilles, isColt=isColt)
     target_variant = ''
     if isAchilles:
         target_variant = names[0][-1:]  # As target variant is single integer after target gene name in my formatted Achilles target names.
@@ -984,6 +984,9 @@ if __name__ == "__main__":
     Campbell_study, Achilles_study, Colt_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets = add_the_three_studies()
     
     analysis_dir = "198_boxplots_for_Colm/analyses"
+    
+    # analysis_dir = "postprocessing_R_results" # After Aug 2016
+    
     Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
 
     # "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
@@ -1002,13 +1005,14 @@ if __name__ == "__main__":
     # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
     # cannot compute exact p-value with ties
     
-    Achilles_results_pancan =  "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_17Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Achilles_results_pancan =  "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_26Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     # "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)    
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
-    Achilles_results_bytissue = "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_17Aug2016witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Achilles_results_bytissue = "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_26Aug2016witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
     

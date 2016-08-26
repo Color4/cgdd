@@ -29,10 +29,9 @@ var tissue_colours = {
   "URINARY_TRACT":"yellowgreen"
   // "LIVER":        "slategray", // Not in Campbell,  Not in 23 driver dependency data, so don't display on legend  
 
-// In Achilles R input data:
+// In Achilles R input data Aug 2016:
 // "OTHER"                         
 // "PLEURA"
-
   };
 
 
