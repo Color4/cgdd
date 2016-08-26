@@ -331,7 +331,8 @@ def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wil
     if study_pmid != "ALL_STUDIES":
         q = q.filter( study_id = study_pmid )  # Could use: (study = study) but using study_id should be more efficiewnt as no table join needed.
 
-    q = q.filter(wilcox_p__lte = wilcox_p) # Only list significant hits (ie: p<=0.05). '__lte' means 'less than or equal to'
+    # As the results are already filtered by R for wilcox_P<=0.05 then don't actually need to filter on this wilcox_p <= 0.05:
+    # q = q.filter(wilcox_p__lte = wilcox_p) # Only list significant hits (ie: p<=0.05). '__lte' means 'less than or equal to'
 
     print("build_dependency Query SQL:",q.query)
     print("build_dependency select_related:",select_related)
@@ -352,13 +353,15 @@ def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wil
     return error_msg, q
 
 
-def build_rawsql_dependency_query(search_by, gene_name, histotype_name, study_pmid, query_type, wilcox_p=0.05, order_by='wilcox_p'): # select_related=None):
-    """ Builds raw SQL query """
+
+def build_rawsql_dependency_query(search_by, gene_name, histotype_name, study_pmid, query_type, order_by='wilcox_p'): # wilcox_p=0.05, select_related=None): 
+    """ Builds raw SQL query, which permits use of AS in SQL, and more efficient. https://docs.djangoproject.com/en/1.10/topics/db/sql/ """
+    # As the results are already filtered by R for wilcox_P<=0.05 then don't actually need to filter on this wilcox_p <= 0.05
     
     error_msg = ''
     
-    filter = "D.%s = %%s AND D.wilcox_p <= %%s" %(search_by)
-    params = [gene_name, wilcox_p]
+    filter = "D.%s = %%s" %(search_by)  # AND D.wilcox_p <= %%s
+    params = [gene_name] # , wilcox_p
     
     if histotype_name != "ALL_HISTOTYPES":
         filter += " AND D.histotype = %s" # Correctly uses: =histotype_name, not: =histotype_full_name        
@@ -427,7 +430,7 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
     timing_array = []  # Using an array to preserve order of times on output.
     start = datetime.now()
     
-    ajax_results_cache_version = '2' # version of the data in the database and of this JSON format. Increment this on updates that change the database data or this JSON format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
+    ajax_results_cache_version = '3' # version of the data in the database and of this JSON format. Increment this on updates that change the database data or this JSON format. See: https://docs.djangoproject.com/en/1.9/topics/cache/#cache-versioning
     
     # Avoid storing a 'None' value in the cache as then difficult to know if was a cache miss or is value of the key
     cache_key = search_by+'_'+gene_name+'_'+histotype_name+'_'+study_pmid+'_v'+ajax_results_cache_version
@@ -471,8 +474,33 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
     # "The 'iterator()' method ensures only a few rows are fetched from the database at a time, saving memory, but aren't cached if needed again in this function. This iteractor version seems slightly faster than non-iterator version.
 #    for d in dependency_list.iterator(): <-- RawQuery doesn't have iterator()
     for d in dependency_list:
-        count += 1
+      count += 1
+      if RAW:
+        #interaction = d.interaction
+        #if interaction is None: interaction = ''  # shouldn't be None, as set by ' add_ensembl_proteinids_and_stringdb.py' script to ''.
+        
+        #interation_protein_id = d.target.ensembl_protein_id if search_by_driver else d.driver.ensembl_protein_id
+        #if interation_protein_id is None: interation_protein_id = ''  # The ensembl_protein_id might be empty.
+        #interaction += '#'+interation_protein_id  # Append the protein id so can use this to link to string-db.org
 
+        #inhibitors = d.target.inhibitors if search_by_driver else d.driver.inhibitors
+        #if inhibitors is None: inhibitors = '' # shouldn't be None, as set by 'drug_inhibitors.py' script to ''.
+        
+        # For driver or target below, the '_id' suffix gets the underlying gene name, rather than the foreign key Gene object, so more efficient as no SQL join needed: https://docs.djangoproject.com/en/1.9/topics/db/optimization/#use-foreign-key-values-directly
+        # Similarily 'study_id' returns the underlying pmid number from Dependency table rather than the Study object.
+        # wilcox_p in scientific format with no decimal places (.0 precision), and remove python's leading zero from the exponent.
+        results.append([
+                    d.target_id if search_by_driver else d.driver_id,
+                    format(d.wilcox_p, ".0e").replace("e-0", "e-"),
+                    format(d.effect_size*100, ".1f"),  # As a percentage with 1 decimal place
+                    format(d.zdiff,".2f"), # Usually negative. two decomal places
+                    d.histotype,
+                    d.study_id,
+                    d.interaction + '#' + d.ensembl_protein_id,
+                    d.inhibitors
+                    ])
+                            
+      else: # Not RAW sql        
         interaction = d.interaction
         if interaction is None: interaction = ''  # shouldn't be None, as set by ' add_ensembl_proteinids_and_stringdb.py' script to ''.
         
@@ -496,6 +524,7 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
                     interaction,
                     inhibitors # Formatted above
                     ])
+                    
 
     start = get_timing(start, 'Dependency results', timing_array)
     
@@ -505,6 +534,7 @@ def get_dependencies(request, search_by, gene_name, histotype_name, study_pmid):
                   'gene_name': gene_name,
                   'gene_full_name': gene.full_name,
                   'gene_synonyms': gene.prevname_synonyms,
+                  'gene_alteration_considered': gene.alteration_considered,  # alteration_considered only applies to driver genes.
                   'histotype_name': histotype_name,
                   'study_pmid': study_pmid,
                   'dependency_count': count, # should be same as: dependency_list.count(), but dependency_list.count() could be another SQL query. # should be same as number of elements passed in the results array.

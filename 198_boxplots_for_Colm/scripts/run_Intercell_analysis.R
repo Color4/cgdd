@@ -64,23 +64,21 @@ if (data_set == "Campbell") {  #### For Cambell (2016):
 } else if (data_set == "Achilles") { #### Achilles:
   # SJB - for Achilles - input files in C:/Users/HP/Django_projects/cgdd
   pubmed_id <- "25984343" # Cowley(2014) for Achilles
-  tissues_file <- "../../Achilles_data/Achilles_tissues_v4_17Aug2016.txt"  
-
-
-#*************************************************************
-#******** REMEMBER TO CHANGE TO COLMS NEW MUTS FILES *********
-#*************************************************************
-
-  # kinome_file <- "../../Achilles_data/Achilles_rnai_transposed_for_R_kinome_v3_12Mar2016.txt"  # pre-August-2016
-
-  kinome_file <- "../../Achilles_data/Achilles_rnai_transposed_for_R_kinome_v4_17Aug2016.txt"  # 17-August-2016
-
+  
   # From Colms email - 11 Aug 2016 - the renamed RNAi files are in this directory:
   # kinome_file <- "../../preprocess_genotype_data/rnai_datasets/Achilles_QC_v2.4.3_cancergd.txt"
-  # ********** STILL TO TRY WITH COLMS FILE ABOVE ****************
 
-  uv_results_kinome_combmuts_file <- "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_17Aug2016_witheffectsize_and_zdiff.txt"
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_17Aug2016witheffectsize_and_zdiff.txt"
+  kinome_file <- "../../preprocess_genotype_data/rnai_datasets/Achilles_QC_v2.4.3_cancergd_with_entrezids.txt" # Uses entrezid instead of ensembl ids.
+  tissues_file <- "../../preprocess_genotype_data/rnai_datasets/Achilles_QC_v2.4.3_tissues.txt" # Treats PLEURA as separate tissue.
+
+  uv_results_kinome_combmuts_file <- "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_26Aug2016_witheffectsize_and_zdiff.txt"
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_26Aug2016witheffectsize_and_zdiff.txt"
+
+
+  # tissues_file <- "../../Achilles_data/Achilles_tissues_v4_17Aug2016.txt"  
+  # kinome_file <- "../../Achilles_data/Achilles_rnai_transposed_for_R_kinome_v3_12Mar2016.txt"  # pre-August-2016
+  # kinome_file <- "../../Achilles_data/Achilles_rnai_transposed_for_R_kinome_v4_17Aug2016.txt"  # 17-August-2016, had NCI prefixes removed from thse cellines, eg: NCIH1299_LUNG
+  # kinome_file <- "../../Achilles_data/Achilles_rnai_transposed_for_R_kinome_v4_23Aug2016.txt" # Using NCI prefixes which matches the 
   
   # SJB - for Achilles:
   # For 23 drivers being focused on:
@@ -107,7 +105,7 @@ if (data_set == "Campbell") {  #### For Cambell (2016):
 # === testing:
   # rerunning with the corrected gene names (ie. coltv2_zgarp_cancergd_reformatted.txt, as my file: zGARP_scores_transposed_with_Intercell_names_from_James_with_entrez_ids_added.txt contained numbers for genenames DEC, SEP, MARCH, etc)
   # but using the OLD muts (combined_exome_cnv_func_muts_150225.txt, rather than Colms new muts: 
-  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v1_with_fixed_colt_mut_genenames__bytissue_kinome_combmuts_12Aug2016_witheffectsize_and_zdiff.txt"
+  # uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v1_with_fixed_colt_mut_genenames__bytissue_kinome_combmuts_12Aug2016_witheffectsize_and_zdiff.txt"
 # =============
 
   uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v2_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff.txt"

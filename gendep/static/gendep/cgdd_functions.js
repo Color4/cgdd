@@ -126,6 +126,7 @@ function show_search_info(data) {
   if (gene != global_selected_gene) {alert("ERROR: query returned search by gene("+gene+") != global_selected_gene("+global_selected_gene+")")}
   $("#gene_name").html(gene);
   $("#gene_synonyms").html(qi['gene_synonyms']);
+  $("#gene_alteration_considered").html(qi['gene_alteration_considered']);
   $("#gene_full_name").html(qi['gene_full_name']);
 
   global_selected_gene_info = data['gene_ids'];

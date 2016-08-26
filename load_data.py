@@ -39,6 +39,10 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 # HGNC input file used by load_hgnc_dictionary(hgnc_infile):
 hgnc_infile = os.path.join('input_data','hgnc_complete_set.txt')
 
+# The alteration (eg. mutation, copy number) considered for each driver - to be loaded into the Gene table for each driver:
+driver_alteration_details_file = os.path.join('input_data','AlterationDetails.csv')
+
+
 
 # Set flag to output the info messages. On command-line can use '>' redirect output these to a text file.
 INFO_MESSAGES = True
@@ -158,6 +162,25 @@ def split_target_gene_name(long_name, isColt):
 
 
 
+driver_alterations = dict()
+def load_driver_alterations_dictionary():
+   """ Reads the Driver Alterations into dictionary to add to the Gene table for each driver gene """
+   
+  dataReader = csv.reader(open(driver_alteration_details_file), dialect='excel-tab')
+     # or: dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+  row = next(dataReader) # The header line.
+  if row[0]!="Gene" or row[1]!="Alterations Considered":
+      error("Unexpected header line in Driver alterations file: %s" %(row))
+  
+  for row in dataReader:
+      driver_name = row[0]
+      if driver_name in driver_alterations:
+          error("Driver '%s' is in the Driver Alterations file more than once" %(driver_name))
+          
+      driver_alterations[driver_name] = row[1]      
+
+
+
 hgnc = dict() # To read the HGNC ids into a dictionary
 #ihgnc = dict() # The column name to number for the above HGNC dict. 
 def load_hgnc_dictionary(hgnc_infile):
@@ -166,9 +189,10 @@ def load_hgnc_dictionary(hgnc_infile):
   # Alternatively use a webservice, eg: http://www.genenames.org/help/rest-web-service-help
   
   global hgnc, isymbol, ifull_name, istatus, isynonyms, iprev_names, ientrez_id, iensembl_id, icosmic_id, iomim_id, iuniprot_id, ivega_id, ihgnc_id
-  print("\nLoading HGNC data")
-    
-  dataReader = csv.reader(open(hgnc_infile), dialect='excel-tab')
+  print("\nLoading HGNC data:",hgnc_infile)
+
+  # Recent hgnc files have utf-8 (ie. non-ascii) characters for Alpha, Beta, etc, so open with utf-8 encoding:
+  dataReader = csv.reader(open(hgnc_infile, encoding='utf-8'), dialect='excel-tab')
      # or: dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
   row = next(dataReader)
 
@@ -376,9 +400,13 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
           
   except ObjectDoesNotExist: # gene name not found in the gene table by the objects.get(), so need to add it:
     # if gene_name == 'PIK3CA': debug("PIK3CA Here B")
+    
+    alteration_considered = driver_alterations.get('_'.join(names), '')
+    if is_driver and alteration_considered=='': warn("alteration_considered is missing for driver '%s'" %('_'.join(names)))
+    
     if gene_name not in hgnc:
       warn("Gene '%s' NOT found in HGNC dictionary" %(gene_name) )
-      g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, entrez_id=entrez_id, ensembl_id=ensembl_id)
+      g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, alteration_considered=alteration_considered, entrez_id=entrez_id, ensembl_id=ensembl_id)
     else:
       this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
       if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
@@ -404,6 +432,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       vega_id    = this_hgnc[ivega_id]         # eg: OTTHUMG00000179300
       hgnc_id    = this_hgnc[ihgnc_id]
 
+
       # In HGNC some genes have two or three OMIM IDs, eg: gene "ATRX" has omim_id: "300032|300504" (length=13, but column width is 10, and simpler to just store first name)
       if len(omim_id) >= 9:
           pos = omim_id.find('|')
@@ -411,10 +440,12 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
             info("%s: using only first omid_id: %s" %(gene_name,omim_id))
             omim_id = omim_id[:pos]
       
-      g = Gene.objects.create(gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
-               original_name = original_gene_name,
+      g = Gene.objects.create(
+               gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
+               original_name = original_gene_name,               
                is_driver  = is_driver,
                is_target  = is_target,
+               alteration_considered = alteration_considered,
                full_name  = full_name,       # eg: erb-b2 receptor tyrosine kinase 2
                prevname_synonyms = prevname_synonyms,     # eg: NGL  (plus)  NEU|HER-2|CD340|HER2
                entrez_id  = entrez_id,       # eg: 2064
@@ -936,12 +967,11 @@ if __name__ == "__main__":
   #add_counts_of_driver_tissue_and_target_to_studies()
   #sys.exit()
   #exit()
-
-       
+  
+  load_driver_alterations_dictionary()
   load_hgnc_dictionary(hgnc_infile)
   load_mygene_hgnc_dictionary()
   
-
   
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."

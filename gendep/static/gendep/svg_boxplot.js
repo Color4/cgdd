@@ -8,17 +8,19 @@ var tissue_colours = {
   "BONE":         "yellow",  // BONE includes OSTEOSARCOMA, as Achilles BONE contains OSTEOSARCOMA non-OSTEOSARCOMA cell-lines.
   // "OSTEOSARCOMA": "yellow", // same as BONE above
   "BREAST":       "deeppink",  // Colt only contains Breast
-  "LUNG":         "darkgrey",
-  "HEADNECK":     "firebrick",  // Not in Achilles data  (The original "firebrick4" colour doesn't work in IE) - NOT in dependency data from the 23 drivers, so don't show on legend.
-  "PANCREAS":     "purple",
-  "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependencies
-  "OVARY":        "cadetblue",
-  "OESOPHAGUS":   "green",
-  "ENDOMETRIUM":  "orange",     // Not in 23 driver dependency data
   "CENTRAL_NERVOUS_SYSTEM": "darkgoldenrod",  // The original "darkgoldenrod4" colour doesn't work in IE.
+  "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependencies
+  "ENDOMETRIUM":  "orange",     // Not in 23 driver dependency data
+  "HEADNECK":     "firebrick",  // Not in Achilles data  (The original "firebrick4" colour doesn't work in IE) - NOT in dependency data from the 23 drivers, so don't show on legend.
+  "LUNG":         "darkgrey",
+  "OESOPHAGUS":   "green",
+  "OVARY":        "cadetblue",
+  "PANCREAS":     "purple",
+
   // The following are NOT in the Campbell dataset for the 23 driver dependency data:
   "HAEMATOPOIETIC_AND_LYMPHOID_TISSUE": "darkred",
   "INTESTINE":    "saddlebrown",
+// or: "LARGE_INTESTINE"
   "KIDNEY":       "indianred",
   "PROSTATE":     "turquoise",
   "SKIN":         "peachpuff",
@@ -26,6 +28,11 @@ var tissue_colours = {
   "STOMACH":      "black",
   "URINARY_TRACT":"yellowgreen"
   // "LIVER":        "slategray", // Not in Campbell,  Not in 23 driver dependency data, so don't display on legend  
+
+// In Achilles R input data:
+// "OTHER"                         
+// "PLEURA"
+
   };
 
 
@@ -627,7 +634,8 @@ function add_tooltips() {
 		// if ((mutant=='1') || (mutant=='2') || (mutant=='3')) {mutant_type="Mutation (type "+mutant+")<br/>";}
 		// else if ((mutant=='4') || (mutant=='5')) {mutant_type="Copy number (type "+mutant+")</br>"}
 
-		if (mutant=='1') {mutant_type="Mutation (type "+mutant+")<br/>";}
+		if      (mutant=='0') {mutant_type="Wild type<br/>";}
+		else if (mutant=='1') {mutant_type="Mutation (type "+mutant+")<br/>";}
 		else if (mutant=='2') {mutant_type="Copy number (type "+mutant+")</br>"}
 		else {mutant_type="Unexpected mutant_type (type "+mutant+")</br>"}
 		

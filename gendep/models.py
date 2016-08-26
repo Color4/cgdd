@@ -26,6 +26,7 @@ class Gene(models.Model):
     original_name = models.CharField('Original name', max_length=30) # As some gene_names are changed, especially needed for the Achilles and Colt studies.
     is_driver   = models.BooleanField('Is driver', db_index=True, default=False) # So will know for driver search menu/webpage which to list in the dropdown menu
     is_target   = models.BooleanField('Is target', db_index=True, default=False) # So will know for target search menu/webpage which to list in the dropdown menu
+    alteration_considered = models.TextField('Alteration_considered', blank=True) # Type of alteration considered for this driver gene.
     full_name   = models.CharField('Full name', max_length=200)
     ensembl_id  = models.CharField('Ensembl Gene Id', max_length=20, blank=True) # Ensembl gene
     ensembl_protein_id  = models.CharField('Ensembl Protein Id', max_length=20, blank=True) # Ensembl protein for String-db
@@ -120,21 +121,22 @@ class Dependency(models.Model):
     """ Dependency = Driver-Target interactions """
     # Values for the histotype choices CharField. The two letter codes at right are used for faster transfer to webbrowser.
     HISTOTYPE_CHOICES = (
-      ("BREAST",                             "Breast"),#        "Br"),
-      ("LUNG",                               "Lung"),#          "Lu"),
-      ("HEADNECK",                           "Head & Neck"),#   "HN"), # In Campbell, Not in Achilles
-      ("OESOPHAGUS",                         "Esophagus"),#     "Es"),  # or "Oesophagus"
       ("BONE",                               "Bone"),        #  "Bo"),  was "BONE", in R - but using Bone, as Achilles has some non-Osteosarcoma bone cell-lines
-      # ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R
+      ("BREAST",                             "Breast"),#        "Br"),
+      ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
+      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
+	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
+	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
+      ("HEADNECK",                           "Head & Neck"),#   "HN"), # In Campbell, Not in Achilles
+	  ("INTESTINE",                          "Intestine"),#     "In"),
+	  ("KIDNEY",                             "Kidney"),#        "Ki"), # kidney not in results even though 10 cell lines      
+      ("LARGE_INTESTINE",                    "Large Intestine"), # Instead of Intestine.
+      ("LUNG",                               "Lung"),#          "Lu"),
+      ("OESOPHAGUS",                         "Esophagus"),#     "Es"),  # or "Oesophagus"
+      # ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R, and using Bone as Achilles has non-osteoscarcoma bone cancer cell lines.
       ("OVARY",                              "Ovary"),#         "Ov"),
       # More added below for Achilles data - may need to add these to the index template
-	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
 	  ("PANCREAS", 	                         "Pancreas"),#      "Pa"),
-      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
-      ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
-	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
-	  ("INTESTINE",                          "Intestine"),#     "In"),
-	  ("KIDNEY",                             "Kidney"),#        "Ki"), # kidney not in results even though 10 cell lines
       # ("LIVER",                            "Liver"),#         "Li"), only 1 cell line so not analysed by R
 	  ("PROSTATE",                           "Prostate"),#      "Pr"),
 	  ("SKIN",                               "Skin"),#          "Sk"),
