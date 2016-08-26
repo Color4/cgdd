@@ -26,6 +26,7 @@ class Gene(models.Model):
     original_name = models.CharField('Original name', max_length=30) # As some gene_names are changed, especially needed for the Achilles and Colt studies.
     is_driver   = models.BooleanField('Is driver', db_index=True, default=False) # So will know for driver search menu/webpage which to list in the dropdown menu
     is_target   = models.BooleanField('Is target', db_index=True, default=False) # So will know for target search menu/webpage which to list in the dropdown menu
+    alteration_considered = models.TextField('Alteration_considered', blank=True) # Type of alteration considered for this driver gene.
     full_name   = models.CharField('Full name', max_length=200)
     ensembl_id  = models.CharField('Ensembl Gene Id', max_length=20, blank=True) # Ensembl gene
     ensembl_protein_id  = models.CharField('Ensembl Protein Id', max_length=20, blank=True) # Ensembl protein for String-db
@@ -99,14 +100,13 @@ class Study(models.Model):
         return self.pmid
         
     # These url() and weblink() functions could be moved to "cgdd_functions.js" javascript.
-    # This weblink (and url) function is still used in the studies.html template:
-    def url(self):
+    # This weblink (and url) function is still used in the studies.html template and in view.py for downloading as excel file:
+    def url(self_or_studyid): # Using optional pmid as a parameter so can be called as: Study.url('1234') without needing the study instance
         #        if self.pmid[0:7] == 'Pending': href = reverse('gendep:study', kwargs={'pmid': self.pmid})
         #if self.pmid[0:7] == 'Pending': href = reverse('gendep:study')
         # Fix the problem with reverse() later.
-        if self.pmid[0:7] == 'Pending': href = '/gendep/study/%s/' %(self.pmid)
-        else: href = 'http://www.ncbi.nlm.nih.gov/pubmed/%s' %(self.pmid)
-        return href
+        pmid = self_or_studyid if isinstance(self_or_studyid, str) else self_or_studyid.pmid        
+        return ('/gendep/study/%s/' if pmid[0:7]=='Pending' else 'http://www.ncbi.nlm.nih.gov/pubmed/%s') %(pmid)
         
     def weblink(self):
         return '<a class="tipright" href="%s" target="_blank">%s<span>%s, %s et al, %s, %s</span></a>' %(self.url(), self.short_name, self.title, self.authors[0:30], self.journal, self.pub_date)
@@ -121,20 +121,22 @@ class Dependency(models.Model):
     """ Dependency = Driver-Target interactions """
     # Values for the histotype choices CharField. The two letter codes at right are used for faster transfer to webbrowser.
     HISTOTYPE_CHOICES = (
+      ("BONE",                               "Bone"),        #  "Bo"),  was "BONE", in R - but using Bone, as Achilles has some non-Osteosarcoma bone cell-lines
       ("BREAST",                             "Breast"),#        "Br"),
-      ("LUNG",                               "Lung"),#          "Lu"),
+      ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
+      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
+	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
+	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
       ("HEADNECK",                           "Head & Neck"),#   "HN"), # In Campbell, Not in Achilles
+	  ("INTESTINE",                          "Intestine"),#     "In"),
+	  ("KIDNEY",                             "Kidney"),#        "Ki"), # kidney not in results even though 10 cell lines      
+      ("LARGE_INTESTINE",                    "Large Intestine"), # Instead of Intestine.
+      ("LUNG",                               "Lung"),#          "Lu"),
       ("OESOPHAGUS",                         "Esophagus"),#     "Es"),  # or "Oesophagus"
-      ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R
+      # ("OSTEOSARCOMA",                       "Osteosarcoma"),#  "Os"),  was "BONE", in R, and using Bone as Achilles has non-osteoscarcoma bone cancer cell lines.
       ("OVARY",                              "Ovary"),#         "Ov"),
       # More added below for Achilles data - may need to add these to the index template
-	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
 	  ("PANCREAS", 	                         "Pancreas"),#      "Pa"),
-      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
-      ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
-	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
-	  ("INTESTINE",                          "Intestine"),#     "In"),
-	  ("KIDNEY",                             "Kidney"),#        "Ki"), # kidney not in results even though 10 cell lines
       # ("LIVER",                            "Liver"),#         "Li"), only 1 cell line so not analysed by R
 	  ("PROSTATE",                           "Prostate"),#      "Pr"),
 	  ("SKIN",                               "Skin"),#          "Sk"),
@@ -181,18 +183,19 @@ class Dependency(models.Model):
         
     boxplot_data = models.TextField('Boxplot data in CSV format', blank=True, default='') # The cell-lines and zscores for plotting the boxplot with javascript SVG.
     
-    def is_valid_histotype(h):
+    def is_valid_histotype(h): # was:    def is_valid_histotype(h):    
        for row in Dependency.HISTOTYPE_CHOICES:
           if row[0] == h: return True
        return False
-    
-    def histotype_full_name(h):
+       
+# ?????? - maybe use a static method?    
+    def histotype_full_name(h):  # was:     def histotype_full_name(h):
         for row in Dependency.HISTOTYPE_CHOICES:
             if row[0] == h: return row[1]
         return "Unknown"
        
-    def __str__(self):
-        return self.target.gene_name
+#    def __str__(self):
+#        return self.target.gene_name
     
     # Based on: https://groups.google.com/forum/#!topic/django-users/SzYgjbrYVCI
     def __setattr__(self, name, value):

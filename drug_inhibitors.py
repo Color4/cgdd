@@ -1,29 +1,25 @@
 #!/usr/bin/env python
 
+""" Retrives Drug inhibitors from dgidb.genome.wustl.edu, and adds to the database's Gene table """
+
 import sys, os
-from django.db import transaction
-import mygene
-
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
-import django
-django.setup()
-
-from gendep.models import Gene # Dependency, Study, Removed: Histotype, Drug.
-
-
 import requests
 from urllib.request import Request, urlopen
 from urllib.error import URLError
 import json
 
+from django.db import transaction
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
+import django
+django.setup()
+
+from gendep.models import Gene
 
 
 # From: http://dgidb.genome.wustl.edu/api
-
-
 # The preferred method for accessing this endpoint is a GET request, it will also accept POST requests to accomodate large gene lists if needed.
 # http://dgidb.genome.wustl.edu
-
  
 # http://dgidb.genome.wustl.edu/api/v1/interactions.json?interaction_types=inhibitor&genes=ERBB2,SMAD2
  
@@ -48,11 +44,14 @@ params = {
 
 #genes = []
 #genes['genes'] = self.genes
-interaction_sources = ["CIViC","CancerCommons","ChEMBL","ClearityFoundationBiomarkers","ClearityFoundationClinicalTrial",
-"DoCM","DrugBank","GuideToPharmacologyInteractions","MyCancerGenome","MyCancerGenomeClinicalTrial","PharmGKB","TALC","TEND",
-"TTD","TdgClinicalTrial"]
-interaction_sources.remove("MyCancerGenome")
-interaction_sources.remove("MyCancerGenomeClinicalTrial")
+# From the Source's "Interaction" page: http://dgidb.genome.wustl.edu/sources#
+interaction_sources = [ "CIViC","CancerCommons","ChEMBL","ClearityFoundationBiomarkers","ClearityFoundationClinicalTrial","DoCM","DrugBank","GuideToPharmacologyInteractions","PharmGKB","TALC","TEND","TdgClinicalTrial","TTD" ]
+#**** But left out the clinical trials sources:  "MyCancerGenomeClinicalTrial", 
+# and: "MyCancerGenome"
+
+#interaction_sources.remove("MyCancerGenome")
+#interaction_sources.remove("MyCancerGenomeClinicalTrial")
+
 
 def get_interactions(gene_list):
   url = "http://dgidb.genome.wustl.edu/api/v1/interactions.json?" + \

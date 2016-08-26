@@ -34,10 +34,11 @@ require(mixtools)
 # "HEADNECK" "CERVICAL" are not in Achilles - so need to comment them out below as mini_boxplot uses legend_actual_tissues
 # Added for Achilles: HAEMATOPOIETIC_AND_LYMPHOID_TISSUE, INTESTINE, KIDNEY, LIVER, PROSTATE, SKIN, SOFT_TISSUE, STOMACH, URINARY_TRACT
 # Achilles - Numbers of celllines for each tissue type: BONE=6,  BREAST=12, CENTRAL_NERVOUS_SYSTEM=34, ENDOMETRIUM=2, HAEMATOPOIETIC_AND_LYMPHOID_TISSUE=30, INTESTINE=21, KIDNEY=10, LIVER=1, LUNG=23, OESOPHAGUS=10, OVARY=29, PANCREAS=17, PROSTATE=3, SKIN=7, SOFT_TISSUE=2, STOMACH=4, URINARY_TRACT=3
+# In "legend_pretty_tissues", "Bone" was previously "Osteosarcoma", but changed in Aug 2016 as Achilles includes non-osteoscarcoma bone tumor cell-lines.
 
 if (data_set == "Campbell") {	
   legend_pretty_tissues = c(
-	"Osteosarcoma",
+	"Bone",
 	"Breast",
 	"Lung",
 	"Head & Neck",
@@ -75,7 +76,7 @@ if (data_set == "Campbell") {
 	
 } else if (data_set == "Achilles") {
   legend_pretty_tissues = c(
-	"Osteosarcoma",
+	"Bone",
 	"Breast",
 	"Lung",
 #	"Head & Neck",
@@ -162,6 +163,10 @@ names(legend_col) <- legend_actual_tissues
 # the complete set of tests
 
 # On 15 Aug 2016, The gene 	"NOTCH2_4853_ENSG00000134250" was removed from this list, and 14 new genes added.
+
+
+
+
 
 cgc_vogel_genes_with_n7 <- c(
 	"CCND1_595_ENSG00000110092",
@@ -381,10 +386,10 @@ run_univariate_tests <- function(
 	i <- NULL
 	for(i in seq(1:length(colnames(mutations)))){
 
-#       Skip if driver mutation is NOT in the above list of 21 genes for the Achilles and the Colt data	
-#       Added by SJB to speed up initialy analysis of Achilles data by focusing in the 21 genes.
+#       Skip if driver mutation is NOT in the above list of 36 genes for the Achilles and the Colt data	
+#       Added by SJB to speed up initialy analysis of Achilles data by focusing in the 36 genes.
 #	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
-#       or change to Skip if driver mutation IS in the above list of 21 genes - as they are already processed.
+#       or change to Skip if driver mutation IS in the above list of 36 genes - as they are already processed.
 	    if ( !(colnames(mutations)[i] %in% cgc_vogel_genes_with_n7) ) {
 			# print(paste(toString(i),"skipping:", colnames(mutations)[i]))
 			next

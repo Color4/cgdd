@@ -1,5 +1,12 @@
 #!/usr/bin/env python
 
+
+""" Script to parse the downloaded StringDB Human protein.alias and protein.links files, and import the links into the Dependency table
+    The StringDB files are downloaded from: http://string-db.org/cgi/download.pl?species_text=Homo+sapiens
+    (ie: string-db.org -> Download tab, then select "Homo sapiens" from menu)
+
+"""
+
 import sys, os, sqlite3
 from django.db import transaction
 import mygene
@@ -9,15 +16,12 @@ import django
 django.setup()
 
 # The following import needs to be after django.setup()
-from gendep.models import Gene, Dependency  # Study, Drug.  Removed: Histotype
+from gendep.models import Gene, Dependency
 
 
-# Got contact at StringDB from Help page email: Peer Bork: bork@embl.de
-#  http://string-db.org/newstring_cgi/show_download_page.pl
+SYMBOL_TO_STRING_TABLE_NAME = 'db_symbol_to_string_protein.sqlite3'
 
-  
-  
-
+# ==============================================================================================================  
 entrez_to_stringdb_protein_ids_input_file = "StringDB/entrez_gene_id.vs.string.v10.28042015.tsv"
 # Got these entrez mappings from: http://string-db.org/mapping_files/entrez_mappings/
 # ie: http://string-db.org/mapping_files/entrez_mappings/entrez_gene_id.vs.string.v10.28042015.tsv
@@ -27,8 +31,9 @@ entrez_to_stringdb_protein_ids_input_file = "StringDB/entrez_gene_id.vs.string.v
 #  2       9606.ENSP00000323929
 #  etc...
 
+# ==============================================================================================================
 protein_alias_file = "StringDB/9606.protein.aliases.v10.txt"
-# Got from bottom of page: http://string-db.org/newstring_cgi/show_download_page.pl
+# Got from "ACCESSORY DATA" section of: http://string-db.org/cgi/download.pl?species_text=Homo+sapiens
 # Format:
 #   ## string_protein_id ## alias ## source ##
 #   9606.ENSP00000360761     1-@ACYLGLYCEROL-3-PHOSPHATE O-ACYL [*603100]   Ensembl_MIM_GENE
@@ -39,40 +44,11 @@ protein_alias_file = "StringDB/9606.protein.aliases.v10.txt"
 #9606.ENSP00000320485    ARID1A variant protein  BLAST_UniProt_DE BLAST_UniProt_GN
 #9606.ENSP00000320485    ARID1A-001      Ensembl_HGNC_transcript_name Ensembl_Vega_transcript
 #9606.ENSP00000320485    ARID1A-002      Ensembl_HGNC_transcript_name Ensembl_Vega_transcript
-"""
-# From StringDB FAQ page: http://string-db.org/help/topic/org.string-db.docs/ch04.html
-This file has four columns: species_ncbi_taxon_id, protein_id, alias, source. To figure out which is the string identifier for trpA in E. coli K12, you can do something like this in you terminal:
 
- 
-          zgrep ^83333 protein.aliases.v8.3.txt.gz | grep trpB
-          
-which would return:
-
- 
-          83333	b1261	trpB	BLAST_UniProt_GN RefSeq
-          
-from this you can get the string name by concatenating the two first column with a period (83333.b1261)
-
-Q:	
-Is there an automatic way of to mapping proteins to STRING? I need mappings for more three thousand proteins.
-
-A:
-
-A convenient way of mapping your proteins to STRING entries is to use the STRING API. As an example, for a single protein, the alias can be retrieved by:
-
- http://string-db.org/api/tsv/resolve?identifier=trpA\&amp;species=83333
-Alternatively, instead of making on call per protein you can try to all the identifiers for a list of protein (separated by '%0D'):
-
- http://string-db.org/api/tsv/resolveList?identifiers=trpA%0DtrpB\&amp;species=83333
-In such cases you may have a problems with the length limit of the URL, but this can be circumvented by sending the request as a HTTP POST request. For example using cURL:
-
- 
-          curl -d "identifiers=trpA%0DtrpC%0DtrpB%0DtrpD\&amp;species=83333" string-db.org/api/tsv/resolveList
-"""
-
-protein_interaction_input_file = "StringDB/stringdb_homo_sapiens_9606.protein.links.v10.txt"
-# Got from http://string-db.org/newstring_cgi/show_download_page.pl
-#   with filter menu set to 'Humo sapiens'
+# ==============================================================================================================
+protein_interaction_input_file = "StringDB/9606.protein.links.v10.txt"
+# Got from "INTERACTION DATA" section of: http://string-db.org/cgi/download.pl?species_text=Homo+sapiens
+#  (ie: downloads page with filter menu set to 'Humo sapiens')
 
 # Format is one space between columns:
 # protein1 protein2 combined_score
@@ -83,30 +59,33 @@ protein_interaction_input_file = "StringDB/stringdb_homo_sapiens_9606.protein.li
 # all proteins seem to be prefixed with "9606" -is that for Human
 # "Protein identifiers in the above files contain two substrings each: 'NNNNN.aaaaaa'. The first substring is the NCBI taxonomy species identifier, and the second substring is the RefSeq/Ensembl-identifier of the protein."
 
-
-
-"""
-# From: http://string-db.org/help/index.jsp?topic=/org.string-db.docs/ch04.html
+"""  From the stringdb Help FAQ webpage:  http://string-db.org/cgi/help.pl
 You can use the file of protein aliases available from the download page protein.aliases.v8.3.txt.gz. This file has four columns: species_ncbi_taxon_id, protein_id, alias, source. To figure out which is the string identifier for trpA in E. coli K12, you can do something like this in you terminal:
-
- 
           zgrep ^83333 protein.aliases.v8.3.txt.gz | grep trpB
-          
-which would return:
-
- 
+which would return: 
           83333	b1261	trpB	BLAST_UniProt_GN RefSeq
-          
+
 from this you can get the string name by concatenating the two first column with a period (83333.b1261)
 
-# curl "http://string-db.org/api/tsv/resolve?identifier=ERBB2&species=9606" > string_id.junk
+Q: Is there an automatic way of to mapping proteins to STRING? I need mappings for more three thousand proteins.
+A: A convenient way of mapping your proteins to STRING entries is to use the STRING API. As an example, for a single protein, the alias can be retrieved by:
+      http://string-db.org/api/tsv/resolve?identifier=trpA\&amp;species=83333
+   Alternatively, instead of making on call per protein you can try to all the identifiers for a list of protein (separated by '%0D'):
+      http://string-db.org/api/tsv/resolveList?identifiers=trpA%0DtrpB\&amp;species=83333
+   In such cases you may have a problems with the length limit of the URL, but this can be circumvented by sending the request as a HTTP POST request. For example using cURL:
+      curl -d "identifiers=trpA%0DtrpC%0DtrpB%0DtrpD\&amp;species=83333" string-db.org/api/tsv/resolveList
 
-9606.ENSP00000354910    9606    Homo sapiens    NRG2    neuregulin 2; Direct ligand for ERBB3 and ERBB4 ....
-9606.ENSP00000331305    9606    Homo sapiens    TOB2    .....
-...
-9606.ENSP00000269571    9606    Homo sapiens    ERBB2   v-erb-b2 erythroblastic leukemia viral ....
-....
+eg. for Human:
+      curl "http://string-db.org/api/tsv/resolve?identifier=ERBB2&species=9606" > string_id.junk
+  returns:
+      9606.ENSP00000354910    9606    Homo sapiens    NRG2    neuregulin 2; Direct ligand for ERBB3 and ERBB4 ....
+      9606.ENSP00000331305    9606    Homo sapiens    TOB2    .....
+      ...
+      9606.ENSP00000269571    9606    Homo sapiens    ERBB2   v-erb-b2 erythroblastic leukemia viral ....
+      ....
 """
+# ==============================================================================================================
+
 
 def extract_ensembl_ids(id, result):
     ensembl_gene = None
@@ -158,13 +137,6 @@ def join_as_lists(a,b):
     
     return a
 
-# Test:
-#print(join_as_lists([1,2],[3,4]))
-#print(join_as_lists('A',[3,4]))
-#print(join_as_lists([3,4],'B'))
-#print(join_as_lists('A','B'))
-#print(join_as_lists('A',None))
-#print(join_as_lists(None,'B'))
 
 mg = mygene.MyGeneInfo()
 #fields = mg.get_fields()
@@ -210,7 +182,7 @@ def lookup_entrez_id(id):
                 else: ensembl_proteins = join_as_lists(ensembl_proteins,proteins)
                 # eg: {'symbol': 'MAP3K14', 'entrezgene': 9020, 'ensembl': [{'gene': 'ENSG00000006062', 'protein': ['ENSP00000478552', 'ENSP00000480974', 'ENSP00000482657']}, {'gene': 'ENSG00000282637', 'protein': []}], '_id': '9020'}
             return ensembl_gene, ensembl_proteins
-# Is it possible to have 
+    # Is it possible to have 
     return extract_ensembl_ids(id, result)  # return ensembl_gene, ensembl_proteins
 
     
@@ -279,20 +251,20 @@ def load_stringdb_protein_alias_file_into_sqlite_db():
   # more: http://www.askingbox.com/info/sqlite-creating-an-index-on-one-or-more-columns
   # http://zetcode.com/db/sqlitepythontutorial/
   # https://docs.python.org/3/library/sqlite3.html
-  
-  conn = sqlite3.connect('db_symbol_to_string_protein.sqlite3')
+    
+  conn = sqlite3.connect(SYMBOL_TO_STRING_TABLE_NAME)
   c = conn.cursor()
-  """
+
   #c.execute('''CREATE TABLE alias_to_stringdb (alias text PRIMARY KEY, string_protein text, source text)''') # Create table
   # OR:
-  c.execute('''DROP TABLE alias_to_stringdb''')
+  c.execute('''DROP TABLE IF EXISTS alias_to_stringdb''')
   c.execute('''CREATE TABLE alias_to_stringdb (alias text, string_protein text, source text)''') # Create table
   c.execute('''CREATE INDEX alias_to_stringdb_index ON alias_to_stringdb(alias)''') # This isn't a UNIQUE index, as alias names might not be unique.
 
   rows = []
   row_count = 0
   total_row_count = 0  
-  with open(protein_alias_file) as f:
+  with open(protein_alias_file, 'r', encoding='utf-8') as f: # Need utf-8 encoding as otherwise error, eg: UnicodeDecodeError: 'ascii' codec can't decode byte 0xc3 in position 7631: ordinal not in range(128)
     head = f.readline() # Skip header line
     for line in f:
       # alternatively use: line.replace('.',"\t").split("\t")  or: import re; re.split([.\t], line)
@@ -314,7 +286,7 @@ def load_stringdb_protein_alias_file_into_sqlite_db():
     rows = []
 
   conn.commit()  # Save (commit) the changes
-  """
+
   # for row in c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", ('ARID1A',)):
   #for row in c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", ('8343',)):
   for row in c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", ('8289',)):
@@ -447,7 +419,7 @@ gendep_gene_protein_id_dict = dict()
 def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
   # Scan trough the Gene table:
   print("Adding Ensembl protein Ids to the Gene table ...")
-  conn = sqlite3.connect('db_symbol_to_string_protein.sqlite3')
+  conn = sqlite3.connect(SYMBOL_TO_STRING_TABLE_NAME)
   c = conn.cursor()
   
   # As the SELECT .... LIKE ... is non-case sensitive, then need to create a NOCASE index otherwise very slow:  
@@ -702,20 +674,12 @@ def add_interaction_scores_to_dependency_table_in_db():
   print("count_medium: %d,  count_high: %d,  count_highest: %d" %(count_medium, count_high, count_highest))
 # Found: count_medium: 681,  count_high: 234,  count_highest: 381
 
-
-#### The following is already done in load_data.py
-#def merge_prevnames_and_synonyms():
-  #with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
-#    for g in Gene.objects.all():  # .iterator()
-#      g.prevnames_synonyms = g.prev_names + ('' if g.prev_names == '' or g.synonyms == '' else '|') + g.synonyms
-#      #print(g.prevnames_synonyms)
-#      g.save()
-
       
 if __name__ == "__main__":
-    # load_stringdb_protein_alias_file_into_sqlite_db()
-    
-    #### merge_prevnames_and_synonyms()
+    if not os.path.isfile(SYMBOL_TO_STRING_TABLE_NAME):
+        print("Creating the SQLite database: ",SYMBOL_TO_STRING_TABLE_NAME)
+        load_stringdb_protein_alias_file_into_sqlite_db()
+    else: print("Using the existing the SQLite database: ",SYMBOL_TO_STRING_TABLE_NAME)
     
     # Still needed to rebuild table:
     add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db()

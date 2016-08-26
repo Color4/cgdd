@@ -1,24 +1,25 @@
 #!/usr/bin/env python
 
+""" Script to add the retrieve the Entrez summaries using Entrez EUtils, and add these sumamries to the database Gene table """
+
 import sys, os
+import requests
+from urllib.request import Request, urlopen
+from urllib.error import URLError
+import xml.etree.ElementTree as ET
+
 from django.db import transaction
-#import mygene
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
 import django
 django.setup()
 
-from gendep.models import Gene # Dependency, Study, Removed: Histotype, Drug.
+from gendep.models import Gene
 
-import requests
-from urllib.request import Request, urlopen
-from urllib.error import URLError
-#import json
-import xml.etree.ElementTree as ET
 
 # https://docs.python.org/3.5/library/xml.etree.elementtree.html#xml.etree.ElementTree.Element.find
 
-# XML parsing: There is a “gotcha” with the find() method that will eventually bite you. In a boolean context, ElementTree element objects will evaluate to False if they contain no children (i.e. if len(element) is 0). This means that if element.find('...') is not testing whether the find() method found a matching element; it’s testing whether that matching element has any child elements! To test whether the find() method returned an element, use if element.find('...') is not None.
+# XML parsing: There is a "gotcha" with the find() method that will eventuallyit bite you: In a boolean context, ElementTree element objects will evaluate to False if they contain no children (i.e. if len(element) is 0). This means that if element.find('...') is not testing whether the find() method found a matching element; it's testing whether that matching element has any child elements! To test whether the find() method returned an element, use if element.find('...') is not None.
    # from: http://www.diveintopython3.net/xml.html
 
 
@@ -154,7 +155,7 @@ def test_post():
          
 def get_entrez_summaries(entrez_to_genename_dict, fout1, fout2):
 
-    #Minimizing the Number of Requests: If a task requires searching for and/or downloading a large number of records, it is much more efficient to use the Entrez History to upload and/or retrieve these records in batches rather than using separate requests for each record. Please refer to Application 3 in Chapter 3 for an example. Many thousands of IDs can be uploaded using a single EPost request, and several hundred records can be downloaded using one EFetch request.   http://www.ncbi.nlm.nih.gov/books/NBK25497/
+    # Minimizing the Number of Requests: If a task requires searching for and/or downloading a large number of records, it is much more efficient to use the Entrez History to upload and/or retrieve these records in batches rather than using separate requests for each record. Please refer to Application 3 in Chapter 3 for an example. Many thousands of IDs can be uploaded using a single EPost request, and several hundred records can be downloaded using one EFetch request.   http://www.ncbi.nlm.nih.gov/books/NBK25497/
     # First use ESearch to retrieve the GI numbers for these sequences and post them on the History server, then use multiple EFetch calls to retrieve the data in batches of 500.
     
     # see: http://www.ncbi.nlm.nih.gov/books/NBK25498/#chapter3.Application_4_Finding_unique_se

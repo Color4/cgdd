@@ -2,21 +2,25 @@
 
 // Global variables in this script:
 
+var SHOW_NEXT_PREV_BUTTONS = false; // false to hide the 'Previous', 'Close' and 'Next' boxplot buttons.
+
 var tissue_colours = {
-    //"BONE":         "yellow",
-  "OSTEOSARCOMA": "yellow", // same as BONE above
+  "BONE":         "yellow",  // BONE includes OSTEOSARCOMA, as Achilles BONE contains OSTEOSARCOMA non-OSTEOSARCOMA cell-lines.
+  // "OSTEOSARCOMA": "yellow", // same as BONE above
   "BREAST":       "deeppink",  // Colt only contains Breast
-  "LUNG":         "darkgrey",
-  "HEADNECK":     "firebrick",  // Not in Achilles data  (The original "firebrick4" colour doesn't work in IE) - NOT in dependency data from the 23 drivers, so don't show on legend.
-  "PANCREAS":     "purple",
-  "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependencies
-  "OVARY":        "cadetblue",
-  "OESOPHAGUS":   "green",
-  "ENDOMETRIUM":  "orange",     // Not in 23 driver dependency data
   "CENTRAL_NERVOUS_SYSTEM": "darkgoldenrod",  // The original "darkgoldenrod4" colour doesn't work in IE.
+  "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependencies
+  "ENDOMETRIUM":  "orange",     // Not in 23 driver dependency data
+  "HEADNECK":     "firebrick",  // Not in Achilles data  (The original "firebrick4" colour doesn't work in IE) - NOT in dependency data from the 23 drivers, so don't show on legend.
+  "LUNG":         "darkgrey",
+  "OESOPHAGUS":   "green",
+  "OVARY":        "cadetblue",
+  "PANCREAS":     "purple",
+
   // The following are NOT in the Campbell dataset for the 23 driver dependency data:
   "HAEMATOPOIETIC_AND_LYMPHOID_TISSUE": "darkred",
   "INTESTINE":    "saddlebrown",
+// or: "LARGE_INTESTINE"
   "KIDNEY":       "indianred",
   "PROSTATE":     "turquoise",
   "SKIN":         "peachpuff",
@@ -24,6 +28,11 @@ var tissue_colours = {
   "STOMACH":      "black",
   "URINARY_TRACT":"yellowgreen"
   // "LIVER":        "slategray", // Not in Campbell,  Not in 23 driver dependency data, so don't display on legend  
+
+// In Achilles R input data:
+// "OTHER"                         
+// "PLEURA"
+
   };
 
 
@@ -406,7 +415,8 @@ function beeswarm(lines,wtxc,muxc,boxwidth) {
   for (var i=1; i<lines.length; i++) { // corectly starts at i=1, as lines[0] is the boxplot dimensions.
     var col = lines[i].split(",");
     var tissue = col[itissue];
-	if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+	// if (tissue=="BONE") {tissue="OSTEOSARCOMA"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.
+	if (tissue=="OSTEOSARCOMA") {tissue="BONE"; col[itissue]=tissue; lines[i]=col.join(',');} // BONE is "OSTEOSARCOMA" in the tissue_colours array.	
 
 	var isWT = col[imutant]=="0";  // Wildtype rather than mutant.
 	
@@ -421,20 +431,25 @@ else {mu_points.push(parseFloat(col[iy]))}
     var Yi = Math.round(y / collusionTestRadius);
 
 	var pointType = "circle", svgType = "circle";
-	// The mutation types mapping is:
+	// Pre-Aug-2016 mutation types mapping was:
 	//   1,2,3 = mutation
     //   4,5 = copy number (is one a deletion and one an amplification?)
+    // Now simply:
+	//   1 = mutation
+    //   2 = copy number (is one a deletion and one an amplification?)    
     if (!isWT) {
 	  switch (col[imutant]) {		  
 	    case "1":
-	    case "2":
-	    case "3":		
 		  // pointType = "square";   svgType = "rect"; break; // Square not drawn correctly yet.
 		  pointType = "diamond";  svgType = "polygon"; break;		  
-        case "4":
-	    case "5":
+
+	    case "2":
           pointType = "triangle"; svgType = "polygon"; break;
 		// if needed a 5-point star could be another shape
+	    
+//	    case "3":		
+//      case "4":
+//	    case "5":
 	    default: alert("Invalid point type: '"+col[imutant]+"'")
 	  }
 	}
@@ -614,8 +629,16 @@ function add_tooltips() {
 		var mutant = col[imutant];
 
         var mutant_type='';
-		if ((mutant=='1') || (mutant=='2') || (mutant=='3')) {mutant_type="Mutation (type "+mutant+")<br/>";}
-		else if ((mutant=='4') || (mutant=='5')) {mutant_type="Copy number (type "+mutant+")</br>"}
+        
+        // Pre-August-2016 mutant codes:
+		// if ((mutant=='1') || (mutant=='2') || (mutant=='3')) {mutant_type="Mutation (type "+mutant+")<br/>";}
+		// else if ((mutant=='4') || (mutant=='5')) {mutant_type="Copy number (type "+mutant+")</br>"}
+
+		if      (mutant=='0') {mutant_type="Wild type<br/>";}
+		else if (mutant=='1') {mutant_type="Mutation (type "+mutant+")<br/>";}
+		else if (mutant=='2') {mutant_type="Copy number (type "+mutant+")</br>"}
+		else {mutant_type="Unexpected mutant_type (type "+mutant+")</br>"}
+		
         // To add the mutation type, use: +(mutant!="0" ? "MutantType....<br/>" : "")
         return '<b>'+col[icellline]+'</b><br/>'+mutant_type+histotype_display(tissue)+'<br/>Z-score: '+col[iy]; // '<br/>y: '+y+'<br/>Yi: '+Yi+
 	    }
@@ -1148,17 +1171,18 @@ function show_svg_boxplot_in_fancybox(dependency_td_id, driver, target, histotyp
       + '<td><input type="button" id="download_all_legend" value="All tissues" data-value="All tissues" onclick="download_legend(\'all\');" style="font-size:80%; padding: 1px;"/></td>'
       + '</tr>');
 
-    // Buttons for moving to the Next or Previous boxplot, or Closing the fancybox:
-    // Changed to using the <button>....</button> tags instead of <input type="button"... /> as can include line breaks inside the button>, eg: <button> I see this <br/>is a long <br/> sentence here.</button>
-    // Can even put images inside these button tags text.
-    $("#next_prev_boxplot_buttons_table").html(
-      '<tr>' 
-    + '<td style="padding: 1px 5px;"><button id="previous_boxplot_button" data-value="Previous boxplot" style="font-size:75%;"></button></td>'
-    + '<td style="padding: 1px 5px;"><button id="close_boxplot_button" data-value="Close boxplot" onclick="$.fancybox.close();" style="font-size:75%;">Close</br>boxplot</button></td>'
-    + '<td style="padding: 1px 5px;"><button id="next_boxplot_button" data-value="Next boxplot" style="font-size:75%;"></button></td>'
-    + '</tr>'  
-    );   
-   
+    if (SHOW_NEXT_PREV_BUTTONS) {
+      // Buttons for moving to the Next or Previous boxplot, or Closing the fancybox:
+      // Changed to using the <button>....</button> tags instead of <input type="button"... /> as can include line breaks inside the button>, eg: <button> I see this <br/>is a long <br/> sentence here.</button>
+      // Can even put images inside these button tags text.
+      $("#next_prev_boxplot_buttons_table").html(
+        '<tr>' 
+      + '<td style="padding: 1px 5px;"><button id="previous_boxplot_button" data-value="Previous boxplot" style="font-size:75%;"></button></td>'
+      + '<td style="padding: 1px 5px;"><button id="close_boxplot_button" data-value="Close boxplot" onclick="$.fancybox.close();" style="font-size:75%;">Close</br>boxplot</button></td>'
+      + '<td style="padding: 1px 5px;"><button id="next_boxplot_button" data-value="Next boxplot" style="font-size:75%;"></button></td>'
+      + '</tr>'  
+      );   
+    }   
    
   } // end of if (!svg_fancybox_loaded) { ....
 
@@ -1183,8 +1207,10 @@ function show_svg_boxplot_in_fancybox(dependency_td_id, driver, target, histotyp
   
   var this_td =   svg=document.getElementById(dependency_td_id);
   
-  set_previous_next_boxplot_buttons($("#previous_boxplot_button"), 'Previous', previous_dependency(this_td));
-  set_previous_next_boxplot_buttons($("#next_boxplot_button"),     'Next',     next_dependency(this_td));
+  if (SHOW_NEXT_PREV_BUTTONS) {  
+    set_previous_next_boxplot_buttons($("#previous_boxplot_button"), 'Previous', previous_dependency(this_td));
+    set_previous_next_boxplot_buttons($("#next_boxplot_button"),     'Next',     next_dependency(this_td));
+  }
 
   return false; // Return false to the caller so won't move on the page
 }	

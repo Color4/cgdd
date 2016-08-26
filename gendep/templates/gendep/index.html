@@ -214,7 +214,7 @@ function histotype_display(histotype) {
   switch (histotype) {
 	{% for histotype in histotype_list %}
 	case "{{ histotype.0 }}": return "{{ histotype.1 }}"; {% endfor %}	
-    case "BONE": return "Osteosarcoma"; // added for the CVG boxplot legend.
+    // case "BONE": return "Osteosarcoma"; // added for the CVG boxplot legend.
     case "ALL_HISTOTYPES": return "All tissues";// break;
     default: return 'Error: Histotype "'+histotype+'" Not Found';
   }
@@ -517,9 +517,10 @@ function set_tissue_and_study_options(event, ui) {
 		    }
 	      }
         }
-		if (typeof item  === 'undefined') {return false;} // as not found in list
+        // console.log(typeof item);
+		if ((typeof item  === 'undefined') || (item == null)) {return false;} // as not found in list, or is null if previously was set
 		
-        var tissue_list = item['tissue_list'];  // 'ui.item' is the row object from the driver_array.        
+        var tissue_list = item['tissue_list'];  // 'ui.item' is the row object from the driver_array.
 		var available = tissue_list=='' ? [] : tissue_list.split(';');
 		
 		var current_val = $("#histotype").val(); // the currently selected value if any.
@@ -638,6 +639,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <tr><td>
 
 <p><b><span id="gene_search_by"></span> gene: <span id="gene_name"></span></b>  &nbsp; &nbsp; &nbsp; <u>Synonyms:</u> <span id="gene_synonyms"></span></p>
+<p><u>Gene alteration considered:</u> <span id="gene_alteration_considered"></span></p>
 <p><u>Gene Descripion:</u> <span id="gene_full_name"></span></p>
 <p><u>External links:</u> <span id="gene_weblinks" style="font-size: 85%;"></span></p>
 
@@ -681,6 +683,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
     <input type="submit" id="string_interactive_submit_button" value="Stringdb Interactive" data-value="Stringdb Interactive" onclick="set_string_form_identifiers();"/> <!-- or new HTML5 button tag: formtarget="_blank" -->
   </form>
 </td>
+{% comment "Not using Cytoscape.js at present" %}
 <td>
   <form id="cytoscape_form" method="post" action="{% url 'gendep:cytoscape_post' required_score='700' %}" target="_blank" enctype= "multipart/form-data" onsubmit="return show_cytoscape();">
     {% csrf_token %}
@@ -692,6 +695,8 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <td>
   &nbsp;   
 </td>
+{% endcomment %}
+{% comment "Not using Enrichr at present" %}
 <td>
   <form id="enrichr_form" method="post" action="http://amp.pharm.mssm.edu/Enrichr/enrich" target="_blank" enctype= "multipart/form-data">
     <input type="hidden" id="enrichr_list" name="list"/>
@@ -702,6 +707,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <td>
  &nbsp;
 </td>
+{% endcomment %}
 <td><span id="string_link"></span></td>
 </tr></table>
 
