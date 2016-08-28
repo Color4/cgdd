@@ -242,6 +242,7 @@ def load_ATARmap():
       
       #if this_entrez_id in ('-40', '-43'):
       #  print("*** WARNING: Entrez_id '%s' is negative for %s" %(this_entrez_id,this_shRNAmap))
+      #  continue ??? skip these genes
         
       if ';' in this_entrez_id:
         print('WARNING: %s isUsed and has two or more entrez_ids: %s' %(key,this_entrez_id))

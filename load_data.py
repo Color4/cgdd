@@ -49,10 +49,10 @@ INFO_MESSAGES = True
 
 def info(message):
     if (INFO_MESSAGES):
-        print('INFO: %s\n', message)
+        print('INFO: %s\n' % message)
 
 def debug(message):
-    print('DEBUG: %s\n', message)
+    print('DEBUG: %s\n' % message)
     
 def warn(message):
 	sys.stderr.write('* WARNING:  %s\n' % message)
@@ -182,7 +182,9 @@ def load_driver_alterations_dictionary():
 
 
 hgnc = dict() # To read the HGNC ids into a dictionary
-#ihgnc = dict() # The column name to number for the above HGNC dict. 
+#ihgnc = dict() # The column name to number for the above HGNC dict.
+synonyms_to_hgnc = dict()
+entrez_to_hgnc = dict() 
 def load_hgnc_dictionary(hgnc_infile):
   """ Reads the HGNC gene ids into a dictionary to use for adding each gene's full_name, synomyns,  external ids to the Gene table """
   # Could use Pandas to read the csv file, but Pandas is an extra dependency to install. Eg: import pandas as pd;   data = pd.read_csv("names.csv", nrows=1)
@@ -213,17 +215,44 @@ def load_hgnc_dictionary(hgnc_infile):
   ihgnc_id    = ihgnc.get('hgnc_id')         # eg: 
   
   # Then read the rest of the lines:
+  num_synonmys_already_exist = 0
   for row in dataReader:      
     if row[istatus] == 'Entry Withdrawn':
        continue  # So skip this entry.
-    else:
-      gene_name = row[isymbol] # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is the first column which is HGNC number
-      cosmic_name = row[icosmic_id]
-      if cosmic_name !='' and cosmic_name != gene_name:
-        error("COSMIC '%s' != gene_name '%s'" %(cosmic_name,gene_name))
-      if gene_name in hgnc:
-        error("Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s' \nrow: %s\nhgnc: %s" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id], hgnc[gene_name], row)  )
-      hgnc[gene_name] = row # Store the whole row for simplicity.
+       
+    gene_name = row[isymbol] # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is the first column which is HGNC number
+    cosmic_name = row[icosmic_id]
+    if cosmic_name !='' and cosmic_name != gene_name:
+      error("COSMIC '%s' != gene_name '%s'" %(cosmic_name,gene_name))
+    if gene_name in hgnc:
+      error("Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s' \nrow: %s\nhgnc: %s" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id], hgnc[gene_name], row)  )
+    hgnc[gene_name] = row # Store the whole row for simplicity.
+
+    # Build dictionary of prev-names & synonyms to gene_names:
+    # print("%s : prev_names=%s, synonyms=%s" %(gene_name,row[iprev_names],row[isynonyms]))    
+    prevname_synonyms = row[iprev_names] + ('' if row[iprev_names]=='' or row[isynonyms]=='' else '|') + row[isynonyms]
+    for key in prevname_synonyms.split('|'):
+      if key == '': continue
+      # print("  key:",key)
+      if key in synonyms_to_hgnc:
+        num_synonmys_already_exist += 1
+        # print("**** ERROR: For gene %s Synonym %s already exists in gene %s:" %(gene_name,key,synonyms_to_hgnc[key]))
+        synonyms_to_hgnc[key] += ';'+gene_name
+        print("synonyms_to_hgnc[%s] = '%s'" %(key,synonyms_to_hgnc[key]))
+      else:
+        synonyms_to_hgnc[key] = gene_name
+      # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
+
+    # Build dictionary of entrez_id to gene_names:
+    entrez_id = row[ientrez_id]
+    if entrez_id in entrez_to_hgnc:
+      entrez_to_hgnc[entrez_id] += ';'+gene_name
+      print("entrez_to_hgnc[%s] = '%s'" %(entrez_id,entrez_to_hgnc[entrez_id]))
+    else: 
+      entrez_to_hgnc[entrez_id] = gene_name
+
+  if num_synonmys_already_exist > 0: warn("%d prevnames/synonmys already exist in other genes" %(num_synonmys_already_exist))
+
 
       
 # Dictionary used by function 'fix_gene_name(name)' to update some gene names, eg: 'C9orf96' to 'STKLD1', or changing '.' to '-'
@@ -347,11 +376,11 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   """
 
   # Things to fix for Achilles data:
-      # For gene 'DUX3': ensembl_id '' from HGNC doesn't match 'NoEnsemblIdFound' from Excel file
+      # For gene 'DUX3': ensembl_id '' from HGNC doesn't match 'NoEnsemblIdFound' from R results file
       # Invalid number of parts in target gene, (as expected 2 parts) GTF2H2C_21_ENSG00000274675
       #     - is in the "Achilles_solname_to_entrez_map_with_names_used_for_R_v3_12Mar2016.txt" as:
       #       GTF2H2D_1_10001 GTF2H2C_2       730394  730394  35418           ENSG00000274675
-      # WARNING: For gene 'GTF2H2': Ensembl_id 'ENSG00000145736' already saved in the Gene table doesn't match '21' from Excel file
+      # WARNING: For gene 'GTF2H2': Ensembl_id 'ENSG00000145736' already saved in the Gene table doesn't match '21' from R results file
       # Invalid number of parts in target gene, (as expected 2 parts) but got: C4B_21_ENSG00000233312
       
   original_gene_name = names[0]
@@ -366,7 +395,36 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
   assert RE_GENE_NAME.match(gene_name), "gene_name %s doesn't match regexp"%(gene_name)
-  
+
+
+  gene_found_in_hgnc = False
+  if gene_name in hgnc:
+      gene_found_in_hgnc = True
+  elif gene_name in synonyms_to_hgnc:
+      # print("Found gene_name %s in synonyms for %s" %(gene_name,synonyms_to_hgnc[gene_name]))
+      new_name = synonyms_to_hgnc[gene_name]
+      if ';' in new_name:
+          print("** WARNING: '%s', '%s' BUT this prev-name / synonym is for two or more genes '%s'" %(original_gene_name,gene_name,new_name))
+      else:    
+          gene_name = new_name
+          gene_found_in_hgnc = True            
+  else:
+      warn("Gene '%s', '%s' (entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
+           
+  if entrez_id != '' and entrez_id != 'NoEntrezId':
+      if entrez_id in entrez_to_hgnc:
+          # print("Found gene_name %s entrez_id %s in HGNC using Entrez_id for %s" %(gene_name,entrez_id,entrez_to_hgnc[entrez_id]))
+          new_name = entrez_to_hgnc[entrez_id]
+          if ';' in new_name:
+              print("** WARNING: '%s', '%s' BUT this entrez_id %s is for two or more genes '%s'" %(original_gene_name,gene_name,entrez_id,new_name))
+              # return gene_name+"_UnsureEntrez_"+new_name                
+          if new_name == gene_name:
+              gene_found_in_hgnc = True                
+          else:            
+              warn("***** ERROR: '%s', '%s' BUT this entrez_id %s is for two or more genes '%s'" %(original_gene_name,gene_name,entrez_id,new_name))
+      else:        
+         warn("Gene '%s', '%s' Entrez_id='%s' (ensembl='%s') NOT found in Entrez_to_HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
+
   try:
     g = Gene.objects.get(gene_name=gene_name) # Gene already in Gene table
     # Update the is_driver and is_target status in the database (used for displaying the dropdrown search menu and displaying the drivers table):
@@ -396,24 +454,24 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
         g.ensembl_id=ensembl_id
         g.save()
       else:
-        warn("For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from Excel file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
+        warn("For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from R results file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
           
   except ObjectDoesNotExist: # gene name not found in the gene table by the objects.get(), so need to add it:
     # if gene_name == 'PIK3CA': debug("PIK3CA Here B")
     
-    alteration_considered = driver_alterations.get('_'.join(names), '')
+    alteration_considered = driver_alterations.get('_'.join(names), '')  # or should this be original_gene_name + ....
     if is_driver and alteration_considered=='': warn("alteration_considered is missing for driver '%s'" %('_'.join(names)))
     
-    if gene_name not in hgnc:
-      warn("Gene '%s' (entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(gene_name,entrez_id,ensembl_id) )
+    if not gene_found_in_hgnc:
       g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, alteration_considered=alteration_considered, entrez_id=entrez_id, ensembl_id=ensembl_id)
     else:
       this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
+      print("Adding:",original_gene_name,gene_name,this_hgnc)      
       if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
-        warn("For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[ientrez_id], entrez_id) )
+        warn("For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from R results file" %(gene_name, this_hgnc[ientrez_id], entrez_id) )
         this_hgnc[ientrez_id] = entrez_id        # So change it to use the one from the Excel file.
       if ensembl_id != '' and ensembl_id != 'NoEnsemblIdFound' and ensembl_id != this_hgnc[iensembl_id]:
-        warn("For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from Excel file" %(gene_name, this_hgnc[iensembl_id], ensembl_id) )
+        warn("For gene '%s': ensembl_id '%s' from HGNC doesn't match '%s' from R results file" %(gene_name, this_hgnc[iensembl_id], ensembl_id) )
         this_hgnc[iensembl_id] = ensembl_id  # So change it to use the one from the Excel file.
       # The following uses the file downloaded from HGNC, but alternatively can use a web service such as: mygene.info/v2/query?q=ERBB2&fields=HPRD&species=human     or: http://mygene.info/new-release-mygene-info-python-client-updated-to-v2-3-0/ or python client:  https://pypi.python.org/pypi/mygene   http://docs.mygene.info/en/latest/doc/query_service.html  Fields available:  http://mygene.info/v2/gene/1017     http://docs.mygene.info/en/latest/
       # or uniprot: http://www.uniprot.org/help/programmatic_access  or Ensembl: http://rest.ensembl.org/documentation/info/xref_external
