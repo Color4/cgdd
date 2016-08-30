@@ -39,6 +39,8 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 # HGNC input file used by load_hgnc_dictionary(hgnc_infile):
 hgnc_infile = os.path.join('input_data','hgnc_complete_set.txt')
 
+entrez_gene_full_details_for_Achilles_and_Colt_infile = "entrez_gene_full_details_Achilles_and_Colt.txt"
+
 # The alteration (eg. mutation, copy number) considered for each driver - to be loaded into the Gene table for each driver:
 driver_alteration_details_file = os.path.join('input_data','AlterationDetails.csv')
 
@@ -145,6 +147,8 @@ def split_target_gene_name(long_name, isAchilles, isColt):
   if len(names)!=2:
     if names[0] == 'CDK12' and len(names)==3 and names[2]=='CRK7': # as "CDK12_ENSG00000167258_CRK7" is an exception to target format (CRK7 is an alternative name)
       names.pop()   # Remove the last 'CRK7' name from the names list
+    elif names[0] == 'TRIM27' and len(names)==3 and names[2]=='RFP': # Another exception is: TRIM27_ENSG00000215641_RFP
+      names.pop()   # Remove the last 'RFP' name from the names list      
     elif long_name not in target_name_warning_already_reported:
       warn("Invalid number of parts in target gene, (as expected 2 parts): '%s'" %(long_name))
       target_name_warning_already_reported[long_name] = None
@@ -178,6 +182,77 @@ def load_driver_alterations_dictionary():
           error("Driver '%s' is in the Driver Alterations file more than once" %(driver_name))
           
       driver_alterations[driver_name] = row[1]      
+
+
+
+
+entrez_info = dict()
+entrez_info_gene_name_to_entrez = dict()
+entrez_info_ensembl_to_entrez = dict()
+def load_entrez_gene_full_details_for_Achilles_and_Colt(infile):
+  entrez_gene_full_details_Achilles_and_Colt = "entrez_gene_full_details_Achilles_and_Colt.txt"
+
+  global ie_entrez,ie_status_string,ie_status_int,ie_current_entrez_id,ie_current_locus,ie_gene_name,ie_maploc,ie_hgnc,ie_ensembl_gene,ie_hprd,ie_omim,ie_vega,ie_ensembl_protein,ie_uniprot,ie_desc,ie_synonyms,ie_summary
+  print("\nLoading Entrez Gene data from:",infile)
+
+  dataReader = csv.reader(open(infile, encoding='utf-8'), dialect='excel-tab')
+  # or: dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+  row = next(dataReader)
+
+  ie = dict() # The column name to number for the above entrez_info dict. 
+  for i in range(len(row)): ie[row[i]] = i   # Store column numbers for each item in the input header line.
+  
+  ie_entrez  = ie["Entrez"]
+  ie_status = ie["Status"]
+  ie_status_int = ie["Status_int"]
+  ie_current_entrez  = ie["Current_entrez"]
+  ie_current_locus  = ie["Current_locus"]
+  ie_gene_name  = ie["Gene_name"]
+  ie_maploc   = ie["Maploc"]
+  ie_hgnc  = ie["HGNC"]
+  ie_ensembl_gene  = ie["Ensembl_gene"]
+  ie_hprd  = ie["HPRD"]
+  ie_omim = ie["OMIM"]
+  ie_vega  = ie["VEGA"]
+  ie_ensembl_protein  = ie["Ensembl_protein"]
+  ie_uniprot  = ie["UniProt"]
+  ie_desc  = ie["Desc"]              
+  ie_synonyms = ie["Synonyms"]
+  ie_summary = ie["Summary"]
+
+  for row in dataReader:      
+#    if row[ie_status_string] == 'discontinued':
+#       continue  # So skip this entry.
+       
+    entrez = row[ie_entrez]
+    if row[ie_current_entrez]!='' and row[ie_current_entrez] != entrez:
+      warn("gene_track_entrez_id %s != current_entrez_id %s, status:%s" %(entrez,row[ie_current_entrez],row[ie_status]))
+          
+    if entrez in entrez_info:
+      warn("Duplicated entrez_id in entrez_info: '%s' status='%s' in file: Entrez: '%s' '%s' \nrow: %s\nentrez_info: %s\n" %(entrez, row[ie_status], entrez_info[entrez][ie_entrez],entrez_info[entrez][ie_status],  row, entrez_info[entrez]) )
+    entrez_info[entrez] = row # Store the whole row for simplicity.
+    
+    # Dictionaries to use to for the Campbell data which has gene_name and ensembl ids:
+    entrez_info_gene_name_to_entrez[row[ie_gene_name]] = entrez
+    entrez_info_ensembl_to_entrez[row[ie_ensembl_gene]] = entrez
+    """
+    # Build dictionary of prev-names & synonyms to gene_names:
+    # print("%s : prev_names=%s, synonyms=%s" %(gene_name,row[iprev_names],row[isynonyms]))    
+    prevname_synonyms = row[iprev_names] + ('' if row[iprev_names]=='' or row[isynonyms]=='' else '|') + row[isynonyms]
+    for key in prevname_synonyms.split('|'):
+      if key == '': continue
+      # print("  key:",key)
+      if key in synonyms_to_hgnc:
+        num_synonmys_already_exist += 1
+        # print("**** ERROR: For gene %s Synonym %s already exists in gene %s:" %(gene_name,key,synonyms_to_hgnc[key]))
+        synonyms_to_hgnc[key] += ';'+gene_name
+        print("synonyms_to_hgnc[%s] = '%s'" %(key,synonyms_to_hgnc[key]))
+      else:
+        synonyms_to_hgnc[key] = gene_name
+      # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
+    """
+  
+
 
 
 
@@ -225,7 +300,7 @@ def load_hgnc_dictionary(hgnc_infile):
     if cosmic_name !='' and cosmic_name != gene_name:
       error("COSMIC '%s' != gene_name '%s'" %(cosmic_name,gene_name))
     if gene_name in hgnc:
-      error("Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s' \nrow: %s\nhgnc: %s" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id], hgnc[gene_name], row)  )
+      error("Duplicated gene_name '%s' status='%s' in HGNC file: Entrez: '%s' '%s' Ensembl '%s' '%s' \nrow: %s\nhgnc: %s" %(gene_name, row[istatus], hgnc[gene_name][ientrez_id], row[ientrez_id], hgnc[gene_name][iensembl_id], row[iensembl_id], row, hgnc[gene_name])  )
     hgnc[gene_name] = row # Store the whole row for simplicity.
 
     # Build dictionary of prev-names & synonyms to gene_names:
@@ -396,22 +471,37 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
   assert RE_GENE_NAME.match(gene_name), "gene_name %s doesn't match regexp"%(gene_name)
 
-
+  gene_found_in_entrez_info = False
+  campbell_gene_found_in_entrez_info = False
+  if isAchilles or isColt: # Then lookup gene info that was downloaded from NCBI Entrez:  
+    if entrez_id not in entrez_info:
+      warn("Entrez_id '%s' (gene_name '%s') NOT found in entrez_indo dictionary" %(entrez_id,gene_name))
+    else: 
+      gene_found_in_entrez_info = True   
+  else: # Campbell data  
+    if gene_name not in entrez_info_gene_name_to_entrez:
+      warn("Campbell gene: %s not found in entrez_info_gene_name_to_entrez" %(gene_name))
+    else: campbell_gene_found_in_entrez_info = True  
+    if ensembl_id not in entrez_info_ensembl_to_entrez:
+      warn("Campbell ensembl %s (gene: %s) not found in entrez_info_ensembl_to_entrez" %(ensembl_id,gene_name))
+    else: campbell_gene_found_in_entrez_info = True
+    
   gene_found_in_hgnc = False
-  if gene_name in hgnc:
+  if not gene_found_in_entrez_info:
+    if gene_name in hgnc:
       gene_found_in_hgnc = True
-  elif gene_name in synonyms_to_hgnc:
+    elif gene_name in synonyms_to_hgnc:
       # print("Found gene_name %s in synonyms for %s" %(gene_name,synonyms_to_hgnc[gene_name]))
       new_name = synonyms_to_hgnc[gene_name]
       if ';' in new_name:
           print("** WARNING: '%s', '%s' BUT this prev-name / synonym is for two or more genes '%s'" %(original_gene_name,gene_name,new_name))
-      else:    
+      else:
           gene_name = new_name
-          gene_found_in_hgnc = True            
-  else:
+          gene_found_in_hgnc = True
+    else:
       warn("Gene '%s', '%s' (entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
            
-  if entrez_id != '' and entrez_id != 'NoEntrezId':
+    if entrez_id != '' and entrez_id != 'NoEntrezId':
       if entrez_id in entrez_to_hgnc:
           # print("Found gene_name %s entrez_id %s in HGNC using Entrez_id for %s" %(gene_name,entrez_id,entrez_to_hgnc[entrez_id]))
           new_name = entrez_to_hgnc[entrez_id]
@@ -462,10 +552,58 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
     alteration_considered = driver_alterations.get('_'.join(names), '')  # or should this be original_gene_name + ....
     if is_driver and alteration_considered=='': warn("alteration_considered is missing for driver '%s'" %('_'.join(names)))
     
-    if not gene_found_in_hgnc:
+    if not gene_found_in_entrez_info and not gene_found_in_hgnc:
       g = Gene.objects.create(gene_name=gene_name, original_name = original_gene_name, is_driver=is_driver, is_target=is_target, alteration_considered=alteration_considered, entrez_id=entrez_id, ensembl_id=ensembl_id)
-    else:
+      
+    elif gene_found_in_entrez_info:
+      this_entrez = entrez_info[entrez_id] # cache in a local variable to simplify code and reduce lookups.
+
+      prevname_synonyms = this_entrez[ie_synonyms]
+      full_name  = this_entrez[ie_desc]       # eg: erb-b2 receptor tyrosine kinase 2      
+      entrez_id  = this_entrez[ie_entrez]       # eg: 2064
+      ensembl_id = this_entrez[ie_ensembl_gene]      # eg: ENSG00000141736
+      cosmic_id  = this_entrez[ie_gene_name]       # eg: ERBB2
+      omim_id    = this_entrez[ie_omim]         # eg: 164870
+      uniprot_id = this_entrez[ie_uniprot]      # eg: P04626
+      vega_id    = this_entrez[ie_vega]         # eg: OTTHUMG00000179300
+      hgnc_id    = this_entrez[ie_hgnc]      
+      ensembl_protein = this_entrez[ie_ensembl_protein]
+      ncbi_summary = this_entrez[ie_summary]
+      
+      if gene_name != this_entrez[ie_gene_name]: info("gene_name '%s' != this_entrez '%s'" %(gene_name,this_entrez[ie_gene_name]))
+      
+      #   = this_entrez[ie_maploc]
+      #   = this_entrez[ie_hprd]
+      #   = this_entrez[ie_status]
+      #   = this_entrez[ie_current_entrez]
+      #   = this_entrez[ie_current_locus]
+      g = Gene.objects.create(
+               gene_name = gene_name,         # hgnc[gene_name][ihgnc['symbol']]  eg. ERBB2
+               original_name = original_gene_name,               
+               is_driver  = is_driver,
+               is_target  = is_target,
+               alteration_considered = alteration_considered,
+               full_name  = full_name,       # eg: erb-b2 receptor tyrosine kinase 2
+               prevname_synonyms = prevname_synonyms,     # eg: NGL  (plus)  NEU|HER-2|CD340|HER2
+               entrez_id  = entrez_id,       # eg: 2064
+               ensembl_id = ensembl_id,      # eg: ENSG00000141736
+               cosmic_id  = cosmic_id,       # eg: ERBB2
+               omim_id    = omim_id,         # eg: 164870
+               uniprot_id = uniprot_id,      # eg: P04626
+               vega_id    = vega_id,         # eg: OTTHUMG00000179300
+               hgnc_id    = hgnc_id,
+               ensembl_protein_id = ensembl_protein,
+               ncbi_summary = ncbi_summary
+               # cancerrxgene_id = ....... ????
+               # 'hgnc_id'          # eg: 3430
+               # 'alias_name'       # eg: neuro/glioblastoma derived oncogene homolog|human epidermal growth factor receptor 2
+               # 'gene_family'      # eg: CD molecules|Minor histocompatibility antigens|Erb-b2 receptor tyrosine kinases
+               # 'refseq_accession' # eg: NM_004448
+               )
+    
+    elif gene_found_in_hgnc:
       this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
+      if not campbell_gene_found_in_entrez_info: info("Adding Campbell gene: %s, %s, %s" %(original_gene_name,gene_name,this_hgnc))
       print("Adding:",original_gene_name,gene_name,this_hgnc)      
       if entrez_id != '' and entrez_id != this_hgnc[ientrez_id]:
         warn("For gene '%s': entrez_id '%s' from HGNC doesn't match '%s' from R results file" %(gene_name, this_hgnc[ientrez_id], entrez_id) )
@@ -1023,10 +1161,14 @@ if __name__ == "__main__":
   ##unmark_drivers_not_in_the_21genes()
   
   #add_counts_of_driver_tissue_and_target_to_studies()
-  #sys.exit()
-  #exit()
-  
+
+  load_entrez_gene_full_details_for_Achilles_and_Colt(entrez_gene_full_details_for_Achilles_and_Colt_infile)
   load_driver_alterations_dictionary()
+  
+  # sys.exit()
+  #exit()
+    
+
   load_hgnc_dictionary(hgnc_infile)
   load_mygene_hgnc_dictionary()
   
@@ -1044,18 +1186,6 @@ if __name__ == "__main__":
     analysis_dir = "198_boxplots_for_Colm/analyses"
     
     # analysis_dir = "postprocessing_R_results" # After Aug 2016
-    
-    Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
-
-    # "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
-    csv_filepathname=os.path.join(analysis_dir, Campbell_results_pancan)
-    read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
-
-    Campbell_results_bytissue = "univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
-    
-    # "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
-    csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
-    read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
     # *** NOTE, warnings from R:
     # There were 50 or more warnings (use warnings() to see the first 50)
@@ -1073,6 +1203,24 @@ if __name__ == "__main__":
 
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
+
+
+    # ========================================================
+    # Reading the Campbell results last as Achilles and Colt may have already loaded the Entrez gene annotations above.    
+    Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+
+    # "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
+    csv_filepathname=os.path.join(analysis_dir, Campbell_results_pancan)
+    read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
+
+    Campbell_results_bytissue = "univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    
+    # "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
+    read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
+
+    # ========================================================
+
     
     #** Maybe my browser memory?
     #https://www.ncbi.nlm.nih.gov/pubmed/

@@ -21,6 +21,9 @@ from gendep.models import Gene, Dependency
 
 SYMBOL_TO_STRING_TABLE_NAME = 'db_symbol_to_string_protein.sqlite3'
 
+ALWAYS_UPDATE_GENE_TABLE = False  # False means don't update protein_id if is different from 
+
+
 # ==============================================================================================================  
 entrez_to_stringdb_protein_ids_input_file = "StringDB/entrez_gene_id.vs.string.v10.28042015.tsv"
 # Got these entrez mappings from: http://string-db.org/mapping_files/entrez_mappings/
@@ -368,7 +371,7 @@ def add_ensembl_proteins_to_Gene_table_in_db():
   print("Adding Ensembl protein Ids to the Gene table ...")
   count_empty = 0
   count_not_found = 0
-  count_found = 0
+  count_different_from_existing = 0
   driver_count_not_found = 0
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
     for g in Gene.objects.all().iterator():
@@ -406,13 +409,25 @@ def add_ensembl_proteins_to_Gene_table_in_db():
                     print("***** %s %s: entrez '%s' protein %s found in stringdb_to_entrez with entrez '%s'" %(driver_text,g.gene_name,g.entrez_id,p,stringdb_to_entrez[p]))
               
               print("")
-          else:
-              g.ensembl_protein_id = ensembl_protein_id
-              g.save()
+          else:          
+              count_different_from_existing += set_db_protein(g, ensembl_protein_id)
               count_found += 1
 
-  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d" %(count_empty, count_not_found, driver_count_not_found, count_found))
+  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_different_from_existing: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_different_from_existing))
   
+
+
+def set_db_protein(g,ensembl_protein_id):
+  num_warnings = 0
+  if ALWAYS_UPDATE_GENE_TABLE or g.ensembl_protein_id is None or g.ensembl_protein_id == '':
+      g.ensembl_protein_id = ensembl_protein_id
+      g.save()
+  elif g.ensembl_protein_id != ensembl_protein_id:
+      print("WARNING 1: db g.ensembl_protein_id %s != ensembl_protein_id %s" %(g.ensembl_protein_id, ensembl_protein_id))
+      num_warnings = 1
+
+  return num_warnings
+      
   
 # ======
 gendep_gene_protein_id_dict = dict()
@@ -433,6 +448,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
   driver_count_not_found = 0
   driver_count_multiple_protein_ids = 0
   count_entrez_not_found = 0
+  count_different_from_existing = 0
   
   protein_dict = dict()
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
@@ -468,9 +484,9 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           print("\nWarning: %s %s protein_id %s from entrez_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_entrez_id,rows[0][1]))
         if g.ensembl_protein_id is None or g.ensembl_protein_id == '':
           g.ensembl_protein_from_alias_table = True
-          g.ensembl_protein_id = rows[0][1]
-          g.save()
+          count_different_from_existing += set_db_protein(g, rows[0][1])          
           count_found += 1
+          
         elif rows[0][1] != g.ensembl_protein_id: # check if is same as that already added due to the entrez_id
           print("\nWarning: %s protein_ids differ: was: %s new: %s" %(driver_text,g.ensembl_protein_id,rows[0][1]))
           count_protein_ids_differ += 1
@@ -483,16 +499,15 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           protein_dict[protein] = True
         if len(protein_dict) == 1:
           g.ensembl_protein_from_alias_table = True
-          g.ensembl_protein_id = protein_dict.keys()[0]
-          g.save()        
+          count_different_from_existing += set_db_protein(g, protein_dict.keys()[0])
+                      
         else:
           print("\nFor %s %s several string_proteins: %s" %(driver_text,g.gene_name, protein_dict.keys()))
           print(rows)
           
           if protein_id_from_entrez_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_entrez %s is one of these" %(driver_text,g.gene_name,protein_id_from_entrez_id))
-            g.ensembl_protein_id = protein_id_from_entrez_id
-            g.save()
+            count_different_from_existing += set_db_protein(g, protein_id_from_entrez_id)
 
           else:
             count_multiple_protein_ids += 1
@@ -546,7 +561,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
       """
 
   conn.close()  # We can also close the connection if we are done with it.- Just be sure any changes have been 
-  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_protein_ids_differ: %d,  count_multiple_protein_ids: %d, driver_count_multiple_protein_ids: %d, count_entrez_not_found: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_protein_ids_differ, count_multiple_protein_ids, driver_count_multiple_protein_ids,count_entrez_not_found))
+  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_protein_ids_differ: %d,  count_multiple_protein_ids: %d, driver_count_multiple_protein_ids: %d, count_entrez_not_found: %d, count_different_from_existing: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_protein_ids_differ, count_multiple_protein_ids, driver_count_multiple_protein_ids,count_entrez_not_found,count_different_from_existing))
   
 # RP4-592A1.2-001	ENST00000427762	690	No protein  
 

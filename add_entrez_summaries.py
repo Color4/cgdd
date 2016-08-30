@@ -17,6 +17,9 @@ django.setup()
 from gendep.models import Gene
 
 
+ALWAYS_UPDATE_GENE_TABLE = False  # False means don't update g.ncbi_summary if already has an existing summary (which was from Entrez full details)
+
+
 # https://docs.python.org/3.5/library/xml.etree.elementtree.html#xml.etree.ElementTree.Element.find
 
 # XML parsing: There is a "gotcha" with the find() method that will eventuallyit bite you: In a boolean context, ElementTree element objects will evaluate to False if they contain no children (i.e. if len(element) is 0). This means that if element.find('...') is not testing whether the find() method found a matching element; it's testing whether that matching element has any child elements! To test whether the find() method returned an element, use if element.find('...') is not None.
@@ -252,138 +255,6 @@ def get_entrez_summaries(entrez_to_genename_dict, fout1, fout2):
 """
 # Currently, the ElementTree module skips over any XML comments, processing instructions, and document type declarations in the input.
 
-========================================
-# http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gene&id=2&retmode=xml
-
-<Entrezgene-Set>
-  <Entrezgene>
-    <Entrezgene_track-info>...</Entrezgene_track-info>
-    <Entrezgene_type value="protein-coding">6</Entrezgene_type>
-    <Entrezgene_source>...</Entrezgene_source>
-    <Entrezgene_gene>
-      <Gene-ref>
-        <Gene-ref_locus>A2M</Gene-ref_locus>
-        <Gene-ref_desc>alpha-2-macroglobulin</Gene-ref_desc>
-        <Gene-ref_maploc>12p13.31</Gene-ref_maploc>
-        <Gene-ref_db>
-          <Dbtag>
-            <Dbtag_db>HGNC</Dbtag_db>
-            <Dbtag_tag>
-               <Object-id>
-                  <Object-id_str>HGNC:7</Object-id_str>
-               </Object-id>
-            </Dbtag_tag>
-          </Dbtag>
-          <Dbtag>
-            <Dbtag_db>Ensembl</Dbtag_db>
-            <Dbtag_tag>
-               <Object-id>
-                  <Object-id_str>ENSG00000175899</Object-id_str>
-               </Object-id>
-            </Dbtag_tag>
-          </Dbtag>
-          <Dbtag>
-            <Dbtag_db>HPRD</Dbtag_db>
-            <Dbtag_tag>
-               <Object-id>
-                  <Object-id_str>00072</Object-id_str>
-               </Object-id>
-            </Dbtag_tag>
-          </Dbtag>
-          <Dbtag>
-            <Dbtag_db>MIM</Dbtag_db>
-            <Dbtag_tag>
-               <Object-id>
-                 <Object-id_id>103950</Object-id_id>
-               </Object-id>
-            </Dbtag_tag>
-          </Dbtag>
-          <Dbtag>
-            <Dbtag_db>Vega</Dbtag_db>
-            <Dbtag_tag>
-               <Object-id>
-                 <Object-id_str>OTTHUMG00000150267</Object-id_str>
-               </Object-id>
-            </Dbtag_tag>
-          </Dbtag>
-        </Gene-ref_db>
-        <Gene-ref_syn>
-          <Gene-ref_syn_E>A2MD</Gene-ref_syn_E>
-          <Gene-ref_syn_E>CPAMD5</Gene-ref_syn_E>
-          <Gene-ref_syn_E>FWP007</Gene-ref_syn_E>
-          <Gene-ref_syn_E>S863-7</Gene-ref_syn_E>
-        </Gene-ref_syn>
-      </Gene-ref>
-    </Entrezgene_gene>
-    <Entrezgene_prot>
-      <Prot-ref>
-        <Prot-ref_name>
-          <Prot-ref_name_E>
-             C3 and PZP-like alpha-2-macroglobulin domain-containing protein 5
-          </Prot-ref_name_E>
-          <Prot-ref_name_E>alpha-2-M</Prot-ref_name_E>
-        </Prot-ref_name>
-        <Prot-ref_desc>alpha-2-macroglobulin</Prot-ref_desc>
-        </Prot-ref>
-    </Entrezgene_prot>
-    <Entrezgene_summary>
-      Alpha-2-macroglobulin is a protease inhibitor and cytokine transporter. It inhibits many proteases, including trypsin, thrombin and collagenase. A2M is implicated in Alzheimer disease (AD) due to its ability to mediate the clearance and degradation of A-beta, the major component of beta-amyloid deposits. [provided by RefSeq, Jul 2008]
-    </Entrezgene_summary>
-    <Entrezgene_location>
-      <Maps>
-        <Maps_display-str>12p13.31</Maps_display-str>
-        <Maps_method>
-          <Maps_method_map-type value="cyto"/>
-        </Maps_method>
-      </Maps>
-    </Entrezgene_location>
-    
-<Entrezgene_properties>
-<Gene-commentary>
-<Gene-commentary_comment>
-<Gene-commentary>    
-***    Also Ensembl protein id (maybe useful for StringDB
-    <Gene-commentary_source>
-<Other-source>
-<Other-source_src>
-<Dbtag>
-<Dbtag_db>Ensembl</Dbtag_db>
-<Dbtag_tag>
-<Object-id>
-<Object-id_str>ENSP00000323929</Object-id_str>
-</Object-id>
-</Dbtag_tag>
-</Dbtag>
-    
-=========================================
-If Entrez Gene id changed, then: 
-<Entrezgene-Set>
-<Entrezgene>
-<Entrezgene_track-info>
-<Gene-track>
-<Gene-track_geneid>100133046</Gene-track_geneid>
-<Gene-track_status value="secondary">1</Gene-track_status>
-<Gene-track_current-id>
-<Dbtag>
-<Dbtag_db>LocusID</Dbtag_db>
-<Dbtag_tag>
-<Object-id>
-<Object-id_id>115653</Object-id_id>
-</Object-id>
-</Dbtag_tag>
-</Dbtag>
-<Dbtag>
-<Dbtag_db>GeneID</Dbtag_db>
-<Dbtag_tag>
-<Object-id>
-<Object-id_id>115653</Object-id_id>
-</Object-id>
-</Dbtag_tag>
-</Dbtag>
-
-=====
-
-
 
 
 def process_all_genes_in_db():
@@ -392,7 +263,8 @@ def process_all_genes_in_db():
  genes_without_summary = []
  entrez_to_genename_dict = dict()
 
- genes_processed = 0
+ genes_processed_count = 0
+ genes_to_be_updated_count = 0
  total_gene_summaries_found_count = 0
 
  fout1 = open( "entrez_gene_summaries.xml","w")
@@ -404,11 +276,12 @@ def process_all_genes_in_db():
     #print(g.gene_name, g.entrez_id)
     if g.entrez_id=='' or g.entrez_id=='NoEntrezId':
         genes_without_entrez_ids.append(g.gene_name)
-    else:    
+    elif ALWAYS_UPDATE_GENE_TABLE or g.ncbi_summary is None or g.ncbi_summary == '':
         entrez_to_genename_dict[g.entrez_id] = g.gene_name
+        genes_to_be_updated_count += 1
         
     #driver_text = '*DRIVER*' if g.is_driver else ''
-    genes_processed += 1
+    genes_processed_count += 1
     
     # Request 100 interactions at a time, to reduce load on server
     if len(entrez_to_genename_dict) == BATCH_SIZE:
@@ -422,7 +295,7 @@ def process_all_genes_in_db():
 #           genes_without_summary.append(gene_name)        
       entrez_to_genename_dict.clear()
         
-      #print("genes_processed:", genes_processed)
+      #print("genes_processed_count:", genes_processed_count)
       
   if len(entrez_to_genename_dict) > 0: # Process any remaining genes as < BATCH_SIZE
     total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout1,fout2)
@@ -430,7 +303,7 @@ def process_all_genes_in_db():
  fout1.close()
  fout2.close()
     
- print("Genes_processed: %d,  Gene_summaries_found: %d" %(genes_processed, total_gene_summaries_found_count))
+ print("Genes_processed: %d,  Genes_to_be_updated: %d,  Gene_summaries_found: %d" %(genes_processed_count, genes_to_be_updated_count, total_gene_summaries_found_count))
  print("\nGenes_without_entrez_ids: %d:" %(len(genes_without_entrez_ids)) )
  print("\n".join(genes_without_entrez_ids))
 
@@ -438,55 +311,6 @@ def process_all_genes_in_db():
 
 
 
-def process_all_genes_in_file():
- BATCH_SIZE=2000 # number of ids to submit in one query.
- genes_without_entrez_ids = []
- genes_without_summary = []
- entrez_to_genename_dict = dict()
-
- genes_processed = 0
- total_gene_summaries_found_count = 0
-
- fout1 = open( "entrez_gene_summaries.xml","w")
- fout2 = open("entrez_gene_summaries.txt","w")
- fout2.write("Gene_name\tEntrez_id\tSummary\n")
-
- with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
-  for g in Gene.objects.all().iterator():
-    #print(g.gene_name, g.entrez_id)
-    if g.entrez_id=='' or g.entrez_id=='NoEntrezId':
-        genes_without_entrez_ids.append(g.gene_name)
-    else:    
-        entrez_to_genename_dict[g.entrez_id] = g.gene_name
-        
-    #driver_text = '*DRIVER*' if g.is_driver else ''
-    genes_processed += 1
-    
-    # Request 100 interactions at a time, to reduce load on server
-    if len(entrez_to_genename_dict) == BATCH_SIZE:
-      total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout1,fout2)
-
-#      unmatched_genes += ('' if unmatched_genes == '' and unmatched == '' else ', ') + unmatched
-           # print("GENE:\t%s\t%s" %(gene_name,entrez_summaries[entrez_id]))
-
-#           genes_with_summary_count += 1
-#        else:
-#           genes_without_summary.append(gene_name)        
-      entrez_to_genename_dict.clear()
-        
-      #print("genes_processed:", genes_processed)
-      
-  if len(entrez_to_genename_dict) > 0: # Process any remaining genes as < BATCH_SIZE
-    total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout1,fout2)
-
- fout1.close()
- fout2.close()
-    
- print("Genes_processed: %d,  Gene_summaries_found: %d" %(genes_processed, total_gene_summaries_found_count))
- print("\nGenes_without_entrez_ids: %d:" %(len(genes_without_entrez_ids)) )
- print("\n".join(genes_without_entrez_ids))
-
-      #gene_count = 0
 
 if __name__ == "__main__":
     process_all_genes_in_db()
