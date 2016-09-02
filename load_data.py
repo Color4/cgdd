@@ -592,6 +592,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       omim_id    = this_entrez[ie_omim]         # eg: 164870
       uniprot_id = this_entrez[ie_uniprot]      # eg: P04626
       vega_id    = this_entrez[ie_vega]         # eg: OTTHUMG00000179300
+      if ';' in vega_id: vega_id = vega_id[:vega_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.      
       hgnc_id    = this_entrez[ie_hgnc].replace('HGNC:','')  # eg: HGNC:21998 (but remove the 'HGNC:' prefix)
       ensembl_protein = this_entrez[ie_ensembl_protein]
       if ';' in ensembl_protein: ensembl_protein = ensembl_protein[:ensembl_protein.index(';')] # As now a list of proteins separated by semicolons so just take the first one in the list and check this in the string-db alias file later.
