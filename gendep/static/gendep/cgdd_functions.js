@@ -323,7 +323,7 @@ function set_string_form_identifiers() {
 function show_stringdb(display_callback_function) {
 	// This calls the String-DB server to remove unconnected proteins from the list before displaying the string network image.
 	
-	show_message("string_image", "Fetching String-DB...", 8000); // show this message for 8 seconds as can be slow for images with many proteins
+	show_message("string_image", "Fetching String-DB...", 12000); // show this message for 12 seconds as can be slow for images with many proteins, and message will be hidden by image when image loads.
 
 	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
 	console.log("protein_list_and_count",protein_list_and_count);	

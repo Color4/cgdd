@@ -8,6 +8,10 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 import xml.etree.ElementTree as ET
 
+import gzip 
+import subprocess
+
+
 from django.db import transaction
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "cgdd.settings")
@@ -181,7 +185,7 @@ def test_post():
     #&id=$id
           
          
-def get_entrez_summaries(entrez_to_genename_dict, fout1, fout2):
+def get_entrez_summaries(entrez_to_genename_dict, fout_xml, fout2):
 
     # Minimizing the Number of Requests: If a task requires searching for and/or downloading a large number of records, it is much more efficient to use the Entrez History to upload and/or retrieve these records in batches rather than using separate requests for each record. Please refer to Application 3 in Chapter 3 for an example. Many thousands of IDs can be uploaded using a single EPost request, and several hundred records can be downloaded using one EFetch request.   http://www.ncbi.nlm.nih.gov/books/NBK25497/
     # First use ESearch to retrieve the GI numbers for these sequences and post them on the History server, then use multiple EFetch calls to retrieve the data in batches of 500.
@@ -201,8 +205,8 @@ def get_entrez_summaries(entrez_to_genename_dict, fout1, fout2):
    #print(r.headers)
    gene_summaries_found_count = 0
    
-   fout1.write(r.text)
-   fout1.write("\nEND\n")
+   fout_xml.write(r.text)
+   fout_xml.write("\nEND\n")
 
    root = ET.fromstring(r.text) # root is 'eSummaryResult'
    # OR to read from file: tree = ET.parse('test_entrez_summary.xml'); root=tree.getroot()
@@ -309,14 +313,112 @@ entrez_info: ['440163', 'live', '0', '', '', 'RNASE13', '14q11.1', 'HGNC:25285',
 """
 
 
-def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
 
-    # Minimizing the Number of Requests: If a task requires searching for and/or downloading a large number of records, it is much more efficient to use the Entrez History to upload and/or retrieve these records in batches rather than using separate requests for each record. Please refer to Application 3 in Chapter 3 for an example. Many thousands of IDs can be uploaded using a single EPost request, and several hundred records can be downloaded using one EFetch request.   http://www.ncbi.nlm.nih.gov/books/NBK25497/
-    # First use ESearch to retrieve the GI numbers for these sequences and post them on the History server, then use multiple EFetch calls to retrieve the data in batches of 500.
+
+
+
+def get_entrez_full_from_url(entrez_to_genename_dict, is_first, fout_xml, fout2, entrez_ids_found):
+
+    # *** Minimizing the Number of Requests: If a task requires searching for and/or downloading a large number of records, it is much more efficient to use the Entrez History to upload and/or retrieve these records in batches rather than using separate requests for each record. Please refer to Application 3 in Chapter 3 for an example. Many thousands of IDs can be uploaded using a single EPost request, and several hundred records can be downloaded using one EFetch request.   http://www.ncbi.nlm.nih.gov/books/NBK25497/
+    # *** First use ESearch to retrieve the GI numbers for these sequences and post them on the History server, then use multiple EFetch calls to retrieve the data in batches of 500.
     
     # see: http://www.ncbi.nlm.nih.gov/books/NBK25498/#chapter3.Application_4_Finding_unique_se
     
     # eg: $url = $base . "epost.fcgi?db=$db&id=$id_list";   
+
+   url = EUTILS_URL+"efetch.fcgi?db=gene" # Instead of "esummary.fcgi?db=gene"
+   data = {'retmode':'xml', 'id': ",".join(entrez_to_genename_dict.keys())}  # Need to specify retmode of xml, otherwise returns asn.1, default
+   headers = {"Content-Type": "application/x-www-form-urlencoded"}
+   
+   r = requests.post(url, headers=headers, data=data) # insead of:  r = requests.get(url) 
+      
+   r.raise_for_status()  # print(r.status_code == requests.codes.ok)
+   #print(r.encoding)
+   #print(r.headers)
+   gene_summaries_found_count = 0
+   
+   fout_xml.write(r.text)
+   fout_xml.write("\n#END\n")
+
+   root = ET.fromstring(r.text) # root is 'Entrezgene-Set'
+   # OR to read from file:
+   #tree = ET.parse('test_entrez_full.xml'); root=tree.getroot()
+   #tree = ET.parse('test_entrez_full2.xml'); root=tree.getroot()
+   #tree = ET.parse('test_entrez_full_ERBB2.xml'); root=tree.getroot()   
+   
+   # Removed these two lines:
+   # <?xml version="1.0" ?>
+   # <!DOCTYPE Entrezgene-Set PUBLIC "-//NLM//DTD NCBI-Entrezgene, 21st January 2005//EN" "http://www.ncbi.nlm.nih.gov/data_specs/dtd/NCBI_Entrezgene.dtd">
+
+     # print(entrezgene.tag, entrezgene.attrib, entrezgene.text)
+#     if entrezgene.attrib['status'] != "OK":
+#        print("ERROR: DocSum status: ",docsumset.attrib['status'])
+
+   # entrez_ids_found = dict()
+   
+   gene_summaries_found_count = parse_entrez_full_xml(root, entrez_to_genename_dict, is_first, fout2, entrez_ids_found)
+   
+   return gene_summaries_found_count
+
+
+
+
+def get_entrez_full_from_file(entrez_to_genename_dict, fin_xml, fout2, entrez_ids_found):
+    # To retrieve from the file of previous XML requests
+
+   gene_summaries_found_count = 0
+   is_first = True
+   
+   xml_text = ''
+   skip_lines = 2  # To skip the two header lines
+   for line in fin_xml:   
+      if line == "#END\n":
+#      if line == b"#END\n":      # when using gzcat as reads Bytes. or use:       if line.decode() == "#END\n":
+        root = ET.fromstring(xml_text) # root is 'Entrezgene-Set'
+        print("Root:",root)
+        gene_summaries_found_count += parse_entrez_full_xml(root, entrez_to_genename_dict, is_first, fout2, entrez_ids_found)
+        is_first=False
+        if gene_summaries_found_count == 0: warn("No gene summaries found in XML file")
+        xml_text = ''
+        skip_lines = 2
+      if skip_lines > 0: skip_lines -= 1
+      else:
+        xml_text += line      
+#        xml_text += line.decode() # The decode() is needed when reading from gzcat as BytesIO
+
+        
+   print("Unprocessed XML:",xml_text,"END")
+
+   # root = ET.fromstring(r.text) # root is 'Entrezgene-Set'
+   # OR to read from file:
+   #tree = ET.parse('test_entrez_full.xml'); root=tree.getroot()
+   #tree = ET.parse('test_entrez_full2.xml'); root=tree.getroot()
+   #tree = ET.parse('test_entrez_full_ERBB2.xml'); root=tree.getroot()   
+   
+   # Removed these two lines:
+   # <?xml version="1.0" ?>
+   # <!DOCTYPE Entrezgene-Set PUBLIC "-//NLM//DTD NCBI-Entrezgene, 21st January 2005//EN" "http://www.ncbi.nlm.nih.gov/data_specs/dtd/NCBI_Entrezgene.dtd">
+
+     # print(entrezgene.tag, entrezgene.attrib, entrezgene.text)
+#     if entrezgene.attrib['status'] != "OK":
+#        print("ERROR: DocSum status: ",docsumset.attrib['status'])
+   
+
+   if gene_summaries_found_count == 0: warn("No gene summaries found in XML the whole file")
+   # TEMPORARILY COMMENTING THIS OUT TO TEST SPEED OF GZIP
+   for key in sorted(entrez_to_genename_dict.keys()):
+     warn("%s %s NOT returned from NCBI entrez query" %(key,entrez_to_genename_dict[key]))
+  
+   return gene_summaries_found_count
+
+
+
+PRINT_HEADINGS = False
+PRINT_TYPE = False
+PRINT_VALUE = False
+PRINT_VERSION_WARNING = False
+
+def parse_entrez_full_xml(xml_root, entrez_to_genename_dict, is_first, fout2, entrez_ids_found):
 
    if is_first:  # write_header
      fout2.write("Entrez"
@@ -338,46 +440,14 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
          "\tSummary"
          "\n"
          )
-
-
-
-   url = EUTILS_URL+"efetch.fcgi?db=gene" # Instead of "esummary.fcgi?db=gene"
-   data = {'retmode':'xml', 'id': ",".join(entrez_to_genename_dict.keys())}  # Need to specify retmode of xml, otherwise returns asn.1, default
-   headers = {"Content-Type": "application/x-www-form-urlencoded"}
    
-   r = requests.post(url, headers=headers, data=data) # insead of:  r = requests.get(url) 
-      
-   r.raise_for_status()  # print(r.status_code == requests.codes.ok)
-   #print(r.encoding)
-   #print(r.headers)
+   if PRINT_VALUE: print("#START")
    gene_summaries_found_count = 0
    
-   fout1.write(r.text)
-   fout1.write("\n#END\n")
-
-   root = ET.fromstring(r.text) # root is 'Entrezgene-Set'
-   # OR to read from file:
-   #tree = ET.parse('test_entrez_full.xml'); root=tree.getroot()
-   #tree = ET.parse('test_entrez_full2.xml'); root=tree.getroot()
-   #tree = ET.parse('test_entrez_full_ERBB2.xml'); root=tree.getroot()   
-   
-   # Removed these two lines:
-   # <?xml version="1.0" ?>
-   # <!DOCTYPE Entrezgene-Set PUBLIC "-//NLM//DTD NCBI-Entrezgene, 21st January 2005//EN" "http://www.ncbi.nlm.nih.gov/data_specs/dtd/NCBI_Entrezgene.dtd">
-
-     # print(entrezgene.tag, entrezgene.attrib, entrezgene.text)
-#     if entrezgene.attrib['status'] != "OK":
-#        print("ERROR: DocSum status: ",docsumset.attrib['status'])
-
-   PRINT_HEADINGS = False
-   PRINT_TYPE = False
-   PRINT_VALUE = False
-
-
-   if PRINT_VALUE: print("#START")
+   print("Root....",xml_root)
       
 #   for entrezgene in root.findall('Entrezgene-Set'):  # The set of gene(s) requested
-   for entrezgene in root.findall('Entrezgene'):  # repeats for each gene requested
+   for entrezgene in xml_root.findall('Entrezgene'):  # repeats for each gene requested
      gene_track_entrez_id = '' # eg: 157
      gene_track_status_string = ''  # eg: 'live'
      gene_track_status_int =  ''    # eg: 0 for 'live' 
@@ -387,25 +457,30 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
      desc = '' # eg: G protein-coupled receptor kinase 3
      maploc = '' # eg: 22q12.1
      hgnc = '' # eg: HGNC:290
-     ensembl_gene = ''  # eg: ENSG00000100077
+#     ensembl_gene = ''  # eg: ENSG00000100077
+     ensembl_gene_list = []  # eg: ENSG00000100077     as PIK3R2 has two ensembl gene ids, so use the first one.
      hprd = '' # eg: 00183
      omim = '' # eg: 109636
      vega = '' # eg: OTTHUMG00000150280
      synonyms = '' # BARK2 | ADRBK2
      summary = ''  #  The beta-adrenergic receptor kinase specifically phosphorylates the agonist-occupied form of the beta-adrenergic and related G protein-coupled receptors. Overall, the beta adrenergic receptor kinase 2 has 85% amino acid similarity with beta adrenergic receptor kinase 1, with the protein kinase catalytic domain having 95% similarity. These data suggest the existence of a family of receptor kinases which may serve broadly to regulate receptor function. [provided by RefSeq, Jul 2008]
-     ensembl_protein = '' # eg:  ENSP00000317578
-     uniprot = '' # eg: P35626   
+#     ensembl_protein = '' # eg:  ENSP00000317578
+     ensembl_protein_list = [] # eg:  ENSP00000317578     
+     # uniprot = '' # eg: P35626   
+     uniprot_list = []
 
      for entrezgene_track_info in entrezgene.findall('Entrezgene_track-info'):
        for gene_track in entrezgene_track_info.findall('Gene-track'):
          for gene_track_geneid in gene_track.findall('Gene-track_geneid'):
            gene_track_entrez_id = gene_track_geneid.text # ie. the requested entrez_id
+           if gene_track_entrez_id in entrez_ids_found: warn("Entrez_id %s already exists in entrez_ids_found" %(gene_track_entrez_id))
+           entrez_ids_found[gene_track_entrez_id] = True
            if PRINT_VALUE: print("Gene track entrez_id:",gene_track_entrez_id)
                                  
          for gene_track_status in gene_track.findall('Gene-track_status'):
            gene_track_status_string = gene_track_status.attrib['value'] # != live 0, or secondary 1
-           if gene_track_status_string == 'discontinued': warn("For '%s' '%s': DISCONTINUED Gene_track_status: '%s'" %(gene_track_entrez_id,gene_name,gene_track_status_string))
-           if gene_track_status_string not in ('live', 'secondary'): warn("For '%s' '%s': Unexpected gene_track_status: '%s'" %(gene_track_entrez_id,gene_name,gene_track_status_string))
+           if gene_track_status_string == 'discontinued': warn("For '%s': DISCONTINUED Gene_track_status: '%s'" %(gene_track_entrez_id,gene_track_status_string))
+           elif gene_track_status_string not in ('live', 'secondary'): warn("For '%s': Unexpected gene_track_status: '%s'" %(gene_track_entrez_id,gene_track_status_string))
            
            gene_track_status_int = gene_track_status.text  # 0 or 1, etc
            
@@ -419,15 +494,22 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
            for dbtag in gene_track_current_geneid.findall('Dbtag'):
              for dbtag_db in dbtag.findall('Dbtag_db'):
                dbtag_db_text = dbtag_db.text   # Locus or GeneID
-             for dbtag_tag in dbtag.findall('Dbtag_tag'):
-               for object_id in dbtag_tag.findall('Object-id'):
-                 for object_id_id in object_id.findall('Object-id_id'):
+             for object_id_id in dbtag.iterfind('Dbtag_tag/Object-id/Object-id_id'):               
+             # for dbtag_tag in dbtag.findall('Dbtag_tag'):
+             #  for object_id in dbtag_tag.findall('Object-id'):
+             #    for object_id_id in object_id.findall('Object-id_id'):                 
                     if PRINT_VALUE: print(dbtag_db_text+":",object_id_id.text) # eg: 115653
                     if dbtag_db_text == 'LocusID': current_locus = object_id_id.text
                     elif dbtag_db_text == 'GeneID': current_entrez_id = object_id_id.text
                     else: warn("Unexpected Current: %s %s" %(dbtag_db_text, object_id_id.text))
                     # Could this sometimes be a object_id_str rather than object_id_id
            if current_locus != current_entrez_id: warn("Expected current_locus:%s != current_entrez_id:%s" %(current_locus,current_entrez_id))
+
+     for entrezgene_type in entrezgene.findall('Entrezgene_type'):
+       entrezgene_type_string = entrezgene_type.attrib['value']
+       if entrezgene_type_string == 'pseudo':   # other types: 'protein-coding'
+         warn("For id='%s' entrezgene_type: '%s'" %(gene_track_entrez_id,entrezgene_type_string))
+#       entrezgene_type_num = entrezgene_type.text
            
      # *** Gene info:
      for entrezgene_gene in entrezgene.findall('Entrezgene_gene'):
@@ -435,6 +517,7 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
          for gene_ref_locus in gene_ref.findall('Gene-ref_locus'):   # A2M
            if PRINT_VALUE: print("Locus:",gene_ref_locus.text)
            gene_name = gene_ref_locus.text
+           entrez_ids_found[gene_track_entrez_id] = gene_name # As was just set to True above.
          for gene_ref_desc in gene_ref.findall('Gene-ref_desc'):    # alpha-2-macroglobulin
            if PRINT_VALUE: print("Desc:",gene_ref_desc.text)
            desc = gene_ref_desc.text
@@ -445,19 +528,21 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
            for dbtag in gene_ref_db.findall('Dbtag'):   #(repeats for HGNC, Ensembl, HPRD, MIM, Vega)
              for dbtag_db in dbtag.findall('Dbtag_db'):  # HGNC
                dbtag_db_text = dbtag_db.text
-             for dbtag_tag in dbtag.findall('Dbtag_tag'):
-               for object_id in dbtag_tag.findall('Object-id'):
+             # for dbtag_tag in dbtag.findall('Dbtag_tag'):
+             #   for object_id in dbtag_tag.findall('Object-id'):
+             for object_id in dbtag.iterfind('Dbtag_tag/Object-id'):               
                  for object_id_str in object_id.findall('Object-id_str'):  # HGNC:7  (ENSG00000175899, 00072, OTTHUMG00000150267) as are strings
                    if PRINT_VALUE: print(dbtag_db_text+":",object_id_str.text)
-                   if   dbtag_db_text == 'HGNC':    hgnc = object_id_str.text  # eg: HGNC:290
-                   elif dbtag_db_text == 'Ensembl': ensembl_gene = object_id_str.text
-                   elif dbtag_db_text == 'HPRD':    hprd = object_id_str.text
-                   elif dbtag_db_text == 'Vega':    vega = object_id_str.text
-                   else: warn("For %s $%s: Unexpected Gene-ref DB str: %s %s" %(gene_track_entrez_id,gene_name,dbtag_db_text, object_id_str.text))
+                   if   dbtag_db_text == 'HGNC':    hgnc         = object_id_str.text if hgnc        =='' else hgnc+';'+object_id_str.text  # eg: HGNC:290
+#                   elif dbtag_db_text == 'Ensembl': ensembl_gene = object_id_str.text if ensembl_gene=='' else ensembl_gene+';'+object_id_str.text
+                   elif dbtag_db_text == 'Ensembl': ensembl_gene_list.append(object_id_str.text)
+                   elif dbtag_db_text == 'HPRD':    hprd         = object_id_str.text if hprd        =='' else hprd+';'+object_id_str.text
+                   elif dbtag_db_text == 'Vega':    vega         = object_id_str.text if vega        =='' else vega+';'+object_id_str.text
+                   else: warn("For %s %s: Unexpected Gene-ref DB str: %s %s" %(gene_track_entrez_id,gene_name,dbtag_db_text, object_id_str.text))
                    
                  for object_id_id in object_id.findall('Object-id_id'):  # MIM  (103950) as is an integer
                    if PRINT_VALUE: print(dbtag_db_text+":",object_id_id.text)
-                   if dbtag_db_text == 'MIM': omim = object_id_id.text
+                   if dbtag_db_text == 'MIM': omim = object_id_id.text if omim=='' else omim+';'+object_id_id.text
                    else: warn("Unexpected Gene-ref DB id: %s %s" %(dbtag_db_text, object_id_id.text))
                    
          for gene_ref_syn in gene_ref.findall('Gene-ref_syn'):
@@ -524,7 +609,7 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
                        
                    if gene_commentary_type_attrib != 'mRNA': continue                       
                    for gene_commentary_version in gene_commentary3.findall('Gene-commentary_version'):
-                     if gene_commentary_version.text != '3':
+                     if PRINT_VERSION_WARNING and gene_commentary_version.text != '3':
                        warn("For %s %s: Gene-commentary3_version, expected '3' but found: %s" %(gene_track_entrez_id,gene_name,gene_commentary_version.text))  # 3
                                                                     
                    
@@ -549,7 +634,7 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
                            
                        if gene_commentary_type_attrib != 'peptide': continue
                        for gene_commentary_version in gene_commentary4.findall('Gene-commentary_version'):
-                         if gene_commentary_version.text != '2':
+                         if PRINT_VERSION_WARNING and gene_commentary_version.text != '2':
                            warn("For %s %s: Gene-commentary4_version, expected '2' but found: '%s'" %(gene_track_entrez_id,gene_name,gene_commentary_version.text)) # 2
                          
 
@@ -606,7 +691,9 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
                                        if dbtag_db_text == 'UniProtKB/Swiss-Prot':
                                          for object_id_str in dbtag.iterfind('Dbtag_tag/Object-id/Object-id_str'):
                                            if PRINT_VALUE: print(dbtag_db_text+":",object_id_str.text)
-                                           uniprot = object_id_str.text  # eg: P35626
+# For eg: 2078, ERG The P11308 is listed multiple times
+#                                           uniprot = object_id_str.text if uniprot=='' else uniprot+';'+object_id_str.text  # eg: P35626
+                                           if object_id_str.text not in uniprot_list: uniprot_list.append(object_id_str.text)  # eg: P35626
 #                                       for dbtag_tag in dbtag_db.findall('Dbtag_tag'):
 #                                         for object_id in dbtag_tag.findall('Object-id'):
 #                                           for object_id_str in object_id.findall('Object-id_str'): # eg: P01023
@@ -626,8 +713,8 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
                                    if dbtag_db_text == 'Ensembl':
                                      for object_id_str in dbtag.iterfind('Dbtag_tag/Object-id/Object-id_str'):
                                        if PRINT_VALUE: print(dbtag_db.text+":",object_id_str.text)
-                                       ensembl_protein = object_id_str.text  # eg:  ENSP00000317578
-
+#                                       ensembl_protein = object_id_str.text if ensembl_protein=='' else ensembl_protein+';'+object_id_str.text   # eg:  ENSP00000317578
+                                       if object_id_str.text not in ensembl_protein_list: ensembl_protein_list.append(object_id_str.text)  # eg:  ENSP00000317578
 #                                   for dbtag_tag in dbtag.findall('Dbtag_tag'):
 #                                     print("* Dbtag_tag",dbtag_tag)
 #                                     for object_id in dbtag_tag.findall('Object-id'):
@@ -677,12 +764,12 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
       "\t"+gene_name +
       "\t"+maploc +
       "\t"+hgnc +
-      "\t"+ensembl_gene +
+      "\t"+";".join(ensembl_gene_list) +
       "\t"+hprd +
       "\t"+omim +
       "\t"+vega +
-      "\t"+ensembl_protein +
-      "\t"+uniprot +
+      "\t"+";".join(ensembl_protein_list) +
+      "\t"+";".join(uniprot_list) +
       "\t"+desc +  
       "\t"+synonyms +
       "\t"+summary+
@@ -690,13 +777,16 @@ def get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2):
       )
      gene_summaries_found_count += 1
      
-     if gene_track_entrez_id in del entrez_to_genename_dict[gene_track_entrez_id]
-     else warn("gene_track_entrez_id %s NOT found in the input entrez_to_genename_dict" %(gene_track_entrez_id))
+     if gene_track_entrez_id in entrez_to_genename_dict: del entrez_to_genename_dict[gene_track_entrez_id]
+     else: warn("gene_track_entrez_id %s NOT found in the input entrez_to_genename_dict" %(gene_track_entrez_id))
        
      if PRINT_VALUE: print("#END\n")
 
-   for key in entrez_to_genename_dict:
-     warn("%s %s NOT returned from NCBI entrez query" %(key,entrez_to_genename_dict[key]))
+
+#   for key in sorted(entrez_ids_found.keys()):
+#     warn("FOUND: %s %s" %(key,entrez_ids_found[key]))
+     
+     
      
    return gene_summaries_found_count
      
@@ -1046,7 +1136,7 @@ def process_all_genes_in_db():
  genes_processed = 0
  total_gene_summaries_found_count = 0
 
- fout1 = open( "entrez_gene_summaries.xml","w")
+ fout_xml = open( "entrez_gene_summaries.xml","w")
  fout2 = open("entrez_gene_summaries.txt","w")
  fout2.write("Gene_name\tEntrez_id\tSummary\n")
 
@@ -1063,7 +1153,7 @@ def process_all_genes_in_db():
     
     # Request 100 interactions at a time, to reduce load on server
     if len(entrez_to_genename_dict) == BATCH_SIZE:
-      total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout1,fout2)
+      total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout_xml,fout2)
 
 #      unmatched_genes += ('' if unmatched_genes == '' and unmatched == '' else ', ') + unmatched
            # print("GENE:\t%s\t%s" %(gene_name,entrez_summaries[entrez_id]))
@@ -1076,9 +1166,9 @@ def process_all_genes_in_db():
       #print("genes_processed:", genes_processed)
       
   if len(entrez_to_genename_dict) > 0: # Process any remaining genes as < BATCH_SIZE
-    total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout1,fout2)
+    total_gene_summaries_found_count += get_entrez_summaries(entrez_to_genename_dict, fout_xml,fout2)
 
- fout1.close()
+ fout_xml.close()
  fout2.close()
     
  print("Genes_processed: %d,  Gene_summaries_found: %d" %(genes_processed, total_gene_summaries_found_count))
@@ -1089,45 +1179,123 @@ def process_all_genes_in_db():
 
 
 
+
+def add_gene_to_list(gene_name, entrez_id, entrez_to_genename_dict, genes_processed, genes_without_entrez_ids):
+    gene_is_added = False
+
+    if entrez_id not in genes_processed:
+      if entrez_id == '': genes_without_entrez_ids[gene_name]=True
+      # The .40 is because it sometimes was changed from -40 to .40
+      elif entrez_id in ['-40','.40']: warn("Skipping id='%s' '%s' as is Blue fluorescent protein or Bone-forming peptide 1, or Back-fat percentage(in pig)" %(entrez_id,gene_name))
+      elif entrez_id in ['-43','.43']: warn("Skipping id='%s' '%s' as is Luciferase" %(entrez_id,gene_name))
+      else:
+        entrez_to_genename_dict[entrez_id] = gene_name
+        genes_processed[entrez_id] = True
+        #driver_text = '*DRIVER*' if g.is_driver else ''
+        gene_is_added = 1
+      #print(gene_name,"=",entrez_id)
+      
+    return gene_is_added
+
+
+
 def process_all_genes_in_files():
- BATCH_SIZE=300 # number of ids to submit in one query.
- 
+
+ BATCH_SIZE=500 # number of ids to submit in one query.
+# FETCH_FROM_URL = False # So will fetch from file instead.
+ FETCH_FROM_URL = True # So will fetch from file instead. 
+ PROCESS_MISSING_IDS = True
+  
  # indir = "postprocessing_R_results/"
  indir = "198_boxplots_for_Colm/analyses/"
  
  # Campbell is ensembl ids:
  # PIK3CA_5290_ENSG00000121879     AAK12_ENSG00000115977
- #  indir+"univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
- #  indir+"univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
  
  # Achilles and Colt are Entrez ids:
  input_files=( 
-   indir+"univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_26Aug2016witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
-   indir+"univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_26Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
-   indir+"univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+#   indir+"univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_26Aug2016witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
+#   indir+"univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_26Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
+#   indir+"univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
+#   indir+"univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
+#   indir+"univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt",
+  "fetch_entrez_full_details_missing.txt",
   )
  genes_without_entrez_ids = []
  genes_without_summary = []
  entrez_to_genename_dict = dict()
  genes_processed = dict()
  
+ entrez_ids_found = dict()
+ 
  is_first = True
  
  genes_processed_count = 0
  total_gene_summaries_found_count = 0
 
- fout1 = open("entrez_gene_full_details.xml","w")
- fout2 = open("entrez_gene_full_details.txt","w")
- 
+ if PROCESS_MISSING_IDS:
+   xml_filename = "entrez_gene_full_details_MISSING_drivers2.xml"
+ else:
+  # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
+  xml_filename = "entrez_gene_full_details_oneset_test.xml"
+  
+      
+ if FETCH_FROM_URL:
+   fout_xml = open(xml_filename,"w") # Write fetched XML to file
+   print("Fetching from URL into file:",xml_filename)
+ else:  
+   #fin_xml = open(xml_filename, "r", encoding='utf-8') # Read the previously fetched XML from file 
+
+   fin_xml = gzip.open(xml_filename+".gz", "rt", encoding='utf-8')
+
+   # import io
+   #fin_xml = io.TextIOWrapper(gzip.open(xml_filename+".gz", "rb"))
+   
+# Maybe faster might be using a pipe:
+# Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
+   #p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
+   # In Python 2:
+   # import cStringIO
+   # fin_xml = cStringIO.StringIO(p.communicate()[0])
+   # In Python 3:
+   #import io
+   #fin_xml = io.BytesIO(p.communicate()[0])
+   #assert p.returncode == 0
+   #print("Opened input file",fin_xml)   
+   
+ if PROCESS_MISSING_IDS:    
+   fout2 = open("entrez_gene_full_details_MISSING_drivers2.txt","w")
+ else:
+   fout2 = open("entrez_gene_full_details_test.txt","w")
+    
  dont_process = True
   
  for infile in input_files:
   with open(infile, "r") as fin:
-   header = fin.readline() # Skip header line.
+   if not PROCESS_MISSING_IDS:   # As has no header line in the file: "fetch_entrez_full_details_missing.txt"
+     header = fin.readline() # Skip header line.
    
-   for line in fin:
-    cols = line.split("\t")
-    names = cols[1].split("_")  # Target gene
+   for line in fin:   
+# For infile: "fetch_entrez_full_details_missing.txt"   
+     if PROCESS_MISSING_IDS:    
+       cols = line.split(" ")        
+       if add_gene_to_list(cols[1], cols[0], entrez_to_genename_dict, genes_processed, genes_without_entrez_ids):
+         genes_processed_count += 1
+     else:
+# For Drivers:
+       cols = line.split("\t")
+       driver = cols[0].split("_")  # Driver gene
+       if (len(driver) != 3):
+         warn("Driver '%s' length != 3" %(cols[0]))
+ 
+       if add_gene_to_list(driver[0], driver[1], entrez_to_genename_dict, genes_processed, genes_without_entrez_ids):
+         genes_processed_count += 1
+     """       
+# For Targets:     
+       target = cols[1].split("_")  # Target gene
+       if (len(target) != 2):
+         warn("Target '%s' length != 2" %(cols[1]))
+       if target[1]=='22947.100288687': warn("Found it in %s: %s" %(infile,line))
 # with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
 #  for g in Gene.objects.all().iterator():
     #print(g.gene_name, g.entrez_id)
@@ -1135,26 +1303,25 @@ def process_all_genes_in_files():
 #        genes_without_entrez_ids.append(g.gene_name)
 #    else:    
 #        entrez_to_genename_dict[g.entrez_id] = g.gene_name
-    if names[1] not in genes_processed:
-      if names[1] == '': genes_without_entrez_ids[names[0]]=True
-      else:
-        entrez_to_genename_dict[names[1]] = names[0]
-        genes_processed[names[1]] = True
-        #driver_text = '*DRIVER*' if g.is_driver else ''
-        genes_processed_count += 1
-        print(names[0],"=",names[1])
+       if add_gene_to_list(target[0], target[1], entrez_to_genename_dict, genes_processed, genes_without_entrez_ids):
+         genes_processed_count += 1
+     """
 
-    if dont_process: # Skip until after '439921': # MXRA7, where failed due to: requests.exceptions.HTTPError: 502 Server Error: Bad Gateway for url: http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gene
-       if names[1] == '439921': # MXRA7
+     """
+     if dont_process: # Skip until after '439921': # MXRA7, where failed due to: requests.exceptions.HTTPError: 502 Server Error: Bad Gateway for url: http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=gene
+       if target[1] == '439921': # MXRA7
          dont_process = False
-         print("Found last gene processed, so will start after this:",names[1])
+         print("Found last gene processed, so will start after this:",target[1])
          entrez_to_genename_dict.clear()
        continue
+     """
+
+#    if len(entrez_to_genename_dict) >= 150: break
     
     # Request 100 interactions at a time, to reduce load on server
-    if len(entrez_to_genename_dict) == BATCH_SIZE:
-      total_gene_summaries_found_count += get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2)
-      is_first = False
+     if FETCH_FROM_URL and len(entrez_to_genename_dict) >= BATCH_SIZE:  # Need >= here as could have both driver and target added at same time so = isn't enough.
+       total_gene_summaries_found_count += get_entrez_full_from_url(entrez_to_genename_dict, is_first, fout_xml, fout2, entrez_ids_found)
+       is_first = False
 
 #      unmatched_genes += ('' if unmatched_genes == '' and unmatched == '' else ', ') + unmatched
            # print("GENE:\t%s\t%s" %(gene_name,entrez_summaries[entrez_id]))
@@ -1162,14 +1329,24 @@ def process_all_genes_in_files():
 #           genes_with_summary_count += 1
 #        else:
 #           genes_without_summary.append(gene_name)        
-      entrez_to_genename_dict.clear()
+       entrez_to_genename_dict.clear()
 #      break  # To STOP for now with this test run of 10.  
-      #print("genes_processed_count:", genes_processed_count)
+       #print("genes_processed_count:", genes_processed_count)
+      
+       for key in sorted(entrez_to_genename_dict.keys()): warn("WANT: %s %s" %(key,entrez_to_genename_dict[key]))
       
  if len(entrez_to_genename_dict) > 0: # Process any remaining genes as < BATCH_SIZE
-   total_gene_summaries_found_count += get_entrez_full(entrez_to_genename_dict, is_first, fout1, fout2)
+   if FETCH_FROM_URL:
+     total_gene_summaries_found_count += get_entrez_full_from_url(entrez_to_genename_dict, is_first, fout_xml, fout2, entrez_ids_found)
+   else: 
+     total_gene_summaries_found_count += get_entrez_full_from_file(entrez_to_genename_dict, fin_xml, fout2, entrez_ids_found)
+#     for key in entrez_ids_found:
+#       print("Found: %s = %s" %(key,entrez_ids_found[key]))
 
- fout1.close()
+
+ if FETCH_FROM_URL: fout_xml.close()
+ else: fin_xml.close()
+ 
  fout2.close()
     
  print("Genes_processed: %d,  Gene_summaries_found: %d" %(genes_processed_count, total_gene_summaries_found_count))

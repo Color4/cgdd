@@ -19,19 +19,19 @@ var tissue_colours = {
 
   // The following are NOT in the Campbell dataset for the 23 driver dependency data:
   "HAEMATOPOIETIC_AND_LYMPHOID_TISSUE": "darkred",
-  "INTESTINE":    "saddlebrown",
-// or: "LARGE_INTESTINE"
+  "INTESTINE":    "saddlebrown",  // Can remove this "INTESTINE" in future as replaced by "LARGE_INTESTINE"
+  "LARGE_INTESTINE":    "saddlebrown",
   "KIDNEY":       "indianred",
   "PROSTATE":     "turquoise",
   "SKIN":         "peachpuff",
   "SOFT_TISSUE":  "lightgrey",
   "STOMACH":      "black",
-  "URINARY_TRACT":"yellowgreen"
+  "URINARY_TRACT":"yellowgreen",
   // "LIVER":        "slategray", // Not in Campbell,  Not in 23 driver dependency data, so don't display on legend  
 
 // In Achilles R input data Aug 2016:
 // "OTHER"                         
-// "PLEURA"
+  "PLEURA": "slategray"  // Occurs in the PANCAN samples, as no longer merging with LUNG
   };
 
 

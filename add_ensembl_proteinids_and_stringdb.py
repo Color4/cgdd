@@ -21,7 +21,7 @@ from gendep.models import Gene, Dependency
 
 SYMBOL_TO_STRING_TABLE_NAME = 'db_symbol_to_string_protein.sqlite3'
 
-ALWAYS_UPDATE_GENE_TABLE = False  # False means don't update protein_id if is different from 
+ALWAYS_UPDATE_GENE_TABLE = False  # False means don't update protein_id if is different from the existing in the record (which is from Entrez full details)
 
 
 # ==============================================================================================================  
@@ -417,9 +417,9 @@ def add_ensembl_proteins_to_Gene_table_in_db():
   
 
 
-def set_db_protein(g,ensembl_protein_id):
+def set_db_protein(g, ensembl_protein_id, force_update=False):
   num_warnings = 0
-  if ALWAYS_UPDATE_GENE_TABLE or g.ensembl_protein_id is None or g.ensembl_protein_id == '':
+  if ALWAYS_UPDATE_GENE_TABLE or force_update or g.ensembl_protein_id is None or g.ensembl_protein_id == '':
       g.ensembl_protein_id = ensembl_protein_id
       g.save()
   elif g.ensembl_protein_id != ensembl_protein_id:
@@ -447,7 +447,9 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
   count_multiple_protein_ids = 0
   driver_count_not_found = 0
   driver_count_multiple_protein_ids = 0
-  count_entrez_not_found = 0
+  count_ensembl_protein_not_found = 0
+  count_ensembl_protein_id_updated = 0
+  count_entrez_not_found = 0  
   count_different_from_existing = 0
   
   protein_dict = dict()
@@ -456,6 +458,23 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
       #print(g.gene_name,"   ",g.entrez_id)
       driver_text = '*DRIVER*' if g.is_driver else ''
       protein_id_from_entrez_id = ''
+      protein_id_from_ensembl_protein_id = ''
+          
+      if g.ensembl_protein_id is not None and g.ensembl_protein_id != '':
+        rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.ensembl_protein_id,)).fetchall()
+        # columns are: alias, string_protein, source
+        if len(rows) == 0:
+          print("\nEnsembl_protein_id %s NOT found for %s %s" %(g.ensembl_protein_id,driver_text,g.gene_name))
+          count_ensembl_protein_not_found += 1
+        elif len(rows) == 1:
+          protein_id_from_ensembl_protein_id = rows[0][1]
+          if g.ensembl_protein_id != protein_id_from_ensembl_protein_id: 
+            count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
+            count_ensembl_protein_id_updated += 1
+        else:
+           print("For %s %s Multiple protein_id_from_ensembl_protein_id %s:" %(driver_text,g.gene_name,g.ensembl_protein_id))
+           print(rows)
+
       
       if g.entrez_id is not None and g.entrez_id != '':
         rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.entrez_id,)).fetchall()
@@ -465,6 +484,8 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           count_entrez_not_found += 1
         elif len(rows) == 1:
           protein_id_from_entrez_id = rows[0][1]
+          if protein_id_from_ensembl_protein_id!='' and protein_id_from_ensembl_protein_id != protein_id_from_entrez_id:
+           print("For %s %s protein_id_from_entrez_id %s: Ensembl_protein_id %s and Entrez_protein_is %s DON'T match" %(driver_text,g.gene_name,g.entrez_id,protein_id_from_ensembl_protein_id,protein_id_from_entrez_id))
         else:
            print("For %s %s Multiple protein_id_from_entrez_id %s:" %(driver_text,g.gene_name,g.entrez_id))
            print(rows)
@@ -480,11 +501,13 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         if len(rows)>0: print("  BUT found %d LIKE it: %s" %(len(rows), rows))
         
       elif len(rows) == 1:
+        if protein_id_from_ensembl_protein_id!='' and protein_id_from_ensembl_protein_id!=rows[0][1]:
+          print("\nWarning: %s %s protein_id %s from ensembl_protein_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_ensembl_protein_id,rows[0][1]))
         if protein_id_from_entrez_id!='' and protein_id_from_entrez_id!=rows[0][1]:
           print("\nWarning: %s %s protein_id %s from entrez_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_entrez_id,rows[0][1]))
         if g.ensembl_protein_id is None or g.ensembl_protein_id == '':
           g.ensembl_protein_from_alias_table = True
-          count_different_from_existing += set_db_protein(g, rows[0][1])          
+          count_different_from_existing += set_db_protein(g, rows[0][1])
           count_found += 1
           
         elif rows[0][1] != g.ensembl_protein_id: # check if is same as that already added due to the entrez_id
@@ -504,8 +527,12 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         else:
           print("\nFor %s %s several string_proteins: %s" %(driver_text,g.gene_name, protein_dict.keys()))
           print(rows)
-          
-          if protein_id_from_entrez_id in protein_dict:
+
+          if protein_id_from_ensembl_protein_id in protein_dict:
+            print("  but for %s %s GOOD NEWS: protein_id_from_ensembl_protein_id %s is one of these" %(driver_text,g.gene_name,protein_id_from_ensembl_protein_id ))
+            count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id) # Already would have been done above by: set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
+                  
+          elif protein_id_from_entrez_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_entrez %s is one of these" %(driver_text,g.gene_name,protein_id_from_entrez_id))
             count_different_from_existing += set_db_protein(g, protein_id_from_entrez_id)
 
@@ -561,7 +588,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
       """
 
   conn.close()  # We can also close the connection if we are done with it.- Just be sure any changes have been 
-  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_protein_ids_differ: %d,  count_multiple_protein_ids: %d, driver_count_multiple_protein_ids: %d, count_entrez_not_found: %d, count_different_from_existing: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_protein_ids_differ, count_multiple_protein_ids, driver_count_multiple_protein_ids,count_entrez_not_found,count_different_from_existing))
+  print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_protein_ids_differ: %d,  count_multiple_protein_ids: %d, driver_count_multiple_protein_ids: %d, count_entrez_not_found: %d, count_ensembl_protein_not_found: %d, count_ensembl_protein_id_updated: %d, count_different_from_existing: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_protein_ids_differ, count_multiple_protein_ids, driver_count_multiple_protein_ids, count_entrez_not_found, count_ensembl_protein_not_found, count_ensembl_protein_id_updated, count_different_from_existing))
   
 # RP4-592A1.2-001	ENST00000427762	690	No protein  
 

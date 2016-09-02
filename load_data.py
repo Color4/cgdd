@@ -39,7 +39,7 @@ warnings.filterwarnings('error', 'Data truncated .*') # regular expression to ca
 # HGNC input file used by load_hgnc_dictionary(hgnc_infile):
 hgnc_infile = os.path.join('input_data','hgnc_complete_set.txt')
 
-entrez_gene_full_details_for_Achilles_and_Colt_infile = "entrez_gene_full_details_Achilles_and_Colt.txt"
+entrez_gene_full_details_for_Achilles_and_Colt_infile = "entrez_gene_full_details_all_Achilles_and_Colt_and_driversCampbell_sorted_unique.txt"
 
 # The alteration (eg. mutation, copy number) considered for each driver - to be loaded into the Gene table for each driver:
 driver_alteration_details_file = os.path.join('input_data','AlterationDetails.csv')
@@ -189,6 +189,7 @@ def load_driver_alterations_dictionary():
 entrez_info = dict()
 entrez_info_gene_name_to_entrez = dict()
 entrez_info_ensembl_to_entrez = dict()
+entrez_secondary_ids = dict()
 def load_entrez_gene_full_details_for_Achilles_and_Colt(infile):
   entrez_gene_full_details_Achilles_and_Colt = "entrez_gene_full_details_Achilles_and_Colt.txt"
 
@@ -227,6 +228,8 @@ def load_entrez_gene_full_details_for_Achilles_and_Colt(infile):
     entrez = row[ie_entrez]
     if row[ie_current_entrez]!='' and row[ie_current_entrez] != entrez:
       warn("gene_track_entrez_id %s != current_entrez_id %s, status:%s" %(entrez,row[ie_current_entrez],row[ie_status]))
+      if row[ie_status] == 'secondary':
+        entrez_secondary_ids[entrez] = row[ie_current_entrez] # As Entrez_id has changed.
           
     if entrez in entrez_info:
       warn("Duplicated entrez_id in entrez_info: '%s' status='%s' in file: Entrez: '%s' '%s' \nrow: %s\nentrez_info: %s\n" %(entrez, row[ie_status], entrez_info[entrez][ie_entrez],entrez_info[entrez][ie_status],  row, entrez_info[entrez]) )
@@ -234,7 +237,11 @@ def load_entrez_gene_full_details_for_Achilles_and_Colt(infile):
     
     # Dictionaries to use to for the Campbell data which has gene_name and ensembl ids:
     entrez_info_gene_name_to_entrez[row[ie_gene_name]] = entrez
-    entrez_info_ensembl_to_entrez[row[ie_ensembl_gene]] = entrez
+    if ';' in row[ie_ensembl_gene]:
+      for each_ensembl_gene in row[ie_ensembl_gene].split(";"): entrez_info_ensembl_to_entrez[each_ensembl_gene] = entrez
+    else:
+      entrez_info_ensembl_to_entrez[row[ie_ensembl_gene]] = entrez
+    
     """
     # Build dictionary of prev-names & synonyms to gene_names:
     # print("%s : prev_names=%s, synonyms=%s" %(gene_name,row[iprev_names],row[isynonyms]))    
@@ -467,6 +474,9 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
     entrez_id='NoEntrezId' # As 'EntrezNotFound' from Achilles data is too long for the 10 character entrez_id field.
     names[1] = entrez_id
   ensembl_id = names[2]
+
+# Remove this line later:         
+  if original_gene_name=='BFP': print("1. BFP=>%s" %(gene_name))
   
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
   assert RE_GENE_NAME.match(gene_name), "gene_name %s doesn't match regexp"%(gene_name)
@@ -475,7 +485,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   campbell_gene_found_in_entrez_info = False
   if isAchilles or isColt: # Then lookup gene info that was downloaded from NCBI Entrez:  
     if entrez_id not in entrez_info:
-      warn("Entrez_id '%s' (gene_name '%s') NOT found in entrez_indo dictionary" %(entrez_id,gene_name))
+      warn("Achilles or Colt Entrez_id '%s' (gene_name '%s') NOT found in entrez_info dictionary" %(entrez_id,gene_name))
     else: 
       gene_found_in_entrez_info = True   
   else: # Campbell data  
@@ -485,21 +495,31 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
     if ensembl_id not in entrez_info_ensembl_to_entrez:
       warn("Campbell ensembl %s (gene: %s) not found in entrez_info_ensembl_to_entrez" %(ensembl_id,gene_name))
     else: campbell_gene_found_in_entrez_info = True
+
+# Remove this line later:         
+  if original_gene_name=='BFP': print("2. BFP=>%s" %(gene_name))
+
     
   gene_found_in_hgnc = False
   if not gene_found_in_entrez_info:
     if gene_name in hgnc:
       gene_found_in_hgnc = True
-    elif gene_name in synonyms_to_hgnc:
+    elif gene_name!='BFP' and gene_name in synonyms_to_hgnc: # Don't change BFP using synonyms:
       # print("Found gene_name %s in synonyms for %s" %(gene_name,synonyms_to_hgnc[gene_name]))
       new_name = synonyms_to_hgnc[gene_name]
+      ## BUT This incorrectly means BFP => RNF112
       if ';' in new_name:
           print("** WARNING: '%s', '%s' BUT this prev-name / synonym is for two or more genes '%s'" %(original_gene_name,gene_name,new_name))
       else:
+          warn("gene_name %s %s changed to %s using HGNC synonyms" %(original_gene_name,gene_name,new_name))      
           gene_name = new_name
           gene_found_in_hgnc = True
     else:
       warn("Gene '%s', '%s' (entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
+
+# Remove this line later:         
+    if original_gene_name=='BFP': print("3. BFP=>%s" %(gene_name))
+
            
     if entrez_id != '' and entrez_id != 'NoEntrezId':
       if entrez_id in entrez_to_hgnc:
@@ -514,7 +534,10 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
               warn("***** ERROR: '%s', '%s' BUT this entrez_id %s is for two or more genes '%s'" %(original_gene_name,gene_name,entrez_id,new_name))
       else:        
          warn("Gene '%s', '%s' Entrez_id='%s' (ensembl='%s') NOT found in Entrez_to_HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
-
+         
+# Remove this line later:         
+  if original_gene_name=='BFP': print("4. BFP=>%s" %(gene_name))
+  
   try:
     g = Gene.objects.get(gene_name=gene_name) # Gene already in Gene table
     # Update the is_driver and is_target status in the database (used for displaying the dropdrown search menu and displaying the drivers table):
@@ -529,12 +552,12 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
             
     # Test if stored entrez_id is same as already in database:
     g_entrez_id = g.entrez_id
-    if entrez_id != '' and entrez_id != 'NoEntrezId' and g_entrez_id != entrez_id:
+    if entrez_id != '' and entrez_id != 'NoEntrezId' and g_entrez_id != entrez_id and not (entrez_id in entrez_secondary_ids and entrez_secondary_ids[entrez_id]==g_entrez_id):
       if g.entrez_id == '' or g_entrez_id == 'NoEntrezId':
         info("Updating entrez_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.entrez_id,entrez_id,is_driver,g.is_driver, g.is_target))
         g.entrez_id=entrez_id
         g.save()
-      else:
+      else: 
         warn("For gene '%s': Entrez_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from the R results file" %(g.gene_name,g.entrez_id,type(g.entrez_id),len(g_entrez_id), entrez_id,type(entrez_id),len(entrez_id)))
 
     # Test if stored ensemble_id is same:
@@ -562,18 +585,20 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       full_name  = this_entrez[ie_desc]       # eg: erb-b2 receptor tyrosine kinase 2      
       entrez_id  = this_entrez[ie_entrez]       # eg: 2064
       ensembl_id = this_entrez[ie_ensembl_gene]      # eg: ENSG00000141736
+      if ';' in ensembl_id: ensembl_id = ensembl_id[:ensembl_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.
+      # hprd_id    = this_entrez[ie_hprd]  # But HPRD seems not to be updated recently
+      # maploc   = this_entrez[ie_maploc]
       cosmic_id  = this_entrez[ie_gene_name]       # eg: ERBB2
       omim_id    = this_entrez[ie_omim]         # eg: 164870
       uniprot_id = this_entrez[ie_uniprot]      # eg: P04626
       vega_id    = this_entrez[ie_vega]         # eg: OTTHUMG00000179300
-      hgnc_id    = this_entrez[ie_hgnc]      
+      hgnc_id    = this_entrez[ie_hgnc].replace('HGNC:','')  # eg: HGNC:21998 (but remove the 'HGNC:' prefix)
       ensembl_protein = this_entrez[ie_ensembl_protein]
+      if ';' in ensembl_protein: ensembl_protein = ensembl_protein[:ensembl_protein.index(';')] # As now a list of proteins separated by semicolons so just take the first one in the list and check this in the string-db alias file later.
       ncbi_summary = this_entrez[ie_summary]
       
       if gene_name != this_entrez[ie_gene_name]: info("gene_name '%s' != this_entrez '%s'" %(gene_name,this_entrez[ie_gene_name]))
       
-      #   = this_entrez[ie_maploc]
-      #   = this_entrez[ie_hprd]
       #   = this_entrez[ie_status]
       #   = this_entrez[ie_current_entrez]
       #   = this_entrez[ie_current_locus]
@@ -591,17 +616,20 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
                omim_id    = omim_id,         # eg: 164870
                uniprot_id = uniprot_id,      # eg: P04626
                vega_id    = vega_id,         # eg: OTTHUMG00000179300
-               hgnc_id    = hgnc_id,
+               hgnc_id    = hgnc_id,         # eg: 3430
                ensembl_protein_id = ensembl_protein,
                ncbi_summary = ncbi_summary
                # cancerrxgene_id = ....... ????
-               # 'hgnc_id'          # eg: 3430
+
                # 'alias_name'       # eg: neuro/glioblastoma derived oncogene homolog|human epidermal growth factor receptor 2
                # 'gene_family'      # eg: CD molecules|Minor histocompatibility antigens|Erb-b2 receptor tyrosine kinases
                # 'refseq_accession' # eg: NM_004448
                )
     
     elif gene_found_in_hgnc:
+    # Remove this line later:         
+      if original_gene_name=='BFP': print("5. BFP=>%s" %(gene_name))
+
       this_hgnc = hgnc[gene_name] # cache in a local variable to simplify code and reduce lookups.
       if not campbell_gene_found_in_entrez_info: info("Adding Campbell gene: %s, %s, %s" %(original_gene_name,gene_name,this_hgnc))
       print("Adding:",original_gene_name,gene_name,this_hgnc)      
@@ -1176,9 +1204,9 @@ if __name__ == "__main__":
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
     # Before using atomic(), I tried "transaction.set_autocommit(False)" but got error "Your database backend doesn't behave properly when autocommit is off."
     
-    # print("\nEmptying database tables")
-    # for table in (Dependency, Study, Gene): table.objects.all().delete()  # removed: Histotype, Drug
-    print("*** NOT deleting Dependency rows for now, as no change in Studies or Genes ****")
+    print("\nEmptying database tables")
+    for table in (Dependency, Study, Gene): table.objects.all().delete()  # removed: Histotype, Drug
+    # print("*** NOT deleting Dependency rows for now, as no change in Studies or Genes ****")
     
 
     Campbell_study, Achilles_study, Colt_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets = add_the_three_studies()

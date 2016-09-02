@@ -1,3 +1,8 @@
+# Were recently run separately then joined:
+
+  cat entrez_gene_full_details_test.txt entrez_gene_full_details_MISSING.txt entrez_gene_full_details_MISSING_drivers.txt > entrez_gene_full_details_all_Achilles_and_Colt_and_driversCampbell.txt
+  sort -n -u  entrez_gene_full_details_all_Achilles_and_Colt_and_driversCampbell.txt > entrez_gene_full_details_all_Achilles_and_Colt_and_driversCampbell_sorted_unique.txt
+
 I had added print("HERE ...") to file: 
    C:\Users\HP\AppData\Local\Programs\Python\Python35\Lib\site-packages\django\apps\registry.py
 
@@ -76,3 +81,6 @@ cd : CD340
 lncrnadb :
 enzyme_id :
 intermediate_filament_db :
+
+
+
