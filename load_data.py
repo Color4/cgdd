@@ -590,8 +590,9 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       # maploc   = this_entrez[ie_maploc]
       cosmic_id  = this_entrez[ie_gene_name]       # eg: ERBB2
       omim_id    = this_entrez[ie_omim]         # eg: 164870
+      if ';' in omim_id: omim_id = omim_id[:omim_id.index(';')]   # As now a list of omim ids separated by semicolons so just take the first one in the list.                        
       uniprot_id = this_entrez[ie_uniprot]      # eg: P04626
-      if ';' in uniprot_id: uniprot_id = uniprot_id[:uniprot_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.                  
+      if ';' in uniprot_id: uniprot_id = uniprot_id[:uniprot_id.index(';')]   # As now a list of uniprot ids separated by semicolons so just take the first one in the list.                  
       vega_id    = this_entrez[ie_vega]         # eg: OTTHUMG00000179300
       if ';' in vega_id: vega_id = vega_id[:vega_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.      
       hgnc_id    = this_entrez[ie_hgnc].replace('HGNC:','')  # eg: HGNC:21998 (but remove the 'HGNC:' prefix)
@@ -600,7 +601,8 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       ncbi_summary = this_entrez[ie_summary]
       
       if gene_name != this_entrez[ie_gene_name]: info("gene_name '%s' != this_entrez '%s'" %(gene_name,this_entrez[ie_gene_name]))
-      
+
+*** fix the DUX4 entrez id to be just one number instead of 22947.100288687      
       #   = this_entrez[ie_status]
       #   = this_entrez[ie_current_entrez]
       #   = this_entrez[ie_current_locus]
