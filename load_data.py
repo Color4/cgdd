@@ -591,6 +591,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       cosmic_id  = this_entrez[ie_gene_name]       # eg: ERBB2
       omim_id    = this_entrez[ie_omim]         # eg: 164870
       uniprot_id = this_entrez[ie_uniprot]      # eg: P04626
+      if ';' in uniprot_id: uniprot_id = uniprot_id[:uniprot_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.                  
       vega_id    = this_entrez[ie_vega]         # eg: OTTHUMG00000179300
       if ';' in vega_id: vega_id = vega_id[:vega_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.      
       hgnc_id    = this_entrez[ie_hgnc].replace('HGNC:','')  # eg: HGNC:21998 (but remove the 'HGNC:' prefix)
