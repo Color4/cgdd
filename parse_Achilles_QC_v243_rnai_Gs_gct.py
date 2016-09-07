@@ -46,18 +46,41 @@ preprocess_dir = "preprocess_genotype_data/rnai_datasets"
 analysis_dir = preprocess_dir 
 
 
-achilles_file = os.path.join(preprocess_dir, "Achilles_QC_v2.4.3.rnai.Gs.gct")
-# #1.2
-# 5711    216
-# Name    Description     22RV1_PROSTATE  697_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE  786O_KIDNEY     A1207_CENTRAL_NERVOUS_SYSTEM    A172_CENTRAL_NERVOUS_SYSTEM     A204_SOFT_TISSUE        A2058_SKIN      A549_LUNG
-# A2ML1_1_01110   A2ML1   0.394594398957629       0.730797648888988       -1.20098807484231       -0.36632733293908       -0.315740208758283      0.485359368104152       0.747857928024742       1.02746372696439
-# AADAC_1_11001   AADAC   -0.130884097950207      -0.621311438047424      -1.28082224322258       1.15587629057016        0.846034797165431
-# ....
+#achilles_version = "v2.4.3"
+achilles_version = "v3.3.8"
 
-achilles_file_transposed = os.path.join(preprocess_dir, "Achilles_QC_v2.4.3_cancergd.txt")
-#        A2ML1_1_01110   AADAC_1_11001   AADAT_1_11010   AADAT_2_00101   AAK1_1_01111011111      AAK1_2_10000100000      AANAT_1_10101   AASDHPPT_1_10110        AATF_1_01110
-# Description     A2ML1   AADAC   AADAT   AADAT   AAK1    AAK1    AANAT   AASDHPPT        AATF    ABAT    ABCA5   ABCA6   ABCA7   ABCB1   ABCB11  ABCB5   ABCB7   ABCB9   ABCC
-# 22RV1_PROSTATE  0.394594398957629       -0.1308 ......
+if achilles_version == "v2.4.3":
+  achilles_file = os.path.join(preprocess_dir, "Achilles_QC_v2.4.3.rnai.Gs.gct")
+  # #1.2
+  # 5711    216
+  # Name    Description     22RV1_PROSTATE  697_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE  786O_KIDNEY     A1207_CENTRAL_NERVOUS_SYSTEM    A172_CENTRAL_NERVOUS_SYSTEM     A204_SOFT_TISSUE        A2058_SKIN      A549_LUNG
+  # A2ML1_1_01110   A2ML1   0.394594398957629       0.730797648888988       -1.20098807484231       -0.36632733293908       -0.315740208758283      0.485359368104152       0.747857928024742       1.02746372696439
+  # AADAC_1_11001   AADAC   -0.130884097950207      -0.621311438047424      -1.28082224322258       1.15587629057016        0.846034797165431
+  # ....
+  
+  achilles_file_transposed = os.path.join(preprocess_dir, "Achilles_QC_v2.4.3_cancergd.txt")
+  #        A2ML1_1_01110   AADAC_1_11001   AADAT_1_11010   AADAT_2_00101   AAK1_1_01111011111      AAK1_2_10000100000      AANAT_1_10101   AASDHPPT_1_10110        AATF_1_01110
+  # Description     A2ML1   AADAC   AADAT   AADAT   AAK1    AAK1    AANAT   AASDHPPT        AATF    ABAT    ABCA5   ABCA6   ABCA7   ABCB1   ABCB11  ABCB5   ABCB7   ABCB9   ABCC
+  # 22RV1_PROSTATE  0.394594398957629       -0.1308 ......
+  
+  # achilles_output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R_kinome_v4_26Aug2016.txt")
+  achilles_output_file1 = os.path.join(analysis_dir, "Achilles_QC_"+achilles_version+"_cancergd_with_entrezids.txt")
+  #tissue_output_file = os.path.join(analysis_dir, "Achilles_tissues_v4_26Aug2016.txt")
+  tissue_output_file = os.path.join(analysis_dir, "Achilles_QC_"+achilles_version+"_tissues.txt")
+  
+elif achilles_version == "v3.3.8":
+  # The new CRISPR-Cas9 data:
+  achilles_file            = os.path.join(preprocess_dir, "Achilles_v3.3.8_genesoln.txt")
+  # achilles_file_transposed = os.path.join(preprocess_dir, "Achilles_v3.3.8.genesoln_transposed.txt")
+  achilles_output_file1 = os.path.join(analysis_dir, "Achilles_"+achilles_version+"_cancergd_with_entrezids.txt") # Removed the "QC_" from this 3.3.8 filename
+  
+  #tissue_output_file = os.path.join(analysis_dir, "Achilles_tissues_v4_26Aug2016.txt")
+  tissue_output_file = os.path.join(analysis_dir, "Achilles_"+achilles_version+"_tissues.txt")
+
+else:
+  print("ERROR: Invalid version: %s" %(achilles_version))
+  sys.exit()
+
 
 shRNA_mapping_file = os.path.join(analysis_dir, "Achilles_shRNA_to_gene_mapping_CP0004_20131120_19mer_trans_v1.chip")
 # Barcode Sequence        Gene Symbol     Transcript      Gene ID
@@ -82,17 +105,13 @@ read_R_cnv_muts_file = "preprocess_genotype_data/genotype_output/GDSC1000_cnv_ex
 read_R_kinome_file = "preprocess_genotype_data/rnai_datasets/Intercell_v18_rc4_kinome_cancergd.txt" # Latest which does have "NCI" prefixes such as NCIH1299_LUNG 
 
 
-# output_file1 = os.path.join(analysis_dir, "Achilles_rnai_transposed_for_R_kinome_v4_26Aug2016.txt")
-output_file1 = os.path.join(analysis_dir, "Achilles_QC_v2.4.3_cancergd_with_entrezids.txt")
-#output_file2 = os.path.join(analysis_dir, "Achilles_tissues_v4_26Aug2016.txt")
-output_file2 = os.path.join(analysis_dir, "Achilles_QC_v2.4.3_tissues.txt")
 
-output_file3 = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map.txt")
+output_file3 = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_"+achilles_version+".txt")
 
-output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R_v4_17Aug2016.txt")
+output_file4_newnames = os.path.join(analysis_dir, "Achilles_solname_to_entrez_map_with_names_used_for_R_"+achilles_version+"_v4_17Aug2016.txt")
 
 #output_file5 = os.path.join(analysis_dir, "Achilles_simple_solname_to_entrez_map.txt")
-output_file5 = os.path.join(analysis_dir, "Achilles_solname_to_entrezid_map.txt")
+output_file5 = os.path.join(analysis_dir, "Achilles_solname_to_entrezid_map_"+achilles_version+".txt")
 
 """
 mapping is: 
@@ -241,7 +260,7 @@ def load_ATARmap():
         print("*********** ERROR: Gene_symbols differ '%s' != '%s'" %(row[jsol_gene_symbol], this_shRNAmap[jgene_symbol]))
       
       #if this_entrez_id in ('-40', '-43'):
-      #  print("*** WARNING: Entrez_id '%s' is negative for %s" %(this_entrez_id,this_shRNAmap))
+      #  print("*** WARNING: Entrez_id '%s' is negative for %s so skipping it" %(this_entrez_id,this_shRNAmap))
       #  continue ??? skip these genes
         
       if ';' in this_entrez_id:
@@ -369,7 +388,7 @@ def load_hgnc_dictionary():
     else:
       gene_name = row[isymbol]    # The "ihgnc['symbol']" will be 1 - ie the second column, as 0 is first column which is HGNC number
       if gene_name in hgnc:
-        print("*** ERROR: Duplicated gene_name in HGNC file: ",gene_name)
+        print("*** ERROR: Duplicated gene_name %s in HGNC line: " %(gene_name),row) # Will likely be "Entry withdrawn"
       hgnc[gene_name] = row # Store the whole row for simplicity. 
       # print("%s : prev_names=%s, synonyms=%s" %(gene_name,row[iprev_names],row[isynonyms]))
       synonym_list = row[isynonyms].split('|')
@@ -545,6 +564,7 @@ def get_tissue(cell_line):
     # if tissue == "PLEURA": tissue = "LUNG"
     return tissue
     
+
     
 def get_ensembl_name_from_solname(solname):
     n = (solname).split("_")
@@ -691,17 +711,52 @@ def get_ensembl_name_from_ATARmap(solname,gene_ensembl_names_dict):
 
 
 
+
 gene_entrez_dict = dict()
 new_simple_names_dict = dict() # Dictionary to map the solnames to gene_symbol+ variant number +entrezid
-def get_newname_from_simple_ATARmap(solname): # ,gene_ensembl_names_dict
+def get_newname_simple(solname, useHGNCentrezid=False): # ,gene_ensembl_names_dict
     # Created in Aug 2016, to just return gene_symbol+variant_num+_+entrez_id, as the ensembl ids will be retrieved in load_data.py now
-    
-    if solname not in ATARmap:
-      print("**ERROR: solname '%s' not found in ATARmap" %(solname))
-    row = ATARmap[solname]
 
-    solname_symbol, solname_num, solname_barcode = solname.split('_')
+    if solname in new_simple_names_dict: return new_simple_names_dict[solname]
+
+    if solname == 'APOBEC3A_B_1_0111': 
+      solname_symbol, char, solname_num, solname_barcode = solname.split('_')
+      solname_symbol = solname_symbol+char
+      print("*** WARNING: Converted %s to %s" %(solname,solname_symbol))
+    elif len(solname.split('_')) == 3:
+      solname_symbol, solname_num, solname_barcode = solname.split('_')
+    else: 
+      print("*** ERROR: Expected three parts to solname: '%s'" %(solname))      
+
+    entrez_id = ''
+    if useHGNCentrezid:
+      if solname_symbol in hgnc:
+        entrez_id = hgnc[solname_symbol][ientrez_id]
+      elif solname_symbol in synonyms_to_hgnc:
+        solname_symbol = synonyms_to_hgnc[solname_symbol]
+        if ';' in solname_symbol:
+          print("**Solname %s has more than one solname_symbol in synonyms_to_hgnc, so just using the first one: %s" %(solname,solname_symbol))
+          solname_symbol = solname_symbol.split(';')[0]   # Just take the first solname_symbol
+        entrez_id = hgnc[solname_symbol][ientrez_id]
+      
+      elif ';' in entrez_id:
+        print("**Solname %s has more than one entrez id, so just using the first one: %s" %(solname,entrez_id))
+        entrez_id = entrez_id.split(';')[0]  # Just take the first ensembl_id
+       
+    elif solname in ATARmap:
+      row = ATARmap[solname] # Is correctly the full solname, not just solname_symbol
+      entrez_id = row[jsol_entrez]
     
+    else:
+      print("**ERROR: 'useHGNCentrezid' is False AND solname '%s' not found in ATARmap" %(solname))
+
+
+    if entrez_id == '':
+      entrez_id = 'NoEntrezId'
+#      elif row[img_ensembl_id] !='' and ensembl_id != row[img_ensembl_id] and ensembl_id not in row[img_ensembl_id].split(';'):
+#      print("**Solname %s HGNC ensembl id %s, is not in MG %s" %(solname,ensembl_id,row[img_ensembl_id]) )    
+
+
 #    gene_symbol = row[img_symbol]
 #    if gene_symbol == '': # As wasn't found in HGNC
 #        gene_symbol = solname_symbol
@@ -724,7 +779,7 @@ def get_newname_from_simple_ATARmap(solname): # ,gene_ensembl_names_dict
 #      ensembl_id = ensembl_id.split(';')[0]  # Just take the first ensmbl_id
 #    if ensembl_id == '':
 #    ensembl_id = 'NoEnsemblIdFound'
-    entrez_id = row[jsol_entrez]   
+
         
     solname_num = int(solname_num)
     while True:
@@ -814,13 +869,13 @@ def read_cellines_from_R_analysis_file(infile,colname):
 
 
 
-def write_simple_achilles_for_R_with_genename_entrezid(input_achilles_file_transposed, output_file1, output_file2):
+def write_simple_achilles_for_R_with_genename_entrezid(input_achilles_file_transposed, achilles_output_file1, tissue_output_file):
     cell_lines = []
     tissue_counts = dict()
     print("Reading Achilles file:",input_achilles_file_transposed)
     with open(input_achilles_file_transposed, "r") as fin:
-      with open(output_file1, "w") as fout:
-        print("Writing file for R:",output_file1)
+      with open(achilles_output_file1, "w") as fout:
+        print("Writing file for R:",achilles_output_file1)
         
         fout.write("cell.line")
 
@@ -828,7 +883,7 @@ def write_simple_achilles_for_R_with_genename_entrezid(input_achilles_file_trans
         if solnames_header[0] != '' or solnames_header[1] != 'A2ML1_1_01110': print("*** ERROR: In first line expected blank then 'A2ML1_1_01110', etc, but read: '%s' '%s'" %(solnames_header[0], solnames_header[1]))        
         # Write the gene_names with the extra target_variant integer to keep the names unique:
         for solname in solnames_header[1:]: # Skip the first blank one
-          fout.write("\t"+get_newname_from_simple_ATARmap(solname))
+          fout.write("\t"+get_newname_simple(solname, False)) # False so will use the ATARmap to get the entrez_id for this solname
         fout.write("\n")
         
         desc_header = fin.readline().rstrip().split("\t")
@@ -843,14 +898,14 @@ def write_simple_achilles_for_R_with_genename_entrezid(input_achilles_file_trans
           tissue = get_tissue(cell_line) # eg: A1207_CENTRAL_NERVOUS_SYSTEM
           tissue_counts[tissue] = tissue_counts.get(tissue, 0) + 1
 
-    write_cellline_tissues_file(output_file2,cell_lines,tissue_counts)
+    write_cellline_tissues_file(tissue_output_file,cell_lines,tissue_counts)
 
 
 
-def write_cellline_tissues_file(output_file2,cell_lines,tissue_types):
-  print("Writing tissues file for R:",output_file2)
+def write_cellline_tissues_file(tissue_output_file,cell_lines,tissue_types):
+  print("Writing tissues file for R:",tissue_output_file)
   tissue_column = dict()
-  with open(output_file2, "w") as fout:
+  with open(tissue_output_file, "w") as fout:
     fout.write("cell.line")
     column = 0
     for tissue in sorted(tissue_types):
@@ -868,39 +923,32 @@ def write_cellline_tissues_file(output_file2,cell_lines,tissue_types):
 
 
 
-def build_simple_ATARmap():
-  load_shRNAmap()
-  load_ATARmap()
-
-   
-
-build_simple_ATARmap(output_file5);
-
-#sys.exit()  # To build and write the ATARmap file.
-#read_simple_ATARmap_from_file(output_file5)  # To read the previously built ATARmap file.
-
-write_simple_achilles_for_R_with_genename_entrezid(achilles_file_transposed, output_file1, output_file2)
-write_simple_solname_to_entrez_map_file(output_file5, new_names_dict=new_simple_names_dict)
-sys.exit()
-
-#build_ATARmap(); sys.exit()  # To build and write the ATARmap file.
-read_ATARmap_from_file()  # To read the previously built ATARmap file.
-# sys.exit
+  
 
 
-# ========================================================================================
-# Old code pre-August 2016
-print("Reading Achilles file:",achilles_file)
-print("No longer removing the 'NCI' prefix from cell-lines, eg. 'NCIH1299_LUNG'")
-list_of_lists = []
-with open(achilles_file, "r") as f:
-    version = f.readline().rstrip() # remove trailing whitespace (newline) character, but will remove tabs at end - ie. any empty fields at end of line
-    if version != '#1.2': print("*** ERROR: expected #1.2 at start of input file: ", version)  # will be '#1.2'
-    num_rows,num_cols = f.readline().rstrip().split("\t")
-    num_rows = int(num_rows)
-    num_cols = int(num_cols)
-    print("Version: %s Rows: %d Cols: %d" %(version,num_rows,num_cols))
-    header = f.readline().rstrip().split("\t")
+def transform_achilles_file(achilles_input_file,achilles_output_file,tissue_output_file, getEnsemblName):
+  print("Reading Achilles file:",achilles_input_file)
+  print("No longer removing the 'NCI' prefix from cell-lines, eg. 'NCIH1299_LUNG'")
+  list_of_lists = []
+  num_rows = None
+  num_cols = None
+  
+  with open(achilles_input_file, "r") as f:
+
+    # The v2 data starts with version, num rows and num cols, but the v3 doesn't
+    header = f.readline().rstrip() # remove trailing whitespace (newline) character, but will remove tabs at end - ie. any empty fields at end of line
+    if header == '#1.2':
+      version = header
+      print("Found version #1.2 at start of input file: ", version)  # will be '#1.2'
+      num_rows,num_cols = f.readline().rstrip().split("\t")
+      num_rows = int(num_rows)
+      num_cols = int(num_cols)    
+      print("Version: %s Rows: %d Cols: %d" %(version,num_rows,num_cols))
+      header = f.readline().rstrip()
+    elif header[:4] != "Name":
+      print("*** ERROR: expected version #1.2 OR 'Name...' at start of input file, but found: ", header)
+      
+    header = header.split("\t")
     if header[0] != 'Name' or header[1] != 'Description': print("*** ERROR: expected Name and Description, but read: '%s' '%s'" %(header[0], header[1]))
     
     # 23-Aug-2016: No longer removing the NCI prefix, as the latest preprocess_genotype_data/rnai_datasets/Intercell_v18_rc4_kinome_cancergd.txt [coltv2_zgarp_cancergd_reformatted.txt only contains breast, no NCI prefixed cell-lines]
@@ -910,7 +958,6 @@ with open(achilles_file, "r") as f:
     #        header[i] = header[i][3:]  # eg: "NCIH1299_LUNG" => "H1299_LUNG"
     # The Achilles cell lines with NCI prefix are: NCIH1299_LUNG, NCIH1437_LUNG, NCIH1650_LUNG, NCIH1792_LUNG, NCIH196_LUNG, NCIH1975_LUNG, NCIH2052_PLEURA, NCIH2122_LUNG, NCIH2171_LUNG, NCIH23_LUNG, NCIH2452_PLEURA, NCIH441_LUNG, NCIH508_LARGE_INTESTINE, NCIH660_PROSTATE, NCIH661_LUNG, NCIH716_LARGE_INTESTINE, NCIH838_LUNG, NCIN87_STOMACH
 
-
     list_of_lists.append(header)
     for line in f:
         inner_list = [elt.rstrip() for elt in line.split("\t")]
@@ -918,59 +965,114 @@ with open(achilles_file, "r") as f:
         # inner_list = [int(elt.strip()) for elt in line.split("\t")] 
         list_of_lists.append(inner_list)
 
-# Using this zip would be faster:
-# list_of_lists = zip(*list_of_lists) # transpose rows and columns.
-if len(list_of_lists) != num_rows+1: print("**ERROR: len(list_of_lists)=%s != num_rows=%d" %(len(list_of_lists),num_rows+1))
-if len(list_of_lists[0]) != num_cols+2:  print("**ERROR: len(list_of_lists)=%s != num_cols+2=%d" %(len(list_of_lists[0]),num_cols+2))
+  # Using this zip would be faster:
+  # list_of_lists = zip(*list_of_lists) # transpose rows and columns.
+  if num_rows is not None and len(list_of_lists) != num_rows+1: print("**ERROR: len(list_of_lists)=%s != num_rows=%d" %(len(list_of_lists),num_rows+1))
+  if num_cols is not None and len(list_of_lists[0]) != num_cols+2:  print("**ERROR: len(list_of_lists)=%s != num_cols+2=%d" %(len(list_of_lists[0]),num_cols+2))
 
 
-
-print("Writing transformed files")
-gene_ensembl_names = dict()
-new_names_dict = dict()
-cell_lines = []
-tissue_types = dict()   # Tissue types eg: "HAEMATOPOIETIC AND LYMPHOID TISSUE" from "697_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"
-# Write transposed file:
-with open(output_file1, "w") as fout:
+  print("Writing transformed Achilles file: ", achilles_output_file)
+  gene_ensembl_names = dict()
+  new_names_dict = dict()
+  cell_lines = []
+  tissue_types = dict()   # Tissue types eg: "HAEMATOPOIETIC AND LYMPHOID TISSUE" from "697_HAEMATOPOIETIC_AND_LYMPHOID_TISSUE"
+  # Write transposed file:
+  with open(achilles_output_file, "w") as fout:
     fout.write("cell.line")
     # Take leftmost column (col=0):
-    for row in range(1,num_rows):
+    for row in range(1,len(list_of_lists)):  # same as: range(1,num_rows+1) for achilles 2 file.
+      if getEnsemblName: # Just for the earlier version 2 files:
         # fout.write("\t%s" %(get_ensembl_name_from_solname(list_of_lists[row][0])))  # Not using a variant suffix number at present.
         gene_ensembl_name = get_ensembl_name_from_ATARmap(list_of_lists[row][0], gene_ensembl_names)
-        if list_of_lists[row][0] in new_names_dict:
-          if new_names_dict[list_of_lists[row][0]] != gene_ensembl_name: print("ERROR Name '%s' for %s already in new_names dict, and is different")
-        else:   
-          new_names_dict[list_of_lists[row][0]] = gene_ensembl_name # To write names to file.
-
         if gene_ensembl_name in gene_ensembl_names: print("******* Duplicate gene_ensembl_name '%s' already exists" %(gene_ensembl_name))
         else: gene_ensembl_names[gene_ensembl_name] = True
-        fout.write("\t%s" %(gene_ensembl_name))  # Not using a variant suffix number at present.        
+
+      else: # Use Entrez id (just call it gene_ensembl_name for now):
+        gene_ensembl_name = get_newname_simple(list_of_lists[row][0], True)  # True so will use the HGNC to get the entrez_id for this solname
+                      
+      if list_of_lists[row][0] in new_names_dict:
+        if new_names_dict[list_of_lists[row][0]] != gene_ensembl_name: print("ERROR Name '%s' for %s already in new_names dict, and is different")
+      else:   
+        new_names_dict[list_of_lists[row][0]] = gene_ensembl_name # To write names to file.
+
+      fout.write("\t%s" %(gene_ensembl_name))  # Not using a variant suffix number at present.
+      
     fout.write("\n")
 
     # Skip column 2 (col=1)
 
-    for col in range(2,num_cols):  # ie. skip the original left-most two columns
+    for col in range(2,len(list_of_lists[0])): # same as range(2, num_cols+2):  # ie. skip the original left-most two columns
         cell_line = list_of_lists[0][col]
         cell_lines.append(cell_line)
         tissue = get_tissue(cell_line) # eg: A1207_CENTRAL_NERVOUS_SYSTEM
         tissue_types[tissue] = tissue_types.get(tissue, 0) + 1
         
         fout.write(list_of_lists[0][col])
-        for row in range(1,num_rows):
+        for row in range(1,len(list_of_lists)):  # range(1,num_rows+1):
             fout.write("\t%s" %(list_of_lists[row][col])) # ie. the original left-most column of names
         fout.write("\n")
 
-print("\n\nNumbers of each tissue type:")
-for key in sorted(tissue_types):
+  print("\n\nNumbers of each tissue type:")
+  for key in sorted(tissue_types):
     print("%s: %d" %(key,tissue_types[key]))
 
+  write_cellline_tissues_file(tissue_output_file,cell_lines,tissue_types)
 
-write_cellline_tissues_file(output_file2,cell_lines,tissue_types)
 
 
+
+def build_simple_ATARmap():
+  load_shRNAmap()
+  load_ATARmap()
+
+   
+
+
+
+def process_achilles2():
+  if achilles_version != "v2.4.3":
+    print("Expected Achilles input version 3, but: %s" %(achilles_version))
+    return
+
+  build_simple_ATARmap(output_file5);
+
+  #sys.exit()  # To build and write the ATARmap file.
+  #read_simple_ATARmap_from_file(output_file5)  # To read the previously built ATARmap file.
+
+  write_simple_achilles_for_R_with_genename_entrezid(achilles_file_transposed, achilles_output_file1, tissue_output_file)
+  write_simple_solname_to_entrez_map_file(output_file5, new_names_dict=new_simple_names_dict)
+
+
+
+
+def process_achilles3():
+  if achilles_version != "v3.3.8":
+    print("Expected Achilles input version 3, but: %s" %(achilles_version))
+    return
+    
+  load_hgnc_dictionary()        
+  transform_achilles_file(achilles_file, achilles_output_file1, tissue_output_file, False)
+
+
+#build_ATARmap(); sys.exit()  # To build and write the ATARmap file.
+
+# read_ATARmap_from_file()  # To read the previously built ATARmap file.
+
+# process_achilles2()
+process_achilles3()
+
+
+sys.exit()
+
+
+# ========================================================================================
+# Old code pre-August 2016
+
+transform_achilles_file(achilles_file, achilles_output_file1, tissue_output_file)
 
 # Write the new names to file for use later:
 write_solname_to_entrez_map_file(output_file4_newnames,new_names_dict)
+
 
 
 def diff_dictionaries(dict1,dict2,name1,name2):

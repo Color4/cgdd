@@ -13,8 +13,9 @@
 # --------------------------------------------------- #
 
 # data_set <- "Campbell"  # Campbell et al (2016) - Kinase Dependencies in Cancer Cell Lines.
-data_set <- "Achilles"  # Cowley et al   (2014) - Loss of function screens in 216 cancer cell lines.
+# data_set <- "Achilles"  # Cowley et al   (2014) - Loss of function screens in 216 cancer cell lines.
 # data_set <- "Colt"      # Marcotte et al (2016) - Breast cancer cell lines.
+data_set <- "Achilles_CRISPR" # New Achilles CRISPR-Cas9 data
 
 # ----------------------------------------------------------- #
 # Set output path on your computer                            #
@@ -45,7 +46,7 @@ if (data_set == "Campbell") {
   pubmed_id <- "26947069" # Campbell(2016)  
   kinome_file <- "../preprocess_genotype_data/rnai_datasets/Intercell_v18_rc4_kinome_cancergd.txt"
 
-  **** FIX THIS TISSUES FILE PATH *****
+  # **** FIX THIS TISSUES FILE PATH *****
   tissues_file <- "../data_sets/siRNA_Zscores/Intercell_v18_rc4_tissues_zp0_for_publication.txt"
   
   uv_results_kinome_combmuts_file <- "univariate_results_Campbell_v26_for23drivers_pancan_kinome_combmuts_witheffectsize_and_zdiff.txt"
@@ -64,18 +65,28 @@ if (data_set == "Campbell") {
   pubmed_id <- "26771497" # Marcotte(2016) for Colt study
   kinome_file <- "../../preprocess_genotype_data/rnai_datasets/coltv2_zgarp_cancergd_reformatted.txt"
   
-  **** FIX THIS TISSUES FILE PATH *****
+  # **** FIX THIS TISSUES FILE PATH *****
   tissues_file <- "../data_sets/colt_study_breast/zGARP_tissues.txt"   # All Colt data are breast tissues.
 
   # In Colt study only breast tissue - so only by-tissue anaylsis, no Pan-cancer:
   uv_results_kinome_combmuts_file <- "NONE"
   uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Colt_v2_bytissue_kinome_combmuts_witheffectsize_and_zdiff.txt"
-  }
+  
+} else if (data_set == "Achilles_CRISPR") {
+  print("Running Achilles_CRISPR ...")
+  pubmed_id <- "27260156" # Achilles CRISPR(2016)  
+  kinome_file <- "../preprocess_genotype_data/rnai_datasets/Achilles_v3.3.8_cancergd_with_entrezids.txt"
+
+  tissues_file <- "../preprocess_genotype_data/rnai_datasets/Achilles_v3.3.8_tissues.txt"
+  
+  uv_results_kinome_combmuts_file <- "univariate_results_Achilles_CRISPR_for36drivers_pancan_kinome_combmuts_witheffectsize_and_zdiff.txt"
+  uv_results_kinome_combmuts_bytissue_file <- "univariate_results_Achilles_CRISPR_for36drivers_bytissue_kinome_combmuts_witheffectsize_and_zdiff.txt"  
+  
 } else {
   stop(paste("ERROR: Invalid data_set: '",data_set,"' but should be 'Campbell', 'Achilles' or 'Colt'"))
 }
 
-print("Variables set to:\ndata_set:",data_set,"\nkinome_file:",kinome_file,"\ntissues_file:",tissues_file,"\n")
+print(paste("Variables set to:\ndata_set:",data_set,"\nkinome_file:",kinome_file,"\ntissues_file:",tissues_file,"\n"))
 
 
 # ------------------------------ #
@@ -84,9 +95,8 @@ print("Variables set to:\ndata_set:",data_set,"\nkinome_file:",kinome_file,"\nti
 
 # ******* Always need to set the 'data_set' value before sourcing the Intercell_functions, as it is used to set the tissue lists and plot colours.
 
-source_script <- "../R_scripts/Intercell_analysis_functions.R";
-
-# source_file_info <- file.info(source_script); source(source_script); # returns: size, isdir, mode, mtime, ctime, atime = integer of class "POSIXct": modification, ‘last status change’ and last access times. So compare 'mtime' with previous mtime. Better to get info before reading the file, as might change between.
+source_script <- "../R_scripts/Intercell_analysis_functions.R";    # source_file_info <- file.info(source_script); 
+source(source_script); # returns: size, isdir, mode, mtime, ctime, atime = integer of class "POSIXct": modification, ‘last status change’ and last access times. So compare 'mtime' with previous mtime. Better to get info before reading the file, as might change between.
 
 
 # ---------------- #
@@ -159,11 +169,10 @@ uv_results_kinome_combmuts_bytissue <- read.table(
 # ----------------------------------------- #
 
 if (data_set != "Colt") {
-	# Plot all combmuts results coloured by tissue
+	# Add the combmuts boxplot data, which will be coloured by tissue
 	# select associations where wilcox.p <= 0.05 and CLES > =0.65
-	# source("../R_scripts/Intercell_analysis_functions.R")
+
 	fileConn<-file(open="w", paste0( sub("\\.txt$","",uv_results_kinome_combmuts_file), "_and_boxplotdata_mutantstate.txt") ) # Need "\\." to correctly escape the dot in regexp in R
-	#debug(write_box_dot_plot_data)
 	write_box_dot_plot_data(
 		results=as.data.frame(
 			uv_results_kinome_combmuts[which(
@@ -184,9 +193,9 @@ if (data_set != "Colt") {
 }
 
 	
-# Plot combmuts results for separate histotypes
+# Write the combmuts boxplot data for separate histotypes
 # select associations where wilcox.p <= 0.05 and CLES > =0.65
-# source("../R_scripts/Intercell_analysis_functions.R")
+
 fileConn<-file(open="w", 
 paste0( sub("\\.txt$","",uv_results_kinome_combmuts_bytissue_file), "_and_boxplotdata_mutantstate.txt") ) # Output file. Needs "w" otherwise cat(...) overwrites previous cat()'s rather than appending. To open and append to existing file use "a"
 tissues <- levels(as.factor(uv_results_kinome_combmuts_bytissue$tissue))
@@ -228,7 +237,7 @@ close(fileConn) # caller should close the fileConn
 
 # Plot all combmuts results coloured by tissue
 # select associations where wilcox.p <= 0.05 and CLES > =0.65
-#source("../scripts/Intercell_analysis_functions.R")
+#source(source_script)
 #debug(make_mini_box_dot_plots)
 #make_mini_box_dot_plots(
 #	results=as.data.frame(

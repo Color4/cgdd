@@ -338,13 +338,14 @@ def load_hgnc_dictionary(hgnc_infile):
 
       
 # Dictionary used by function 'fix_gene_name(name)' to update some gene names, eg: 'C9orf96' to 'STKLD1', or changing '.' to '-'
+# Also 'MLK4' has entrez id: 84451
 namefixes = {
- 'C9orf96':      'STKLD1', # as C9orf96 is the old name.
+ 'ARL2.SNX15':   'ARL2-SNX15',
  'C8orf44.SGK3': 'C8orf44-SGK3',
+ 'C9orf96':      'STKLD1', # as C9orf96 is the old name.
  'CTB.89H12.4':  'CTB-89H12.4',
- 'RP11.78H18.2': 'RP11-78H18.2',
- 'NME1.NME2':    'NME1-NME2',
- 'RP4.592A1.2':  'RP4-592A1.2',
+ 'CYP1B1.AS1':   'CYP1B1-AS1',
+ 'ERVFRD.1':     'ERVFRD-1',
  'FPGT.TNNI3K':  'FPGT-TNNI3K',
  'HLA.DQA1':     'HLA-DQA1',
  'HLA.DPA1':     'HLA-DPA1',
@@ -355,16 +356,20 @@ namefixes = {
  'HLA.G':        'HLA-G',
  'HLA.H':        'HLA-H',
  'HLA.J':        'HLA-J',
- 'ARL2.SNX15':   'ARL2-SNX15',
- 'ERVFRD.1':     'ERVFRD-1',
- 'TRIM6.TRIM34': 'TRIM6-TRIM34',
- 'CYP1B1.AS1':   'CYP1B1-AS1',
- 'SLX1B.SULT1A4':'SLX1B-SULT1A4',
- 'LRRC75A.AS1':  'LRRC75A-AS1',
- 'NDUFC2.KCTD14':'NDUFC2-KCTD14',
+ 'ILK2':         'ILK', # entrez: 6040
  'KRTAP10.5':    'KRTAP10.5',
- 'SRP14.AS1':    'SRP14-AS1',
  'LOC100499484.C9ORF174': 'LOC100499484-C9ORF174'
+ 'LRRC75A.AS1':  'LRRC75A-AS1',
+ 'MLTK':         'ZAK', # entrez: 51776
+ 'NDUFC2.KCTD14':'NDUFC2-KCTD14',
+ 'NME1.NME2':    'NME1-NME2',
+ 'RP4-592A1.2':  'AK2P1', # entrez: 24037
+ 'RP4.592A1.2':  'AK2P1', # entrez: 24037  'RP4-592A1.2',
+ 'RP11.78H18.2': 'LOC645266', # entrez: 645266 # 'RP11-78H18.2',
+ 'RP11-78H18.2': 'LOC645266', # entrez: 645266
+ 'SLX1B.SULT1A4':'SLX1B-SULT1A4',
+ 'SRP14.AS1':    'SRP14-AS1',
+ 'TRIM6.TRIM34': 'TRIM6-TRIM34',
 }
       
 def fix_gene_name(name):
@@ -478,6 +483,13 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
 # Remove this line later:         
   if original_gene_name=='BFP': print("1. BFP=>%s" %(gene_name))
   
+  if original_gene_name=='DUX4' and entrez_id=='22947.100288687': # To fix the DUX4 entrez id to be just one number instead of 22947.100288687      
+    warn("Updated %s to be just the first entrez_id of %s" %(original_gene_name,entrez_id))
+    entrez_id='22947'
+  elif gene_name=='MLK4':
+    entrez_id='84451' # As this MLK4 symbol isn't in HGNC at present.
+    
+  
   # Check that gene name_matches the current regexp in the gendep/urls.py file:
   assert RE_GENE_NAME.match(gene_name), "gene_name %s doesn't match regexp"%(gene_name)
 
@@ -588,7 +600,10 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       if ';' in ensembl_id: ensembl_id = ensembl_id[:ensembl_id.index(';')]   # As now a list of ensembl ids separated by semicolons so just take the first one in the list.
       # hprd_id    = this_entrez[ie_hprd]  # But HPRD seems not to be updated recently
       # maploc   = this_entrez[ie_maploc]
+      
+      # But should look up if actually has cosmid id ?
       cosmic_id  = this_entrez[ie_gene_name]       # eg: ERBB2
+      
       omim_id    = this_entrez[ie_omim]         # eg: 164870
       if ';' in omim_id: omim_id = omim_id[:omim_id.index(';')]   # As now a list of omim ids separated by semicolons so just take the first one in the list.                        
       uniprot_id = this_entrez[ie_uniprot]      # eg: P04626
@@ -602,7 +617,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       
       if gene_name != this_entrez[ie_gene_name]: info("gene_name '%s' != this_entrez '%s'" %(gene_name,this_entrez[ie_gene_name]))
 
-*** fix the DUX4 entrez id to be just one number instead of 22947.100288687      
+
       #   = this_entrez[ie_status]
       #   = this_entrez[ie_current_entrez]
       #   = this_entrez[ie_current_locus]
@@ -754,7 +769,8 @@ def add_counts_of_study_tissue_and_target_to_drivers():
       error("driver gene_name % NOT found in the Gene table: '%s'" %(row['driver']))
   print("Finished adding study, tissue and target counts to the drivers in the dependency table")
 
-def add_counts_of_driver_tissue_and_target_to_studies(campbell_study, campbell_num_targets,  achilles_study, achilles_num_targets,  colt_study, colt_num_targets):
+
+def add_counts_of_driver_tissue_and_target_to_studies(campbell_study, campbell_num_targets,  achilles_study, achilles_num_targets,  colt_study, colt_num_targets, achilles_CRISPR_study, achilles_CRISPR_num_targets):
   print("Adding driver, tissue and target counts to studies")
   # select study, count(distinct driver), count(distinct histotype), count(distinct target) from gendep_dependency group by study;
   counts = Dependency.objects.values('study').annotate( num_drivers=Count('driver', distinct=True), num_histotypes=Count('histotype', distinct=True), num_targets=Count('target', distinct=True) )
@@ -778,6 +794,10 @@ def add_counts_of_driver_tissue_and_target_to_studies(campbell_study, campbell_n
         elif s == colt_study:
            s.num_targets = colt_num_targets
            print("But setting num_targets=%d (instead of %d) for Colt study (pmid=%s) as that is actual number tested in the study" %(colt_num_targets,row['num_targets'],colt_study.pmid))
+        elif s == achilles_CRISPR_study:
+           s.num_targets = achilles_CRISPR_num_targets
+           print("But setting num_targets=%d (instead of %d) for Achilles_CRISPR study (pmid=%s) as that is actual number tested in the study" %(achilles_CRISPR_num_targets,row['num_targets'],achilles_CRISPR_study.pmid))
+           
         else:
            warn("Unknown pmid: %s" %(s.pmid))
            s.num_targets = row['num_targets']
@@ -1152,7 +1172,7 @@ def add_the_three_studies():
     Campbell_study=find_or_add_study( Campbell_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date)
 
     # ============================================================================================
-    # Project Achilles: # https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
+    # Project Achilles:  https://www.broadinstitute.org/achilles  and http://www.nature.com/articles/sdata201435
     Achilles_study_pmid     = "25984343"
     study_code = "A" # 'A' for Achilles
     study_short_name = "Cowley(2014)"
@@ -1184,7 +1204,26 @@ def add_the_three_studies():
 
     Colt_study=find_or_add_study( Colt_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
     
-    return Campbell_study,Achilles_study,Colt_study,  Campbell_study_num_targets,  Achilles_study_num_targets, Colt_study_num_targets
+    # ==================================================================================================
+    # Achilles CRISPR-Cas9:  https://www.broadinstitute.org/achilles   https://www.ncbi.nlm.nih.gov/pubmed/27260156
+       
+
+    Achilles_CRISPR_study_pmid = "27260156"
+    study_code = "D" 
+    study_short_name = "Aguirre(2016)"
+    study_title = "Genomic Copy Number Dictates ...."
+    study_authors = "Aguirre...."
+    study_abstract = "....."
+    study_summary = "...."
+    study_experiment_type = "CRISPR-Cas9"
+    study_journal = "Cancer Discovery"
+    study_pub_date = "2016, 6 Aug"
+    Achilles_CRISPR_study_num_targets = 00000 
+    # The actual number of targets tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirement.
+
+    Achilles_CRISPR_study = find_or_add_study( Achilles_CRISPR_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    
+    return Campbell_study,Achilles_study,Colt_study,Achilles_CRISPR_study,  Campbell_study_num_targets,  Achilles_study_num_targets, Colt_study_num_targets, Achilles_CRISPR_study_num_targets,
     
 
 if __name__ == "__main__":
@@ -1213,10 +1252,11 @@ if __name__ == "__main__":
     # print("*** NOT deleting Dependency rows for now, as no change in Studies or Genes ****")
     
 
-    Campbell_study, Achilles_study, Colt_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets = add_the_three_studies()
+    Campbell_study, Achilles_study, Colt_study, Achilles_CRISPR_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets,Achilles_CRISPR_study_num_targets = add_the_three_studies()
     
     analysis_dir = "198_boxplots_for_Colm/analyses"
-    
+    postprocess_dir = "postprocessing_R_results"
+        
     # analysis_dir = "postprocessing_R_results" # After Aug 2016
 
     # *** NOTE, warnings from R:
@@ -1225,6 +1265,7 @@ if __name__ == "__main__":
     # 44: In wilcox.test.default(zscores[grpA, j], zscores[grpB,  ... :
     # cannot compute exact p-value with ties
     
+    # ========================================================    
     Achilles_results_pancan =  "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_26Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     # "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
@@ -1236,8 +1277,31 @@ if __name__ == "__main__":
     csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
 
-
     # ========================================================
+    # Achilles CRISPR-Cas9 results:
+    Achilles_CRISPR_results_pancan = "univariate_results_Achilles_CRISPR_for36drivers_pancan_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt" 
+    # Achilles_CRISPR_results_pancan = "univariate_results_Achilles_CRISPR_v1_for36drivers_pancan_kinome_combmuts_3Sep2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+
+    ##### *** NOTE: Using postprocess_dir rather than analysis_dir now:
+    csv_filepathname=os.path.join(postprocess_dir, Achilles_CRISPR_results_pancan)
+    read_achilles_R_results(csv_filepathname, Achilles_CRISPR_study, tissue_type='PANCAN', isAchilles=True, isColt=False)  # *** BUT maybe should add isCRISPR = True instead!    
+
+    warn("******* Not reading Achilles CRISPR-Cas9 results for ByTissues as no results")
+#    Achilles_CRISPR_results_bytissue = "univariate_results_Achilles_CRISPR_for36drivers_bytissue_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+#    Achilles_CRISPR_results_bytissue = "univariate_results_Achilles_CRISPR_v1_for36drivers_bytissue_kinome_combmuts_3Sep2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    
+#    csv_filepathname=os.path.join(postprocess_dir, Achilles_CRISPR_results_bytissue)
+#    read_achilles_R_results(csv_filepathname, Achilles_CRISPR_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
+
+    # ========================================================    
+    # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
+    Colt_results_bytissue = "univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+        
+    # "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
+    csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
+    read_achilles_R_results(csv_filepathname, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
+    
+    # ========================================================    
     # Reading the Campbell results last as Achilles and Colt may have already loaded the Entrez gene annotations above.    
     Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
 
@@ -1252,8 +1316,6 @@ if __name__ == "__main__":
     read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
     # ========================================================
-
-    
     #** Maybe my browser memory?
     #https://www.ncbi.nlm.nih.gov/pubmed/
     #Bad Request
@@ -1263,12 +1325,6 @@ if __name__ == "__main__":
     #Cookie
     #/n
 
-    # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
-    Colt_results_bytissue = "univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
-        
-    # "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
-    csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
-    read_achilles_R_results(csv_filepathname, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
     
     # I downloaded: https://neellab.github.io/bfg/
     # "updated shRNA annotations: Update to Entrez gene ids and symbols, to account for changed symbols, deprecated Entrez ids and the like. Approximately 300 gene ids from the original TRC II annotations no longer exist, leading to a slightly reduced overall gene id and shRNA count."
@@ -1279,7 +1335,8 @@ if __name__ == "__main__":
     add_counts_of_driver_tissue_and_target_to_studies(    
         campbell_study=Campbell_study, campbell_num_targets=Campbell_study_num_targets,
         achilles_study=Achilles_study, achilles_num_targets=Achilles_study_num_targets,
-        colt_study=Colt_study,         colt_num_targets=Colt_study_num_targets
+        colt_study=Colt_study,         colt_num_targets=Colt_study_num_targets,
+        achilles_CRISPR_study=Achilles_CRISPR_study,  achilles_CRISPR_num_targets=Achilles_CRISPR_study_num_targets
     )
     
     add_tissue_and_study_lists_for_each_driver()

@@ -122,25 +122,25 @@ if (data_set == "Campbell") {
     "OTHER"	  # Added Aug 2016
 	)	
   legend_col=c(
-	"yellow",
-	"deeppink",
-	"darkgrey",
-#	"firebrick4",
-	"purple",
+	"yellow",    # Bone
+	"deeppink",  # Breast
+	"darkgrey",  # Lung
+#	"firebrick4", 
+	"purple",    # Pancreas
 #	"blue",
-	"cadetblue",
-	"green",
-	"orange",
-	"darkgoldenrod4",
-	"darkred",
-    "saddlebrown",
+	"cadetblue", # Ovary
+	"green",     # Oesophagus
+	"orange",    # Endometrium
+	"darkgoldenrod4", # CNS
+	"darkred",   # Blood & Lymph
+    "saddlebrown", # Large Intestine
 	"indianred",
 	"slategray",
   "slategray",  # **** Still to fix this colour for: "Pleura", # Added Aug 2016	
-	"turquoise",
-	"peachpuff",
-	"lightgrey",
-    "black",
+	"turquoise",  # Prostate
+	"peachpuff",  # Skin
+	"lightgrey",  # Soft tissue
+    "black",      # Stomach
     "yellowgreen",
 "slategray" # **** Still to fix colour for: "Other"	  # Added Aug 2016	    
 	)
@@ -155,6 +155,44 @@ if (data_set == "Campbell") {
   legend_col=c(
 	"deeppink"
     )
+
+} else if(data_set == "Achilles_CRISPR") {
+  legend_pretty_tissues = c(
+    "Bone",
+    "Breast",
+    "Blood & Lymph",
+    "Large Intestine",
+    "Lung",
+    "Ovary",
+    "Pancreas",
+    "Prostate",
+    "Skin",
+    "Soft tissue"  
+    )
+  legend_actual_tissues = c(
+    "BONE",
+    "BREAST",
+    "HAEMATOPOIETIC_AND_LYMPHOID_TISSUE",
+    "LARGE_INTESTINE",
+    "LUNG",
+    "OVARY",
+    "PANCREAS",
+    "PROSTATE",
+    "SKIN",
+    "SOFT_TISSUE"
+    )
+  legend_col=c(
+	"yellow",   # Bone
+	"deeppink", # Breast 
+	"darkred",  # Blood & Lymph
+	"saddlebrown", # Large Intestine
+	"darkgrey", # Lung
+    "cadetblue", # Ovary	
+	"purple",   # Pancreas
+	"turquoise", # Prostate
+	"peachpuff",  # Skin
+	"lightgrey"  # Soft tissue
+  )
 	
 } else {
   stop(paste("ERROR: Invalid data_set: '",data_set,"' but should be 'Campbell', 'Achilles' or 'Colt'"))
@@ -799,7 +837,7 @@ make_mini_box_dot_plots <- function(
 			# Draw the absline while xpdf=FALSE (changed to TRUE for legend), otherwise line draw accross whole image, instead of just accross the plots area.
 
 			# Trim the target_variant last character from the gene names for Achilles data:
-			if (data_set == "Achilles") {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
+			if ((data_set == "Achilles") || (data_set == "Achilles_CRISPR")) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 #print("C")
 			# mtext() - write text onto the margins of a plot:
 			# where: side is (1=bottom, 2=left, 3=top, 4=right).
@@ -983,7 +1021,7 @@ if (writeheader){cat(names(results), "boxplot_data\n", file=fileConn, sep="\t")}
 			#par(bty="n", tcl=-0.2, mai=c(0.75, 0.7, 0.1, 1.4)) # <-- for legend at right.  SJB: original was: width=2.5, height=3
 
 			# Trim the target_variant last character from the gene names for Achilles data:
-			if (data_set == "Achilles") {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
+			if ((data_set == "Achilles") || (data_set == "Achilles_CRISPR")) {target_gene = substr(target_gene, 1, nchar(target_gene)-1)}
 #print(sprintf("driver:%s,target:%s",marker_gene,target_gene), quote = FALSE)
 
 			

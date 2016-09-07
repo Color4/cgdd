@@ -138,7 +138,7 @@ class Dependency(models.Model):
       # More added below for Achilles data - may need to add these to the index template
 	  ("PANCREAS", 	                         "Pancreas"),#      "Pa"),
       # ("LIVER",                            "Liver"),#         "Li"), only 1 cell line so not analysed by R
-	  ("PLEURA",                             "PLEURA"),#        "Pl"), PLEURA is in PANCAN dependencies, separate from LUNG.
+	  ("PLEURA",                             "Pleura"),#        "Pl"), PLEURA is in PANCAN dependencies, separate from LUNG.
 	  ("PROSTATE",                           "Prostate"),#      "Pr"),
 	  ("SKIN",                               "Skin"),#          "Sk"),
 	  ("SOFT_TISSUE",                        "Soft tissue"),#   "So"), only 2 celllines so not analysed by R ?
