@@ -410,7 +410,7 @@ def add_ensembl_proteins_to_Gene_table_in_db():
               
               print("")
           else:          
-              count_different_from_existing += set_db_protein(g, ensembl_protein_id)
+              count_different_from_existing += set_db_protein(g, ensembl_protein_id, force_update=True)
               count_found += 1
 
   print("Empty: %d,  Not_found: %d, Driver_count_not_found: %d,  Found: %d, count_different_from_existing: %d" %(count_empty, count_not_found, driver_count_not_found, count_found, count_different_from_existing))
@@ -507,11 +507,12 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           print("\nWarning: %s %s protein_id %s from entrez_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_entrez_id,rows[0][1]))
         if g.ensembl_protein_id is None or g.ensembl_protein_id == '':
           g.ensembl_protein_from_alias_table = True
-          count_different_from_existing += set_db_protein(g, rows[0][1])
+          count_different_from_existing += set_db_protein(g, rows[0][1], force_update=True)
           count_found += 1
           
         elif rows[0][1] != g.ensembl_protein_id: # check if is same as that already added due to the entrez_id
-          print("\nWarning: %s protein_ids differ: was: %s new: %s" %(driver_text,g.ensembl_protein_id,rows[0][1]))
+          print("\nWarning: %s protein_ids differ for '%s' was: %s new: %s" %(driver_text,g.gene_name,g.ensembl_protein_id,rows[0][1]))
+          count_different_from_existing += set_db_protein(g, rows[0][1], force_update=True)
           count_protein_ids_differ += 1
         # else is same so don't need to do anything.
         
@@ -522,7 +523,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           protein_dict[protein] = True
         if len(protein_dict) == 1:
           g.ensembl_protein_from_alias_table = True
-          count_different_from_existing += set_db_protein(g, protein_dict.keys()[0])
+          count_different_from_existing += set_db_protein(g, protein_dict.keys()[0], force_update=True)
                       
         else:
           print("\nFor %s %s several string_proteins: %s" %(driver_text,g.gene_name, protein_dict.keys()))
@@ -530,11 +531,11 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
 
           if protein_id_from_ensembl_protein_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_ensembl_protein_id %s is one of these" %(driver_text,g.gene_name,protein_id_from_ensembl_protein_id ))
-            count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id) # Already would have been done above by: set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
+            count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True) # Already would have been done above by: set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
                   
           elif protein_id_from_entrez_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_entrez %s is one of these" %(driver_text,g.gene_name,protein_id_from_entrez_id))
-            count_different_from_existing += set_db_protein(g, protein_id_from_entrez_id)
+            count_different_from_existing += set_db_protein(g, protein_id_from_entrez_id, force_update=True)
 
           else:
             count_multiple_protein_ids += 1
