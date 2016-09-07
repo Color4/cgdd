@@ -355,7 +355,9 @@ def build_dependency_query(search_by, gene_name, histotype_name, study_pmid, wil
 
 
 def build_rawsql_dependency_query(search_by, gene_name, histotype_name, study_pmid, query_type, order_by='wilcox_p'): # wilcox_p=0.05, select_related=None): 
-    """ Builds raw SQL query, which permits use of AS in SQL, and more efficient. https://docs.djangoproject.com/en/1.10/topics/db/sql/ """
+    """ Builds raw SQL query, which permits use of AS in SQL, and more efficient. https://docs.djangoproject.com/en/1.10/topics/db/sql/ 
+    and overcomes problem that the latest Django 1.10 has with 'selected_related': https://code.djangoproject.com/ticket/24687 
+    and http://eboreimeoikeh.com/zealcreationz.com/django/docs/releases/1.10.txt and http://fossies.org/diffs/Django/1.9.8_vs_1.10/tests/select_related/tests.py-diff.html """
     # As the results are already filtered by R for wilcox_P<=0.05 then don't actually need to filter on this wilcox_p <= 0.05
     
     error_msg = ''
@@ -368,7 +370,7 @@ def build_rawsql_dependency_query(search_by, gene_name, histotype_name, study_pm
         params.append(histotype_name)
 
     if study_pmid != "ALL_STUDIES":
-        filter += " AND D.study = %s"  # Could use: (study = study) but using study_id should be more efficient as no table join needed.
+        filter += " AND D.pmid = %s"  # Could use: (study = study) but using study_id should be more efficient as no table join needed.
         params.append(study_pmid)
 
     select = 'target' if search_by=='driver' else 'driver'
