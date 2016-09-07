@@ -3,7 +3,7 @@
 {% block links_top %}
 
   <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/themes/smoothness/jquery-ui.css" class="ui-theme" />
-  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4fetchin/jquery.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.4/jquery-ui.min.js"></script>
 
   
@@ -407,8 +407,10 @@ if (log_timings) {console.log("Table populated: ",performance.now()-t0); t0 = pe
   $("#result_table").trigger("update"); 
   
 
- var sorting = [[2,1],[0,0]]; // set sorting column and direction, this will sort on the first and third column. 
- $("#result_table").trigger("sorton",[sorting]); 	
+
+// Not sorting for now:
+// var sorting = [[2,1],[0,0]]; // set sorting column and direction, this will sort on the first and third column. 
+// $("#result_table").trigger("sorton",[sorting]); 		
 	
             // OR: $("#result_table").trigger("updateRows", [ false, triggercallback ]); // let the plugin know that we made a update, updates the updates the cache from the tbody.  Can use "updateRows" instead. ("updateRows was added to work around the issue of using jQuery with the Prototype library. Triggering an "update" would make Prototype clear the tbody")
 	// or: .trigger( 'addRows', [ $row, resort, callback ] );
