@@ -103,9 +103,9 @@ http://{{current_url}}{% url 'gendep:get_boxplot' dataformat='csv' driver_name='
 
 
 <a name="downloaddb"><h2>How can I download the whole CancerGD database to interrogate locally?</h2></a>
-<p>The full CancerGD database can be downloaded as an <a href="...." download>***FIX-LINK*** Sqlite3 database</a> or a <a href="" >Comma-separate values (CSV) file</a>. These are gzip compressed file need to be uncompressed using either command-line, eg: gunzip db.sqlite3 or on Windows could use a program such as <a href="http://www.7-zip.org/">7-Zip</a>
+<p>The full CancerGD database can be downloaded as an <a href="src="{% static 'gendep/db_sqlite.zip' %}" download>Sqlite3 database</a> or a <a href="src="{% static 'gendep/all_dependencies.csv' %}" download>Comma-separate values (CSV) file</a>. These are zip compressed file need to be uncompressed using either command-line, eg: unzip db_sqlite.zip or on Windows could use a program such as <a href="http://www.7-zip.org/">7-Zip</a>.
 
-<p>To interrogate the SQLite database you can use a program such as the free <a href="http://sqlitebrowser.org/">SQLite Browser</a>, as follows:</p>
+<p>To query the SQLite database you can use a program such as the free <a href="http://sqlitebrowser.org/">SQLite Browser</a>, as follows:</p>
 
 <p>On the "Browse Data" tab, can select the "gendep_dependency" table and set filters in the cells below the column names. Can also the use '%' symbol to match to text within a string column eg: in the 'boxplot_data' column use %LUNG% to match any rows containing LUNG in that column.</p>
 
@@ -119,6 +119,5 @@ http://{{current_url}}{% url 'gendep:get_boxplot' dataformat='csv' driver_name='
 </pre>
 
 <p>If you make changes to the data, then you need to either cancel ("Revert Changes" button) or save ("Write Changes" button) at top left to Cancel or Save your changes</p>
-
 	
 {% endblock %}
