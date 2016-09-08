@@ -326,7 +326,7 @@ function show_stringdb(display_callback_function) {
 	show_message("string_image", "Fetching String-DB...", 12000); // show this message for 12 seconds as can be slow for images with many proteins, and message will be hidden by image when image loads.
 
 	var protein_list_and_count = get_id_list_for_depenedencies(';', 'protein');
-	console.log("protein_list_and_count",protein_list_and_count);	
+	console.log("protein_list_and_count",protein_list_and_count);
     var protein_list = protein_list_and_count[0];
     var protein_count = protein_list_and_count[1];
 	

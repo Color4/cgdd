@@ -459,28 +459,57 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
       driver_text = '*DRIVER*' if g.is_driver else ''
       protein_id_from_entrez_id = ''
       protein_id_from_ensembl_protein_id = ''
-          
+      protein_id_from_ensembl_gene_id = ''
+      ensembl_id_added = False
+      
+      # First use the existing g.ensembl_protein_id to search string-db:
+      # Source column: Ensembl ensembl.org
       if g.ensembl_protein_id is not None and g.ensembl_protein_id != '':
         rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.ensembl_protein_id,)).fetchall()
         # columns are: alias, string_protein, source
         if len(rows) == 0:
-          print("\nEnsembl_protein_id %s NOT found for %s %s" %(g.ensembl_protein_id,driver_text,g.gene_name))
+          print("\nEnsembl_protein_id %s NOT found for %s ensembl_protein %s %s" %(g.ensembl_protein_id,driver_text,g.ensembl_protein_id,g.gene_name))
           count_ensembl_protein_not_found += 1
         elif len(rows) == 1:
           protein_id_from_ensembl_protein_id = rows[0][1]
           if g.ensembl_protein_id != protein_id_from_ensembl_protein_id: 
             count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
             count_ensembl_protein_id_updated += 1
+            ensembl_id_added = True
+
         else:
            print("For %s %s Multiple protein_id_from_ensembl_protein_id %s:" %(driver_text,g.gene_name,g.ensembl_protein_id))
            print(rows)
 
-      
+
+      # Second use the g.ensembl_id (ie. ensembl_gene _d) to search string-db:
+      # Source column: empty
+      if not ensembl_id_added and g.ensembl_id is not None and g.ensembl_id != '':
+        rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.ensembl_id,)).fetchall()
+        # columns are: alias, string_protein, source
+        if len(rows) == 0:
+          print("\nEnsembl_protein_id %s NOT found for %s ensembl_gene: %s %s" %(g.ensembl_protein_id,driver_text,g.ensembl_id,g.gene_name))
+          # count_ensembl_protein_not_found += 1
+        elif len(rows) == 1:
+          protein_id_from_ensembl_gene_id = rows[0][1]
+          if g.ensembl_protein_id != protein_id_from_ensembl_gene_id: 
+            count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_gene_id, force_update=True)
+            count_ensembl_protein_id_updated += 1
+            ensembl_id_added = True
+
+        else:
+           print("For %s %s Multiple protein_id_from_ensembl_gene_id %s:" %(driver_text,g.gene_name,g.ensembl_id))
+           print(rows)
+
+
+      # Third use the existing g.entrez_id to search string-db:
+      # Source column can include: BLAST_UniProt_DR_GeneID Ensembl_GenomeRNAi Ensembl_HGNC_UniProt_ID(supplied_by_UniProt)_DR_GeneID Ensembl_UniProt_DR_GeneID
+      # BUT some are numbers are source column: Ensembl_Vega_translation
       if g.entrez_id is not None and g.entrez_id != '':
         rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.entrez_id,)).fetchall()
         # columns are: alias, string_protein, source
         if len(rows) == 0:
-          print("\nEntrez_id %s NOT found for %s %s" %(g.entrez_id,driver_text,g.gene_name))
+          print("\nEntrez_id %s NOT found for %s entrez %s %s" %(g.entrez_id,driver_text,g.entrez_id,g.gene_name))
           count_entrez_not_found += 1
         elif len(rows) == 1:
           protein_id_from_entrez_id = rows[0][1]
@@ -489,7 +518,14 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         else:
            print("For %s %s Multiple protein_id_from_entrez_id %s:" %(driver_text,g.gene_name,g.entrez_id))
            print(rows)
-           
+
+
+      # Could search for HGNC id, using, eg: HGNC:3430 (or OMIM:... or hsa:...)
+      # Source column: Ensembl_HGNC_HGNC_ID
+
+
+      # Fourth use the existing g.gene_name to search string-db:
+      # Source column can include: BLAST_KEGG_NAME BLAST_UniProt_DE BLAST_UniProt_GN BioMart_HUGO Ensembl_EntrezGene Ensembl_HGNC Ensembl_HGNC_UniProt_ID(supplied_by_UniProt)_GN Ensembl_UniProt Ensembl_UniProt_DE Ensembl_UniProt_GN Ensembl_WikiGene
       rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.gene_name,)).fetchall()
       # columns are: alias, string_protein, source
       
@@ -497,6 +533,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         print("\nAlias NOT found for %s %s" %(driver_text,g.gene_name))
         count_not_found += 1
         if g.is_driver: driver_count_not_found += 1
+        # BUT 'LIKE' can match eg. ABC with ABCD: 
         rows = c.execute('SELECT * FROM alias_to_stringdb WHERE alias LIKE ?', (g.gene_name+'%',)).fetchall()
         if len(rows)>0: print("  BUT found %d LIKE it: %s" %(len(rows), rows))
         
@@ -516,7 +553,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           count_protein_ids_differ += 1
         # else is same so don't need to do anything.
         
-      else: # rows > 1
+      elif not ensembl_id_added: # rows > 1
         # see if the aliases string_proteins are all the same - could add a distinct(string_protein) on sql in postegres
         protein_dict.clear()          # or could use a set.
         for alias,protein,source in rows:
@@ -529,7 +566,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           print("\nFor %s %s several string_proteins: %s" %(driver_text,g.gene_name, protein_dict.keys()))
           print(rows)
 
-          if protein_id_from_ensembl_protein_id in protein_dict:
+          if not ensembl_id_added and protein_id_from_ensembl_protein_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_ensembl_protein_id %s is one of these" %(driver_text,g.gene_name,protein_id_from_ensembl_protein_id ))
             count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True) # Already would have been done above by: set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
                   

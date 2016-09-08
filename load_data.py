@@ -358,18 +358,18 @@ namefixes = {
  'HLA.J':        'HLA-J',
  'ILK2':         'ILK', # entrez: 6040
  'KRTAP10.5':    'KRTAP10.5',
- 'LOC100499484.C9ORF174': 'LOC100499484-C9ORF174'
+ 'LOC100499484.C9ORF174': 'LOC100499484-C9ORF174',
  'LRRC75A.AS1':  'LRRC75A-AS1',
  'MLTK':         'ZAK', # entrez: 51776
  'NDUFC2.KCTD14':'NDUFC2-KCTD14',
  'NME1.NME2':    'NME1-NME2',
  'RP4-592A1.2':  'AK2P1', # entrez: 24037
- 'RP4.592A1.2':  'AK2P1', # entrez: 24037  'RP4-592A1.2',
+ 'RP4.592A1.2':  'AK2P1', # entrez: 24037  'RP4-592A1.2',  is: AK2 pseudogene
  'RP11.78H18.2': 'LOC645266', # entrez: 645266 # 'RP11-78H18.2',
  'RP11-78H18.2': 'LOC645266', # entrez: 645266
  'SLX1B.SULT1A4':'SLX1B-SULT1A4',
  'SRP14.AS1':    'SRP14-AS1',
- 'TRIM6.TRIM34': 'TRIM6-TRIM34',
+ 'TRIM6.TRIM34': 'TRIM6-TRIM34'
 }
       
 def fix_gene_name(name):
@@ -412,9 +412,11 @@ def fix_gene_name(name):
   return name
 
 
+"""
+No longer used:
 ATARmap = dict()
 def load_mygene_hgnc_dictionary():
-  """ Reads in the names from mygene data for the genes used in the R analysis of Achilles data """
+  # Reads in the names from mygene data for the genes used in the R analysis of Achilles data
   
   global ATARmap, jsol_entrez, img_entrezgene, img_symbol, img_hgnc, ihgnc_ensembl_id, img_ensembl_id, iname_used_for_R
 
@@ -450,11 +452,13 @@ def load_mygene_hgnc_dictionary():
       #if key in ATARmap:
       #  warn("Duplicate name_used_for_R %s in file: " %(key),row)
       #ATARmap[key] = row
-
+"""
       
       
       
 RE_GENE_NAME = re.compile(r'^[0-9A-Za-z\-_\.]+$')
+
+g_ensembl_id_not_matching_R_file = dict()
 
 def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   """ Find or add a gene to the Gene table. 
@@ -497,19 +501,16 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
   campbell_gene_found_in_entrez_info = False
   if isAchilles or isColt: # Then lookup gene info that was downloaded from NCBI Entrez:  
     if entrez_id not in entrez_info:
-      warn("Achilles or Colt Entrez_id '%s' (gene_name '%s') NOT found in entrez_info dictionary" %(entrez_id,gene_name))
+      warn("Achilles or Colt Entrez_id '%s' (gene_name '%s') NOT found in the Achiles/Colt entrez_info dictionary" %(entrez_id,gene_name))
     else: 
       gene_found_in_entrez_info = True   
   else: # Campbell data  
     if gene_name not in entrez_info_gene_name_to_entrez:
-      warn("Campbell gene: %s not found in entrez_info_gene_name_to_entrez" %(gene_name))
+      info("Campbell gene: %s not found in entrez_info_gene_name_to_entrez" %(gene_name))
     else: campbell_gene_found_in_entrez_info = True  
     if ensembl_id not in entrez_info_ensembl_to_entrez:
-      warn("Campbell ensembl %s (gene: %s) not found in entrez_info_ensembl_to_entrez" %(ensembl_id,gene_name))
+      info("Campbell ensembl %s (gene: %s) not found in the Achiles/Colt entrez_info_ensembl_to_entrez" %(ensembl_id,gene_name))
     else: campbell_gene_found_in_entrez_info = True
-
-# Remove this line later:         
-  if original_gene_name=='BFP': print("2. BFP=>%s" %(gene_name))
 
     
   gene_found_in_hgnc = False
@@ -521,16 +522,14 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
       new_name = synonyms_to_hgnc[gene_name]
       ## BUT This incorrectly means BFP => RNF112
       if ';' in new_name:
-          print("** WARNING: '%s', '%s' BUT this prev-name / synonym is for two or more genes '%s'" %(original_gene_name,gene_name,new_name))
+          print("** WARNING: '%s' (original: '%s') BUT this prev-name / synonym is for two or more genes '%s'" %(gene_name,original_gene_name,new_name))
       else:
-          warn("gene_name %s %s changed to %s using HGNC synonyms" %(original_gene_name,gene_name,new_name))      
+          warn("gene_name %s (original: %s) changed to %s using HGNC synonyms" %(gene_name,original_gene_name,new_name))      
           gene_name = new_name
           gene_found_in_hgnc = True
     else:
-      warn("Gene '%s', '%s' (entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
+      warn("Gene '%s', (original name: '%s', entrez='%s', ensembl='%s') NOT found in HGNC dictionary" %(gene_name,original_gene_name,entrez_id,ensembl_id) )
 
-# Remove this line later:         
-    if original_gene_name=='BFP': print("3. BFP=>%s" %(gene_name))
 
            
     if entrez_id != '' and entrez_id != 'NoEntrezId':
@@ -538,17 +537,15 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
           # print("Found gene_name %s entrez_id %s in HGNC using Entrez_id for %s" %(gene_name,entrez_id,entrez_to_hgnc[entrez_id]))
           new_name = entrez_to_hgnc[entrez_id]
           if ';' in new_name:
-              print("** WARNING: '%s', '%s' BUT this entrez_id %s is for two or more genes '%s'" %(original_gene_name,gene_name,entrez_id,new_name))
+              print("** WARNING: '%s' (original name '%s') BUT this entrez_id %s is for two or more genes '%s'" %(gene_name,original_gene_name,entrez_id,new_name))
               # return gene_name+"_UnsureEntrez_"+new_name                
           if new_name == gene_name:
               gene_found_in_hgnc = True                
           else:            
               warn("***** ERROR: '%s', '%s' BUT this entrez_id %s is for two or more genes '%s'" %(original_gene_name,gene_name,entrez_id,new_name))
       else:        
-         warn("Gene '%s', '%s' Entrez_id='%s' (ensembl='%s') NOT found in Entrez_to_HGNC dictionary" %(original_gene_name,gene_name,entrez_id,ensembl_id) )
+         warn("Gene '%s' (original: '%s') Entrez_id='%s' (ensembl='%s') NOT found in Entrez_to_HGNC dictionary" %(gene_name,original_gene_name,entrez_id,ensembl_id) )
          
-# Remove this line later:         
-  if original_gene_name=='BFP': print("4. BFP=>%s" %(gene_name))
   
   try:
     g = Gene.objects.get(gene_name=gene_name) # Gene already in Gene table
@@ -578,8 +575,10 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
         info("Updating Ensembl_id, as driver '%s' must have been inserted as a target first %s %s, is_driver=%s g.is_driver=%s, g.is_target=%s" %(g.gene_name,g.ensembl_id,ensembl_id,is_driver,g.is_driver, g.is_target))
         g.ensembl_id=ensembl_id
         g.save()
-      else:
-        warn("For gene '%s': Ensembl_id '%s' (%s, len=%d) already saved in the Gene table doesn't match '%s' (%s, len=%d) from R results file" %(g.gene_name, g.ensembl_id,type(g.ensembl_id),len(g.ensembl_id), ensembl_id,type(ensembl_id),len(ensembl_id)) )
+      elif g.gene_name not in g_ensembl_id_not_matching_R_file: # So only report this warning once for each gene_name:
+        warn("For gene '%s': Ensembl_id '%s' already saved in the Gene table doesn't match '%s' from R results file" %(g.gene_name, g.ensembl_id, ensembl_id) )
+        g_ensembl_id_not_matching_R_file[g.gene_name]=ensembl_id
+        # type(g.ensembl_id),len(g.ensembl_id),  and ,type(ensembl_id),len(ensembl_id)
           
   except ObjectDoesNotExist: # gene name not found in the gene table by the objects.get(), so need to add it:
     # if gene_name == 'PIK3CA': debug("PIK3CA Here B")
@@ -663,7 +662,7 @@ def find_or_add_gene(names, is_driver, is_target, isAchilles, isColt):
 #      if info_source == 'HGNC':
 
       prevname_synonyms = this_hgnc[iprev_names] + ('' if this_hgnc[iprev_names] == '' or this_hgnc[isynonyms] == '' else ' | ') + this_hgnc[isynonyms].replace('|', ' | ') # Pad the synonyms with spaces as easier to read.
-      
+
       # Added the above synonyms padding to the database manually for now using: update gendep_gene set prevname_synonyms = replace(prevname_synonyms, '|', ' | ');
       
       full_name  = this_hgnc[ifull_name]       # eg: erb-b2 receptor tyrosine kinase 2      
@@ -1221,8 +1220,9 @@ def add_the_three_studies():
     Achilles_CRISPR_study_num_targets = 00000 
     # The actual number of targets tested in the Colt (Marcotte et al) study, although only 8,898 dependencies are in the dependency table, as rest don't meet the (p<=0.05 and effect_size>=0.65) requirement.
 
-    Achilles_CRISPR_study = find_or_add_study( Achilles_CRISPR_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
-    
+    # Not using Achilles CRISPR study data for now, so just return None for study: 
+    # Achilles_CRISPR_study = find_or_add_study( Achilles_CRISPR_study_pmid, study_code, study_short_name, study_title, study_authors, study_abstract, study_summary, study_experiment_type, study_journal, study_pub_date )
+    Achilles_CRISPR_study = None
     return Campbell_study,Achilles_study,Colt_study,Achilles_CRISPR_study,  Campbell_study_num_targets,  Achilles_study_num_targets, Colt_study_num_targets, Achilles_CRISPR_study_num_targets,
     
 
@@ -1241,7 +1241,8 @@ if __name__ == "__main__":
     
 
   load_hgnc_dictionary(hgnc_infile)
-  load_mygene_hgnc_dictionary()
+  
+  # load_mygene_hgnc_dictionary() No longer needed.
   
   
   with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each save()
@@ -1284,9 +1285,10 @@ if __name__ == "__main__":
 
     ##### *** NOTE: Using postprocess_dir rather than analysis_dir now:
     csv_filepathname=os.path.join(postprocess_dir, Achilles_CRISPR_results_pancan)
-    read_achilles_R_results(csv_filepathname, Achilles_CRISPR_study, tissue_type='PANCAN', isAchilles=True, isColt=False)  # *** BUT maybe should add isCRISPR = True instead!    
+    ###  Not using Achilles CRISPR study data for now - see Colm's email 7 Sept 2016
+    # read_achilles_R_results(csv_filepathname, Achilles_CRISPR_study, tissue_type='PANCAN', isAchilles=True, isColt=False)  # *** BUT maybe should add isCRISPR = True instead!    
 
-    warn("******* Not reading Achilles CRISPR-Cas9 results for ByTissues as no results")
+     ### warn("******* Not reading Achilles CRISPR-Cas9 results for ByTissues as no results")
 #    Achilles_CRISPR_results_bytissue = "univariate_results_Achilles_CRISPR_for36drivers_bytissue_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
 #    Achilles_CRISPR_results_bytissue = "univariate_results_Achilles_CRISPR_v1_for36drivers_bytissue_kinome_combmuts_3Sep2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     
