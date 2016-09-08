@@ -1,0 +1,18 @@
+#!/bin/bash
+
+IN="db.sqlite3_backup"
+OUT="db.csv.gz"
+
+# Just output the studies:
+# SQL="select * from gendep_study;"
+
+# To filter by ERBB2 and PANCAN:
+# SQL="SELECT D.target, D.wilcox_p, D.effect_size, D.zdiff, D.interaction, D.pmid, D.histotype, G.ensembl_id, G.ensembl_protein_id, G.inhibitors FROM gendep_dependency D INNER JOIN gendep_gene G ON (D.target = G.gene_name) WHERE (D.driver = 'ERBB2' AND D.histotype = 'PANCAN') ORDER BY D.wilcox_p ASC;"
+# SQL="SELECT D.target, D.wilcox_p, D.effect_size, D.zdiff, D.interaction, S.short_name AS study, D.histotype AS tissue, G.entrez_id, G.ensembl_id, G.ensembl_protein_id, G.inhibitors FROM gendep_dependency D INNER JOIN gendep_gene G ON (D.target = G.gene_name) INNER JOIN gendep_study S ON (S.pmid = D.pmid) WHERE (D.driver = 'ERBB2' AND D.histotype = 'PANCAN') ORDER BY D.wilcox_p ASC;"
+
+# For all drivers and histotypes:
+# For Driver's "H.alteration_considered", need to add:  "INNER JOIN gendep_gene H ON (D.driver = H.gene_name)"
+SQL="SELECT D.driver, D.target, D.wilcox_p, D.effect_size, D.zdiff, D.interaction, S.short_name AS study, D.histotype AS tissue, G.entrez_id, G.ensembl_id, G.ensembl_protein_id, G.inhibitors FROM gendep_dependency D INNER JOIN gendep_gene G ON (D.target = G.gene_name) INNER JOIN gendep_study S ON (S.pmid = D.pmid) ORDER BY D.driver, D.wilcox_p ASC;"
+
+# The double quotes are needed around the $SQL:
+sqlite3 -batch -header -csv $IN "$SQL" | gzip > $OUT
