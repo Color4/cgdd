@@ -1,7 +1,7 @@
 #!/bin/bash
 
-IN="db.sqlite3_backup"
-OUT="db.csv.gz"
+IN="db.sqlite3"
+OUT="all_dependencies.csv.gz"
 
 # Just output the studies:
 # SQL="select * from gendep_study;"
