@@ -421,6 +421,7 @@ def set_db_protein(g, ensembl_protein_id, force_update=False):
   num_warnings = 0
   if ALWAYS_UPDATE_GENE_TABLE or force_update or g.ensembl_protein_id is None or g.ensembl_protein_id == '':
       g.ensembl_protein_id = ensembl_protein_id
+      g.ensembl_protein_from_alias_table = True
       g.save()
   elif g.ensembl_protein_id != ensembl_protein_id:
       print("WARNING 1: db g.ensembl_protein_id %s != ensembl_protein_id %s" %(g.ensembl_protein_id, ensembl_protein_id))
@@ -428,7 +429,7 @@ def set_db_protein(g, ensembl_protein_id, force_update=False):
 
   return num_warnings
       
-  
+
 # ======
 gendep_gene_protein_id_dict = dict()
 def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
@@ -460,6 +461,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
       protein_id_from_entrez_id = ''
       protein_id_from_ensembl_protein_id = ''
       protein_id_from_ensembl_gene_id = ''
+      ensembl_protein_id_found = False
       ensembl_id_added = False
       
       # First use the existing g.ensembl_protein_id to search string-db:
@@ -468,9 +470,10 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.ensembl_protein_id,)).fetchall()
         # columns are: alias, string_protein, source
         if len(rows) == 0:
-          print("\nEnsembl_protein_id %s NOT found for %s ensembl_protein %s %s" %(g.ensembl_protein_id,driver_text,g.ensembl_protein_id,g.gene_name))
+          print("\nEnsembl_protein NOT found for %s ensembl_protein %s %s" %(driver_text,g.ensembl_protein_id,g.gene_name))
           count_ensembl_protein_not_found += 1
         elif len(rows) == 1:
+          ensembl_protein_id_found = True
           protein_id_from_ensembl_protein_id = rows[0][1]
           if g.ensembl_protein_id != protein_id_from_ensembl_protein_id: 
             count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
@@ -488,9 +491,10 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.ensembl_id,)).fetchall()
         # columns are: alias, string_protein, source
         if len(rows) == 0:
-          print("\nEnsembl_protein_id %s NOT found for %s ensembl_gene: %s %s" %(g.ensembl_protein_id,driver_text,g.ensembl_id,g.gene_name))
+          print("\nEnsembl_protein NOT found for %s ensembl_gene: %s (protein %s %s)" %(driver_text,g.ensembl_id,g.ensembl_protein_id,g.gene_name))
           # count_ensembl_protein_not_found += 1
         elif len(rows) == 1:
+          ensembl_protein_id_found = True
           protein_id_from_ensembl_gene_id = rows[0][1]
           if g.ensembl_protein_id != protein_id_from_ensembl_gene_id: 
             count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_gene_id, force_update=True)
@@ -509,9 +513,10 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         rows = c.execute("SELECT * FROM alias_to_stringdb WHERE alias = ?", (g.entrez_id,)).fetchall()
         # columns are: alias, string_protein, source
         if len(rows) == 0:
-          print("\nEntrez_id %s NOT found for %s entrez %s %s" %(g.entrez_id,driver_text,g.entrez_id,g.gene_name))
+          print("\nEnsembl_protein NOT found for %s Entrez_id: %s %s" %(driver_text,g.entrez_id,g.gene_name))
           count_entrez_not_found += 1
         elif len(rows) == 1:
+          ensembl_protein_id_found = True
           protein_id_from_entrez_id = rows[0][1]
           if protein_id_from_ensembl_protein_id!='' and protein_id_from_ensembl_protein_id != protein_id_from_entrez_id:
            print("For %s %s protein_id_from_entrez_id %s: Ensembl_protein_id %s and Entrez_protein_is %s DON'T match" %(driver_text,g.gene_name,g.entrez_id,protein_id_from_ensembl_protein_id,protein_id_from_entrez_id))
@@ -538,12 +543,12 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         if len(rows)>0: print("  BUT found %d LIKE it: %s" %(len(rows), rows))
         
       elif len(rows) == 1:
+        ensembl_protein_id_found = True
         if protein_id_from_ensembl_protein_id!='' and protein_id_from_ensembl_protein_id!=rows[0][1]:
           print("\nWarning: %s %s protein_id %s from ensembl_protein_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_ensembl_protein_id,rows[0][1]))
         if protein_id_from_entrez_id!='' and protein_id_from_entrez_id!=rows[0][1]:
           print("\nWarning: %s %s protein_id %s from entrez_id different than from gene_name: %s" %(driver_text,g.gene_name, protein_id_from_entrez_id,rows[0][1]))
         if g.ensembl_protein_id is None or g.ensembl_protein_id == '':
-          g.ensembl_protein_from_alias_table = True
           count_different_from_existing += set_db_protein(g, rows[0][1], force_update=True)
           count_found += 1
           
@@ -559,13 +564,14 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
         for alias,protein,source in rows:
           protein_dict[protein] = True
         if len(protein_dict) == 1:
-          g.ensembl_protein_from_alias_table = True
+          ensembl_protein_id_found = True
           count_different_from_existing += set_db_protein(g, protein_dict.keys()[0], force_update=True)
                       
         else:
           print("\nFor %s %s several string_proteins: %s" %(driver_text,g.gene_name, protein_dict.keys()))
           print(rows)
-
+          ensembl_protein_id_found = True
+          
           if not ensembl_id_added and protein_id_from_ensembl_protein_id in protein_dict:
             print("  but for %s %s GOOD NEWS: protein_id_from_ensembl_protein_id %s is one of these" %(driver_text,g.gene_name,protein_id_from_ensembl_protein_id ))
             count_different_from_existing += set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True) # Already would have been done above by: set_db_protein(g, protein_id_from_ensembl_protein_id, force_update=True)
@@ -577,6 +583,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           else:
             count_multiple_protein_ids += 1
             if g.is_driver: driver_count_multiple_protein_ids += 1
+            count_different_from_existing += set_db_protein(g, list(protein_dict.keys())[0], force_update=True)  # Just take the first in the protein_dict
             
       gendep_gene_protein_id_dict[g.ensembl_protein_id] = True # Used later to only load interactions that have protein_ids in the gene table.
       

@@ -65,27 +65,27 @@ def get_interactions(gene_list):
   result = r.json()
   
   gene_drugs = dict()
-  unmatched_terms = ''
+  unmatched_terms = []
   matches = result['matchedTerms']
   #if(matches):
-       #print("gene_name\tdrug_name\tinteraction_type\tsource\tgene_categories")
+    #print("gene_name\tdrug_name\tinteraction_type\tsource\tgene_categories")
   for match in matches:
-            gene = match['geneName']
-            gene_drugs[gene] = dict()
-            #categories = match['geneCategories']
-            #categories.sort()
-            #joined_categories = ",".join(categories)
-            for interaction in match['interactions']:
-                #source = interaction['source']
-                drug = interaction['drugName']
-                gene_drugs[gene][drug] = True
-                #interaction_type = interaction['interactionType']
-                #print(gene + "\t" + drug + "\t" + interaction_type + "\t" + source + "\t" + joined_categories.lower())
+    gene = match['geneName']
+    gene_drugs[gene] = dict()
+    #categories = match['geneCategories']
+    #categories.sort()
+    #joined_categories = ",".join(categories)
+    for interaction in match['interactions']:
+      #source = interaction['source']
+      drug = interaction['drugName']
+      gene_drugs[gene][drug] = True
+      #interaction_type = interaction['interactionType']
+      #print(gene + "\t" + drug + "\t" + interaction_type + "\t" + source + "\t" + joined_categories.lower())
   for unmatched in result['unmatchedTerms']:
-            if unmatched_terms != '': unmatched_terms += ', '
-            unmatched_terms += unmatched['searchTerm']
-            print("Unmatched search term: " + unmatched['searchTerm'])
-            print("Possible suggestions: " + ",".join(unmatched['suggestions']))
+    unmatched_searchTerm = unmatched['searchTerm']
+    unmatched_terms.append(unmatched_searchTerm)
+    print("Unmatched search term: " + unmatched_searchTerm)
+    print("Possible suggestions: " + ",".join(unmatched['suggestions']))
             
   for gene in gene_drugs:
     gene_drugs[gene] = ", ".join(sorted(gene_drugs[gene])) # or ", ".join(list(drugs[gene_gene].keys()))
@@ -96,44 +96,41 @@ def get_interactions(gene_list):
 
 # From: http://docs.python-requests.org/en/latest/user/quickstart/#json-response-content
 
+
+
+def fetch_inhibitors(gene_list, unmatched_genes):
+  genes_with_inhibitors_count = 0
+  gene_drugs, unmatched = get_interactions(gene_list)
+  if len(unmatched)>0: unmatched_genes.extend(unmatched)
+  for gene_name in gene_drugs:
+    g2 = Gene.objects.get(gene_name=gene_name)
+    g2.inhibitors = gene_drugs[gene_name]
+    g2.save()
+    print("GENE:\t%s\t%s" %(gene_name,gene_drugs[gene_name]))
+    genes_with_inhibitors_count += 1
+  gene_list.clear()
+  return genes_with_inhibitors_count
+
+
 genes_with_inhibitors_count = 0
-#gene_count = 0
-genes_processed = 0
+genes_processed_count = 0
 gene_list = []
-unmatched_genes = ''
+unmatched_genes = []
 with transaction.atomic(): # Using atomic makes this script run in half the time, as avoids autocommit after each change
   for g in Gene.objects.all().iterator():
     print(g.gene_name)
     gene_list.append(g.gene_name)
     driver_text = '*DRIVER*' if g.is_driver else ''
-    genes_processed += 1
-    #gene_count += 1
-    # Request 100 interactions at a time, to reduce load on server
-    if len(gene_list) == 100:
-      gene_drugs, unmatched = get_interactions(gene_list)      
-      unmatched_genes += ('' if unmatched_genes == '' and unmatched == '' else ', ') + unmatched
-      for gene_name in gene_drugs:
-        g2 = Gene.objects.get(gene_name=gene_name)
-        g2.inhibitors = gene_drugs[gene_name]
-        g2.save()
-        print("GENE:\t%s\t%s" %(gene_name,gene_drugs[gene_name]))
-        genes_with_inhibitors_count += 1
-      gene_list.clear()
-      print("genes_processed:", genes_processed)
+    genes_processed_count += 1
+    if len(gene_list) == 100: # Request 100 interactions at a time, to reduce load on server.
+      genes_with_inhibitors_count += fetch_inhibitors(gene_list, unmatched_genes)
+      print("genes_processed_count:", genes_processed_count)
       
   if len(gene_list) > 0: # Process any remaining genes as < 100
-    gene_drugs, unmatched = get_interactions(gene_list)      
-    unmatched_genes += ('' if unmatched_genes == '' and unmatched == '' else ', ') + unmatched
-    for gene_name in gene_drugs:
-      g2 = Gene.objects.get(gene_name=gene_name)
-      g2.inhibitors = gene_drugs[gene_name]
-      g2.save()
-      print("GENE:\t%s\t%s" %(gene_name,gene_drugs[gene_name]))      
-      genes_with_inhibitors_count += 1      
-    gene_list.clear()
-    
-print("genes_processed: %d,  genes_with_inhibitors_count: %d" %(genes_processed, genes_with_inhibitors_count))
-print("unmatched_genes:",unmatched_genes)
+    genes_with_inhibitors_count += fetch_inhibitors(gene_list, unmatched_genes)
+
+print("genes_processed_count: %d,  genes_with_inhibitors_count: %d" %(genes_processed_count, genes_with_inhibitors_count))
+print("unmatched_genes:",", ".join(unmatched_genes))
       #gene_count = 0
       
 
@@ -259,5 +256,3 @@ From: http://dgidb.genome.wustl.edu/api/v1/source_trust_levels.json
 "Non-curated"
 ]
 """
-
-

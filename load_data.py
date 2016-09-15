@@ -44,6 +44,7 @@ entrez_gene_full_details_for_Achilles_and_Colt_infile = "entrez_gene_full_detail
 # The alteration (eg. mutation, copy number) considered for each driver - to be loaded into the Gene table for each driver:
 driver_alteration_details_file = os.path.join('input_data','AlterationDetails.csv')
 
+synergizer_entrez_to_ensembl_file = 'input_data/synergizer_from_colm.tsv'
 
 
 # Set flag to output the info messages. On command-line can use '>' redirect output these to a text file.
@@ -258,6 +259,34 @@ def load_entrez_gene_full_details_for_Achilles_and_Colt(infile):
         synonyms_to_hgnc[key] = gene_name
       # print (ihgnc['symbol'], hgnc[ihgnc['symbol']])
     """
+  
+
+
+
+def add_synergizer_entrez_to_ensembl_ids():
+  print("\nLoading synergizer_entrez_to_ensembl_ids file:",synergizer_entrez_to_ensembl_file)
+  dataReader = csv.reader(open(synergizer_entrez_to_ensembl_file, encoding='utf-8'), dialect='excel-tab')
+     # or: dataReader = csv.reader(open(csv_filepathname), delimiter=',', quotechar='"')
+  row = next(dataReader)  # Skip the header line.
+  if row[0] != "entrezgene" or row[1] != "ensembl":
+    error("add_synergizer_entrez_to_ensembl_ids(): Unexpected header row: %s" %(row))
+  update_count = 0
+  for row in dataReader:
+    if row[1][:3] != 'ENS':
+       continue  # So skip this entry.
+    entrez_id, ensembl_id = row
+    try:
+      g = Gene.objects.get(entrez_id=entrez_id)
+      g.ensembl_id = ensembl_id
+      g.save()
+      update_count += 1    
+    except ObjectDoesNotExist: # entrez_id not found in the gene table by the objects.get()
+      warn("add_synergizer_entrez_to_ensembl_ids(): entrez_id %s (for ensembl_id %s) not found in Gene table" %(entrez_id,ensembl_id))
+    except MultipleObjectsReturned:
+      warn("add_synergizer_entrez_to_ensembl_ids(): entrez_id %s (for ensembl_id %s) more than one row found" %(entrez_id,ensembl_id))
+    
+  print("add_synergizer_entrez_to_ensembl_ids update_count: %d" %(update_count))
+
   
 
 
@@ -814,8 +843,10 @@ def read_achilles_R_results(result_file, study, tissue_type, isAchilles=True, is
 
   if isAchilles and isColt: error("Cannot be both Achilles and Colt ******")
 
-  #print("*** ONLY UPDATING BOXPLOT DATA ***")
   ONLY_UPDATE_BOXPLOT_DATA = False
+
+  if ONLY_UPDATE_BOXPLOT_DATA:
+    print("*** ONLY UPDATING BOXPLOT DATA ***")
   
   print("\nImporting table: ",result_file)
 
@@ -999,6 +1030,16 @@ MYC_4609_ENSG00000136997        A2ML11_ENSG00000166535  5       7       -1.82415
 ....
 """
    
+# for one driver:
+# select distinct pmid from gendep_dependency where driver='ERBB2' order by pmid;
+# select distinct histotype from gendep_dependency where driver='ERBB2' order by histotype;
+
+# or for all drivers:
+# select distinct driver, histotype from gendep_dependency order by driver,histotype;
+# select distinct driver, pmid from gendep_dependency order by driver,pmid;
+
+# For the full three-way data, so could set menus based on the other choices:
+# select distinct driver, pmid, histotype from gendep_dependency order by driver,pmid,histotype;
 
 def add_tissue_and_study_lists_for_each_driver():
     print("Adding tissue list to each driver")
@@ -1232,7 +1273,9 @@ if __name__ == "__main__":
   ##unmark_drivers_not_in_the_21genes()
   
   #add_counts_of_driver_tissue_and_target_to_studies()
-
+  add_synergizer_entrez_to_ensembl_ids()
+  sys.exit()
+  
   load_entrez_gene_full_details_for_Achilles_and_Colt(entrez_gene_full_details_for_Achilles_and_Colt_infile)
   load_driver_alterations_dictionary()
   
@@ -1255,10 +1298,9 @@ if __name__ == "__main__":
 
     Campbell_study, Achilles_study, Colt_study, Achilles_CRISPR_study, Campbell_study_num_targets, Achilles_study_num_targets, Colt_study_num_targets,Achilles_CRISPR_study_num_targets = add_the_three_studies()
     
-    analysis_dir = "198_boxplots_for_Colm/analyses"
     postprocess_dir = "postprocessing_R_results"
-        
-    # analysis_dir = "postprocessing_R_results" # After Aug 2016
+    # analysis_dir = "198_boxplots_for_Colm/analyses"        
+    analysis_dir = "postprocessing_R_results" # After Aug 2016
 
     # *** NOTE, warnings from R:
     # There were 50 or more warnings (use warnings() to see the first 50)
@@ -1267,15 +1309,15 @@ if __name__ == "__main__":
     # cannot compute exact p-value with ties
     
     # ========================================================    
-    Achilles_results_pancan =  "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_26Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Achilles_results_pancan =  "univariate_results_Achilles_v4_for36drivers_pancan_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     # "univariate_results_Achilles_v2_for23drivers_pancan_kinome_combmuts_5May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
-    csv_filepathname=os.path.join(analysis_dir, Achilles_results_pancan)
+    csv_filepathname=os.path.join(postprocess_dir, Achilles_results_pancan)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='PANCAN', isAchilles=True, isColt=False)    
     
     #Achilles_results_bytissue = "univariate_results_Achilles_v2_for21drivers_bytissue_kinome_combmuts_160312_preeffectsize.txt"
-    Achilles_results_bytissue = "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_26Aug2016witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Achilles_results_bytissue = "univariate_results_Achilles_v4_for36drivers_bytissue_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
 
-    csv_filepathname=os.path.join(analysis_dir, Achilles_results_bytissue)
+    csv_filepathname=os.path.join(postprocess_dir, Achilles_results_bytissue)
     read_achilles_R_results(csv_filepathname, Achilles_study, tissue_type='BYTISSUE', isAchilles=True, isColt=False)
 
     # ========================================================
@@ -1297,24 +1339,24 @@ if __name__ == "__main__":
 
     # ========================================================    
     # Colt_results_pancan = "NONE" - as Colt is only Breast tissue
-    Colt_results_bytissue = "univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Colt_results_bytissue = "univariate_results_Colt_v2_for36drivers_bytissue_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
         
     # "univariate_results_Colt_v1_bytissue_kinome_combmuts_7May2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
-    csv_filepathname=os.path.join(analysis_dir, Colt_results_bytissue)
+    csv_filepathname=os.path.join(postprocess_dir, Colt_results_bytissue)
     read_achilles_R_results(csv_filepathname, Colt_study, tissue_type='BYTISSUE', isAchilles=False, isColt=True)
     
     # ========================================================    
     # Reading the Campbell results last as Achilles and Colt may have already loaded the Entrez gene annotations above.    
-    Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Campbell_results_pancan= "univariate_results_Campbell_v26_for36drivers_pancan_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
 
     # "univariate_results_v26_pancan_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"    
-    csv_filepathname=os.path.join(analysis_dir, Campbell_results_pancan)
+    csv_filepathname=os.path.join(postprocess_dir, Campbell_results_pancan)
     read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='PANCAN', isAchilles=False, isColt=False)
 
-    Campbell_results_bytissue = "univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_15Aug2016_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
+    Campbell_results_bytissue = "univariate_results_Campbell_v26_for36drivers_bytissue_kinome_combmuts_witheffectsize_and_zdiff_and_boxplotdata_mutantstate.txt"
     
     # "univariate_results_v26_bytissue_kinome_combmuts_28April2016_witheffectsize_and_zdiff_and_boxplotdata.txt"
-    csv_filepathname=os.path.join(analysis_dir, Campbell_results_bytissue)
+    csv_filepathname=os.path.join(postprocess_dir, Campbell_results_bytissue)
     read_achilles_R_results(csv_filepathname, Campbell_study, tissue_type='BYTISSUE', isAchilles=False, isColt=False)
 
     # ========================================================

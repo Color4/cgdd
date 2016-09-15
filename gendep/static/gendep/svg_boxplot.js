@@ -9,7 +9,8 @@ var tissue_colours = {
   // "OSTEOSARCOMA": "yellow", // same as BONE above
   "BREAST":       "deeppink",  // Colt only contains Breast
   "CENTRAL_NERVOUS_SYSTEM": "darkgoldenrod",  // The original "darkgoldenrod4" colour doesn't work in IE.
-  "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependencies
+  // "CERVICAL":     "blue",  // Not in Achilles data. Not in 23 driver dependencies
+  "CERVIX":       "blue",  // Changed from Cervical to Cervix, Sept 2016. Not in Achilles data. Not in 23 driver dependencies  
   "ENDOMETRIUM":  "orange",     // Not in 23 driver dependency data
   "HEADNECK":     "firebrick",  // Not in Achilles data  (The original "firebrick4" colour doesn't work in IE) - NOT in dependency data from the 23 drivers, so don't show on legend.
   "LUNG":         "darkgrey",

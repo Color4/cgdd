@@ -124,7 +124,8 @@ class Dependency(models.Model):
       ("BONE",                               "Bone"),        #  "Bo"),  was "BONE", in R - but using Bone, as Achilles has some non-Osteosarcoma bone cell-lines
       ("BREAST",                             "Breast"),#        "Br"),
       ("CENTRAL_NERVOUS_SYSTEM",             "CNS"),#           "CN"),
-      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
+#      ("CERVICAL",                           "Cervical"),#      "Ce"), # In Campbell, Not in Achilles
+      ("CERVIX",                             "Cervix"),#        "Ce"), # Changed from Cervical to Cervix, Sept 2016. In Campbell, Not in Achilles      
 	  ("ENDOMETRIUM",                        "Endometrium"),#   "En"),  BUT only 2 cell lines so not analysed by R ?
 	  ("HAEMATOPOIETIC_AND_LYMPHOID_TISSUE", "Blood & Lymph"),# "HL"),
       ("HEADNECK",                           "Head & Neck"),#   "HN"), # In Campbell, Not in Achilles

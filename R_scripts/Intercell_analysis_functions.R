@@ -35,6 +35,7 @@ require(mixtools)
 # Added for Achilles: HAEMATOPOIETIC_AND_LYMPHOID_TISSUE, INTESTINE, KIDNEY, LIVER, PROSTATE, SKIN, SOFT_TISSUE, STOMACH, URINARY_TRACT
 # Achilles - Numbers of celllines for each tissue type: BONE=6,  BREAST=12, CENTRAL_NERVOUS_SYSTEM=34, ENDOMETRIUM=2, HAEMATOPOIETIC_AND_LYMPHOID_TISSUE=30, INTESTINE=21, KIDNEY=10, LIVER=1, LUNG=23, OESOPHAGUS=10, OVARY=29, PANCREAS=17, PROSTATE=3, SKIN=7, SOFT_TISSUE=2, STOMACH=4, URINARY_TRACT=3
 # In "legend_pretty_tissues", "Bone" was previously "Osteosarcoma", but changed in Aug 2016 as Achilles includes non-osteoscarcoma bone tumor cell-lines.
+# Changed from "Cervical" to "Cervicx" in Sept 2016.
 
 if (data_set == "Campbell") {	
   legend_pretty_tissues = c(
@@ -43,7 +44,8 @@ if (data_set == "Campbell") {
 	"Lung",
 	"Head & Neck",
 	"Pancreas",
-	"Cervical",
+#	"Cervical",
+	"Cervicx",
 	"Ovary",
 	"Esophagus",
 	"Endometrium",
@@ -55,7 +57,8 @@ if (data_set == "Campbell") {
 	"LUNG",
 	"HEADNECK",
 	"PANCREAS",
-	"CERVICAL",
+#	"CERVICAL",
+	"CERVIX",
 	"OVARY",
 	"OESOPHAGUS",
 	"ENDOMETRIUM",
@@ -412,13 +415,15 @@ read_rnai_mutations <- function(
 
 
 # This is the further revised code from Colm (28 April 2016) which includes the Delta-Score (and effect size test, and without spearman, etc):
+# isByTissue parameter as using  
 run_univariate_tests <- function(
 	zscores,
 	mutations,
 	all_variants,
 	sensitivity_thresholds=NULL,
 	nperms=1000000,
-	alt="less"
+	alt="less",
+	min_cell_lines   # Added by SJB, Sept 2016. 3 or 5
 	){	
 	
 	zscores <- as.matrix(zscores)
@@ -456,7 +461,8 @@ run_univariate_tests <- function(
 		
 		# skip if nA < 3 as we are never going to
 		# consider anything based on n=2
-		if(length(grpA) < 3 | length(grpB) < 3){
+#		if(length(grpA) < 3 | length(grpB) < 3){  # Changed by SJB, Sep 2016, to the line below:
+		if(length(grpA) < min_cell_lines | length(grpB) < min_cell_lines){
 			next
 		}
 		
@@ -466,10 +472,12 @@ run_univariate_tests <- function(
             bscores <- na.omit(zscores[grpB,j])
 			nA <- length(ascores)
 			nB <- length(bscores)
-			if(nA < 3){
+#			if(nA < 3){ # Should I also change this to: nA < min_cell_lines ?
+			if(nB < min_cell_lines){ # Should I also change this to: nB < min_cell_lines ?
 				next
 			}
-			if(nB < 3){
+#			if(nB < 3){ # Should I also change this to: nB < min_cell_lines ?
+			if(nB < min_cell_lines){ # Should I also change this to: nB < min_cell_lines ?
 				next
 			}
 		    wilcox.p <- NA
@@ -677,7 +685,8 @@ run_univariate_test_bytissue <- function(x){
 			zscores=x$rnai[tissue_rows,],
 			mutations=x$func_muts[tissue_rows,],
 			all_variants=x$all_muts[tissue_rows,],
-			sensitivity_thresholds=x$rnai_iqr_thresholds
+			sensitivity_thresholds=x$rnai_iqr_thresholds,
+			min_cell_lines=3   # This is 5 for PANCAN, but is still 3 for ByTissue
 			)
 	#	print("G")
 		if(is.null(nrow(temp_results))){

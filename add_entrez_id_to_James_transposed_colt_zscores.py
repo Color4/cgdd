@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 
 # script to add Entrez ids to the transposed zScore data that came from James.
+# Better to transpose the original data as the data from James maybe have been transposed by Excel or imported into Excel at some point as date-like gene names (eg. MAR-10) were converted to integers.
 
 dir = "198_boxplots_for_Colm/data_sets/colt_study_breast/"
 
 entrez_symbol_file = dir + "breast_zgarp.txt"
 zScores_file = dir + "zGARP_scores_transposed_with_Intercell_names_from_James.txt"
 zScores_file_with_entrez_ids = dir + "zGARP_scores_transposed_with_Intercell_names_from_James_with_entrez_ids_added.txt"
-zScores_tissue_file = dir + "zGARP_tissues.txt"
+# zScores_tissue_file = dir + "zGARP_tissues.txt"
 
+# Changed Sept 2016 to:
+zScores_tissue_file = "preprocess_genotype_data/rnai_datasets/coltv2_zgarp_tissues.txt"
 
 print("Reading entrez_symbol_file ...")
 symbol_to_enterez_dict = dict()
