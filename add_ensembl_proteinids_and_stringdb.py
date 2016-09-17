@@ -583,6 +583,7 @@ def add_ensembl_proteins_from_sqlitedb_to_Gene_table_in_db():
           else:
             count_multiple_protein_ids += 1
             if g.is_driver: driver_count_multiple_protein_ids += 1
+            # better might be: sorted(protein_dict.keys())[0] so will return lowest id:
             count_different_from_existing += set_db_protein(g, list(protein_dict.keys())[0], force_update=True)  # Just take the first in the protein_dict
             
       gendep_gene_protein_id_dict[g.ensembl_protein_id] = True # Used later to only load interactions that have protein_ids in the gene table.
