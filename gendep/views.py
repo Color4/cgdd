@@ -102,7 +102,7 @@ def awstats(request):
   # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
   awstats_pl = "/home/cgenetics/awstats/run_awstats.sh"
   
-  awstats_pl = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
+  #awstats_pl = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
 
 
  #fin_xml = gzip.open(xml_filename+".gz", "rt", encoding='utf-8')
@@ -114,11 +114,12 @@ def awstats(request):
 # Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
 #   p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
    
-  p = subprocess.Popen([awstats_pl], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
+  p = subprocess.Popen([awstats_pl], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
    # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
    # If submit the command with 'shell=False', give the command as a list of strings, with the command name in the first element of the list, the first argument in the next list element, etc.
    # But need 'shell=True' for eg: ls and rmdir which are not programs, but are internal commands within the shell program.
    #   ? bufsize=-1
+   # universal_newlines=True means will return Strings (rather than Bytes)
       
    # In Python 2:
    # import cStringIO
@@ -132,15 +133,19 @@ def awstats(request):
    #     print line
            
   # try
-  #  stdout, stderr = p.communicate()
+  stdout, stderr = p.communicate()
   # except TimeoutExpired:
      #       os.killpg(process.pid, signal)
+
+  if p.returncode != 0:    
+    return HttpResponse("Error, running awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr), content_type=plain_mimetype)
+
             
-  err_data = p.stderr.read().decode("utf-8")
-  data = p.stdout.read().decode("utf-8")
-      
-  #if p.returncode != 0:
-  #  return HttpResponse("Error, running awstats failed with error code: %d" %(p.returncode), content_type=plain_mimetype)
+  # err_data = p.stderr.read().decode("utf-8")
+  # data = p.stdout.read().decode("utf-8")
+  # Warning Use the communicate() method rather than .stdin.write, .stdout.read or .stderr.read to avoid deadlocks due to streams pausing reading or writing and blocking the child process.
+  # err_data = stderr #.read()
+  # data = stdout  #.read()            
  
  #print("Opened input file",fin_xml)
 
@@ -160,7 +165,7 @@ def awstats(request):
   #  
   #      response.write( ("," if delim_type=='csv' else "\t") + file_description + "\n" + response_stringio.getvalue() )   # getvalue() similar to:  response_stringio.seek(0); response_stringio.read()
   #   response_stringio.close() # To free the memory.
-  return HttpResponse("Stderr: "+err_data+"<br/>\n\nStdout: "+data, content_type=html_mimetype)
+  return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") +stdout, content_type=html_mimetype)
 
 
     
