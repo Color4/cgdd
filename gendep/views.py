@@ -96,7 +96,7 @@ def awstats(request):
 
 
   awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
-  awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
+  #awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
 
   cmd=[awstats_sh,]
   
@@ -145,7 +145,7 @@ def awstats(request):
   # except TimeoutExpired:
      #       os.killpg(process.pid, signal)
 
-  # The update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
+  # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
   if "-update=1" in cmd:
     stdout = stdout.replace("\n","<br/>\n")
     stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
