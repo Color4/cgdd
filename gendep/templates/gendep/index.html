@@ -753,8 +753,8 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
   {# Fancybox: #}
   <script type="text/javascript" src="{% static 'gendep/fancybox/source/jquery.fancybox.pack.js' %}"></script>
 
-{# Google-Analytics Tracking Info #}
-{% if settings_GOOGLE_ANALYTICS_KEY %}
+  {# Google-Analytics Tracking Info #}
+  {% if settings_GOOGLE_ANALYTICS_KEY %}
   <script>
    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
@@ -764,7 +764,6 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
    ga('create', '{{settings_GOOGLE_ANALYTICS_KEY}}', 'auto');
    ga('send', 'pageview');
   </script>
-{% endif %}
-
+  {% endif %}
   
 {% endblock %}

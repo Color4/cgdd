@@ -20,6 +20,8 @@ urlpatterns = [
     url(r'^contact/$', views.contact, name='contact'),
     url(r'^faq/$', views.faq, name='faq'),
     
+    url(r'^awstats/$', views.awstats, name='awstats'),
+    
     # url(r'^(?P<driver>[0-9A-Z]+)/graph/$', views.graph, name='graph'),
 
     url(r'^study/(?P<study_pmid>[0-9A-Za-z]+)/$', views.show_study, name='show_study'), # pmid could be 'Pending0001'

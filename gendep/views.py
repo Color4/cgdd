@@ -92,6 +92,77 @@ def get_timing(start_time, name, time_list=None):
     return datetime.now()
 
 
+
+
+def awstats(request):
+
+  # param = post_or_get_from_request(request, 'gene_name')
+  import subprocess, io
+
+  # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
+  awstats_pl = "/home/cgenetics/awstats/run_awstats.sh"
+  
+  awstats_pl = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
+
+
+ #fin_xml = gzip.open(xml_filename+".gz", "rt", encoding='utf-8')
+
+   # import io
+   #fin_xml = io.TextIOWrapper(gzip.open(xml_filename+".gz", "rb"))
+
+# Maybe faster might be using a pipe:
+# Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
+#   p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
+   
+  p = subprocess.Popen([awstats_pl], stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
+   # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
+   # If submit the command with 'shell=False', give the command as a list of strings, with the command name in the first element of the list, the first argument in the next list element, etc.
+   # But need 'shell=True' for eg: ls and rmdir which are not programs, but are internal commands within the shell program.
+   #   ? bufsize=-1
+      
+   # In Python 2:
+   # import cStringIO
+   # fin_xml = cStringIO.StringIO(p.communicate()[0])
+
+   # In Python 3:
+
+   #fin_xml = io.BytesIO(p.communicate()[0])
+   #for line in p.stdout:
+   #     line = line.rstrip()
+   #     print line
+           
+  # try
+  #  stdout, stderr = p.communicate()
+  # except TimeoutExpired:
+     #       os.killpg(process.pid, signal)
+            
+  err_data = p.stderr.read().decode("utf-8")
+  data = p.stdout.read().decode("utf-8")
+      
+  #if p.returncode != 0:
+  #  return HttpResponse("Error, running awstats failed with error code: %d" %(p.returncode), content_type=plain_mimetype)
+ 
+ #print("Opened input file",fin_xml)
+
+ #if PROCESS_MISSING_IDS:
+ #  fout2 = open("entrez_gene_full_details_MISSING_drivers2.txt","w")
+ #else:
+ #  fout2 = open("entrez_gene_full_details_test.txt","w")
+
+  #dont_process = True
+
+  #for infile in input_files:
+  # with open(infile, "r") as fin:
+  #  if not PROCESS_MISSING_IDS:   # As has no header line in the file: "fetch_entrez_full_details_missing.txt"
+  #    header = fin.readline() # Skip header line.
+  #
+  #  for line in fin:
+  #  
+  #      response.write( ("," if delim_type=='csv' else "\t") + file_description + "\n" + response_stringio.getvalue() )   # getvalue() similar to:  response_stringio.seek(0); response_stringio.read()
+  #   response_stringio.close() # To free the memory.
+  return HttpResponse("Stderr: "+err_data+"<br/>\n\nStdout: "+data, content_type=html_mimetype)
+
+
     
 def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''):
     """ Sets the javascript arrays for driver, histotypes and studies within the main home/index page.
