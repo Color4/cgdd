@@ -96,26 +96,29 @@ def get_timing(start_time, name, time_list=None):
 
 def awstats(request):
 
-  output_param = post_or_get_from_request(request, 'output')
+  awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
+  awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
+
+  cmd=[awstats_sh,]
+  
+  # output_param = post_or_get_from_request(request, 'output')
+  # if output_param is not None and output_param!='': cmd.append(output_param)
+    
+  for key,val in request.GET.items():
+    cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
+  
   import subprocess, io
 
   # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
-  awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"
-  
-  #awstats_pl = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
 
-
- #fin_xml = gzip.open(xml_filename+".gz", "rt", encoding='utf-8')
+  #fin_xml = gzip.open(xml_filename+".gz", "rt", encoding='utf-8')
 
    # import io
    #fin_xml = io.TextIOWrapper(gzip.open(xml_filename+".gz", "rb"))
 
-# Maybe faster might be using a pipe:
-# Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
-#   p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
-
-  cmd=[awstats_sh,]
-  if output_param is not None and output_param!='': cmd.append(output_param)
+  # Maybe faster might be using a pipe:
+  # Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
+  #   p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
   
   p = subprocess.Popen( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
    # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
