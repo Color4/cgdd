@@ -16,6 +16,9 @@ from django.db.models import Q # Used for get_drivers()
          
 from .models import Study, Gene, Dependency, Comment  # Removed: Histotype,
 
+from django.conf import settings # import the settings file for the Google analytics ID. Maybe better to use a context processor in the settings.py file: https://chriskief.com/2013/09/19/access-django-constants-from-settings-py-in-a-template/  and: http://www.nomadblue.com/blog/django/google-analytics-tracking-code-into-django-project/
+# or use the settings export script: https://github.com/jkbrzt/django-settings-export   (see: http://stackoverflow.com/questions/433162/can-i-access-constants-in-settings-py-from-templates-in-django  and: http://stackoverflow.com/questions/629696/deploying-google-analytics-with-django and: https://github.com/montylounge/django-google-analytics )
+
 # Optionally use Django logging during development and testing:
 # This Django logging is configured in settings.py and is based on: http://ianalexandr.com/blog/getting-started-with-django-logging-in-5-minutes.html
 #import logging
@@ -131,7 +134,7 @@ def index(request, search_by = 'driver', gene_name='', histotype_name='', study_
     current_url =  request.META['HTTP_HOST']
 
     # Set the context dictionary to pass to the template. (Alternatively could add locals() to the context to pass all local variables, eg: return render(request, 'app/page.html', locals())
-    context = {'search_by': search_by, 'gene_name': gene_name, 'histotype_name': histotype_name, 'study_pmid': study_pmid, 'study_short_name': study_short_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'current_url': current_url}
+    context = {'search_by': search_by, 'gene_name': gene_name, 'histotype_name': histotype_name, 'study_pmid': study_pmid, 'study_short_name': study_short_name, 'driver_list': driver_list, 'target_list': target_list,'histotype_list': histotype_list, 'study_list': study_list, 'experimenttype_list': experimenttype_list, 'current_url': current_url , 'settings_GOOGLE_ANALYTICS_KEY': settings.GOOGLE_ANALYTICS_KEY}
     return render(request, 'gendep/index.html', context)
 
 

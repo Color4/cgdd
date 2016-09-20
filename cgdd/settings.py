@@ -56,12 +56,20 @@ else:
 # SECRET_KEY_FILE = '/home/'+USERNAME+'/'+PROJECT+'_key.txt'
 SECRET_KEY_FILE = BASE_DIR+'/'+PROJECT+'/key.txt'
 
+GOOGLE_ANALYTICS_KEY_FILE = BASE_DIR+'/'+PROJECT+'/google_analytics_key.txt'
+
 # When DEBUG is False, need to specify the allowed hosts:
 ALLOWED_HOSTS = [ USERNAME+'.pythonanywhere.com' ]  # If you are using your own domain name, put that in this list instead.
 #ALLOWED_HOSTS = []
 
 # ===============================================================================================================
 
+
+#GOOGLE_ANALYTICS_KEY="UA-78105120-1"
+GOOGLE_ANALYTICS_KEY=""
+if os.path.exists(GOOGLE_ANALYTICS_KEY_FILE):
+  with open(GOOGLE_ANALYTICS_KEY_FILE) as f:
+    GOOGLE_ANALYTICS_KEY = f.read().strip()
 
 with open(SECRET_KEY_FILE) as f:
     SECRET_KEY = f.read().strip()
