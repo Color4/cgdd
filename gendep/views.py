@@ -146,7 +146,10 @@ def awstats(request):
      #       os.killpg(process.pid, signal)
 
   # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
-  if "-update=1" in cmd:
+  # If there are any updates then will the stdout will start with:
+  # Create/Update database for config "/home/cgenetics/awstats/awstats.cancergd.org.conf" by AWStats version 7.5 (build 20160301)
+  # From data in log file "/home/cgenetics/awstats/tools/logresolvemerge.pl /var/log/*access.log* |"...
+  if "-update=1" in cmd and stdout[:len("Create/Update database")]=="Create/Update database":
     stdout = stdout.replace("\n","<br/>\n")
     stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
 
