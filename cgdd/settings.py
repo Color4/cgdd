@@ -15,13 +15,14 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DEVELOPMENT = ('Django_projects' in BASE_DIR) # This willl be True when running on my local Windows computer.
+DEVELOPMENT = ('Django_projects' in BASE_DIR) or ('Documents' in BASE_DIR) # This willl be True when running on my local computer.
 
 # ===============================================================================================================
 # Then change the settings below accordingly:
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True # or: DEBUG = True  ## Set to True for DEVELOPMENT, or set to False for production server.
+# DEBUG = False
 
 DB = 'SQLITE'  # for development server
 # DB = 'MYSQL' # on PythonAnywhere free or paid accounts.
@@ -30,8 +31,10 @@ DB = 'SQLITE'  # for development server
 USERNAME = 'cgenetics' # Needed for secret_key, amd MySQL database, not needed for Sqlite. was: USERNAME = 'sbridgett'
 
 PROJECT = 'cgdd'
+PROJECT_DIR = os.path.join(BASE_DIR,PROJECT)
 
 CACHE_DATA = True # Set to True to cache recent queries in the database 'gendep_cache_table' table.
+
 
 
 if DEVELOPMENT:
@@ -44,7 +47,7 @@ else:
 # https://docs.djangoproject.com/en/1.9/topics/email/
 # http://stackoverflow.com/questions/6782732/no-connection-could-be-made-because-the-target-machine-actively-refused-it-djan
 
- 
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.9/howto/deployment/checklist/
 
@@ -53,23 +56,21 @@ else:
 # SJB - Instead could automatically build a secret key (eg: https://gist.github.com/airtonix/6204802 )
 # We can put setting.py into github, but don't put base/settings/key.py into github.
 
-# SECRET_KEY_FILE = '/home/'+USERNAME+'/'+PROJECT+'_key.txt'
-SECRET_KEY_FILE = BASE_DIR+'/'+PROJECT+'/key.txt'
-
-GOOGLE_ANALYTICS_KEY_FILE = BASE_DIR+'/'+PROJECT+'/google_analytics_key.txt'
+SECRET_KEY_FILE = os.path.join(PROJECT_DIR,'key.txt')
+GOOGLE_ANALYTICS_KEY_FILE = os.path.join(PROJECT_DIR,'google_analytics_key.txt')
 
 # When DEBUG is False, need to specify the allowed hosts:
-ALLOWED_HOSTS = [ USERNAME+'.pythonanywhere.com' ]  # If you are using your own domain name, put that in this list instead.
+ALLOWED_HOSTS = [ USERNAME+'.pythonanywhere.com', 'www.cancergd.org', 'cancergd.org' ]  # If you are using your own domain name, put that in this list instead.
 #ALLOWED_HOSTS = []
 
 # ===============================================================================================================
 
-
-#GOOGLE_ANALYTICS_KEY="UA-78105120-1"
+# Optional Google Analytics ID for index.html page:
 GOOGLE_ANALYTICS_KEY=""
 if os.path.exists(GOOGLE_ANALYTICS_KEY_FILE):
   with open(GOOGLE_ANALYTICS_KEY_FILE) as f:
     GOOGLE_ANALYTICS_KEY = f.read().strip()
+
 
 with open(SECRET_KEY_FILE) as f:
     SECRET_KEY = f.read().strip()
@@ -97,7 +98,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 # BUT CORS would need enabled on the string-db.org site:
-#    'corsheaders'   ## Added by SJB to enable Cross-Origin AJAX requests, for requesting string-db interactionsList 
+#    'corsheaders'   ## Added by SJB to enable Cross-Origin AJAX requests, for requesting string-db interactionsList
                     ## see: http://techmightsolutions.blogspot.co.uk/2015/05/cors-in-django-rest-framework.html
                     ## and https://github.com/ottoyiu/django-cors-headers
                     ### BUT this doesn't help as still error about:
@@ -124,10 +125,10 @@ MIDDLEWARE_CLASSES = [
 #    MIDDLEWARE_CLASSES.append('livereload.middleware.LiveReloadScript')
     # *** This automatic setup of the debug toolbar is NOT compatible with GZipMiddleware (use the explicit setup for debug toolbar)
     # Slow and doesn't seem to monitor Ajax: INSTALLED_APPS.append('debug_toolbar') # For monitoring SQL etc. Needs: DEBUG = True, and staticfiles setup correctly.  See: http://django-debug-toolbar.readthedocs.org/en/1.4/installation.html#quick-setup
-    # LIVERELOAD_PORT = 
+    # LIVERELOAD_PORT =
     # RUNSERVERPLUS_POLLER_RELOADER_INTERVAL = 5 # For the runserver plus to reduce polling interval for changed files to 5 seconds.
 # else:
-    
+
 ROOT_URLCONF = PROJECT+'.urls'
 
 #CORS_ORIGIN_WHITELIST = (  # SJB added CORS, but would need enabled on string-db.org
@@ -178,15 +179,15 @@ else:  # on PythonAnywhere production server, to cache the templates (need to 'R
                # 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                # 'django.contrib.messages.context_processors.messages',
-            ],            
-            'debug': DEBUG, 
+            ],
+            'debug': DEBUG,
         },
-    },]  
+    },]
     # NOTE: "All of the built-in Django template tags are safe to use with the cached loader, but if you’re using custom template tags that come from third party packages, or that you wrote yourself, you should ensure that the Node implementation for each tag is thread-safe. For more information, see template tag thread safety considerations."
     # https://docs.djangoproject.com/en/1.9/ref/templates/api/#django.template.loaders.cached.Loader
     # And: http://www.revsys.com/blog/2015/may/06/django-performance-simple-things/
-    
-    
+
+
 # The following debug line is depreciated since Django 1.8 so is replaced with the above option 'debug': DEBUG
 # TEMPLATE_DEBUG = True
 
@@ -222,7 +223,7 @@ elif DB == 'MYSQL':
       }
     }
 elif DB == 'POSTGRES':
-  # I haven't tested CGDD with Postgresql yet:  
+  # I haven't tested CGDD with Postgresql yet:
   # And set a database name.
   # And add:  USER, PASSWORD, and HOST
   # For PostgreSQL or MySQL, make sure youve created a database by this point. Do that with CREATE DATABASE database_name; within your databases interactive prompt.
@@ -278,7 +279,7 @@ else: # Use dummy cache, so can test speed of SQL query repeatidly:
             'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
         }
     }
-  
+
 
 
 # Password validation
@@ -318,7 +319,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.9/howto/static-files/
 
 # For configuring static file paths, see: https://help.pythonanywhere.com/pages/DjangoStaticFiles/
-STATIC_ROOT = os.path.join(BASE_DIR, "static") 
+STATIC_ROOT = os.path.join(BASE_DIR, "static")
 
 STATIC_URL = '/static/'
 # STATIC_URL = '/static/' if DEVELOPMENT else 'http://sbridgett.pythonanywhere.com/static/'
