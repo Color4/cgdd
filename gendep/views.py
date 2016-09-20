@@ -92,9 +92,8 @@ def get_timing(start_time, name, time_list=None):
     return datetime.now()
 
 
-
-
 def awstats(request):
+
 
   awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
   awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
@@ -106,8 +105,11 @@ def awstats(request):
     
   for key,val in request.GET.items():
     cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
+    
+  print("cmd",cmd)
   
   import subprocess, io
+  from django.core.urlresolvers import reverse
 
   # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
 
@@ -142,6 +144,11 @@ def awstats(request):
   stdout, stderr = p.communicate()
   # except TimeoutExpired:
      #       os.killpg(process.pid, signal)
+
+  # The update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
+  if "-update=1" in cmd:
+    stdout = stdout.replace("\n","<br/>\n")
+    stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
 
   if p.returncode != 0:    
     return HttpResponse("Error, running awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr), content_type=plain_mimetype)

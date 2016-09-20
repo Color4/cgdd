@@ -21,7 +21,7 @@ urlpatterns = [
     url(r'^faq/$', views.faq, name='faq'),
     
     url(r'^awstats/$', views.awstats, name='awstats'),
-    url(r'^awstats/awstats$', views.awstats, name='awstats'), # For the links within the awstats.pl (as set by the 'WrapperScript="awstats"' in the awstats config file.
+    url(r'^awstats/awstats$', views.awstats, name='awstats_with_param'), # For the links within the awstats.pl (as set by the 'WrapperScript="awstats"' in the awstats config file.
     
     # url(r'^(?P<driver>[0-9A-Z]+)/graph/$', views.graph, name='graph'),
 
