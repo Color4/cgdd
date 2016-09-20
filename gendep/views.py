@@ -96,11 +96,11 @@ def get_timing(start_time, name, time_list=None):
 
 def awstats(request):
 
-  # param = post_or_get_from_request(request, 'gene_name')
+  output_param = post_or_get_from_request(request, 'output')
   import subprocess, io
 
   # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
-  awstats_pl = "/home/cgenetics/awstats/run_awstats.sh"
+  awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"
   
   #awstats_pl = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
 
@@ -113,8 +113,11 @@ def awstats(request):
 # Maybe faster might be using a pipe:
 # Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
 #   p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
-   
-  p = subprocess.Popen([awstats_pl], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
+
+  cmd=[awstats_sh,]
+  if output_param is not None and output_param!='': cmd.append(output_param)
+  
+  p = subprocess.Popen( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
    # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
    # If submit the command with 'shell=False', give the command as a list of strings, with the command name in the first element of the list, the first argument in the next list element, etc.
    # But need 'shell=True' for eg: ls and rmdir which are not programs, but are internal commands within the shell program.
