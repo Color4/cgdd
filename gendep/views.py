@@ -104,6 +104,7 @@ def awstats(request):
   # if output_param is not None and output_param!='': cmd.append(output_param)
     
   for key,val in request.GET.items():
+    if key=='config': continue # Skip this config option as is already defined in the 'awstats_sh' bash file.
     cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
     
   print("cmd",cmd)
@@ -139,7 +140,7 @@ def awstats(request):
    #for line in p.stdout:
    #     line = line.rstrip()
    #     print line
-           
+         http://www.cancergd.org/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&output=allhosts  
   # try
   stdout, stderr = p.communicate()
   # except TimeoutExpired:
@@ -149,6 +150,7 @@ def awstats(request):
   # If there are any updates then will the stdout will start with:
   # Create/Update database for config "/home/cgenetics/awstats/awstats.cancergd.org.conf" by AWStats version 7.5 (build 20160301)
   # From data in log file "/home/cgenetics/awstats/tools/logresolvemerge.pl /var/log/*access.log* |"...
+  # As if the "Update Now" is clicked with a subsection then the updated datta is returned.
   if "-update=1" in cmd and stdout[:len("Create/Update database")]=="Create/Update database":
     stdout = stdout.replace("\n","<br/>\n")
     stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
