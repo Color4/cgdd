@@ -1,6 +1,8 @@
 from django.conf.urls import url
 from django.views.decorators.cache import cache_page
 
+from django.contrib import admin # To add the admin wrapper to awstats_view
+
 from . import views
 
 app_name = 'gendep'
@@ -20,8 +22,10 @@ urlpatterns = [
     url(r'^contact/$', views.contact, name='contact'),
     url(r'^faq/$', views.faq, name='faq'),
     
-    url(r'^awstats/$', views.awstats, name='awstats'),
-    url(r'^awstats/awstats$', views.awstats, name='awstats_with_param'), # For the links within the awstats.pl (as set by the 'WrapperScript="awstats"' in the awstats config file.
+    #url(r'^awstats/$', admin.site.admin_view(awstats_view), name='awstats'),     # The 'self.admin_site.admin_view()' wrapper checks that have admin permissions and marks the page as non-cacheable.
+
+#    url(r'^awstats/$', views.awstats, name='awstats'),
+#    url(r'^awstats/awstats$', views.awstats, name='awstats_with_param'), # For the links within the awstats.pl (as set by the 'WrapperScript="awstats"' in the awstats config file.
     
     # url(r'^(?P<driver>[0-9A-Z]+)/graph/$', views.graph, name='graph'),
 

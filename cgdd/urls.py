@@ -17,11 +17,19 @@ Including another URLconf
 from django.conf.urls import include, url
 from django.contrib import admin
 
+
+import gendep.views  # To call the awstats in views.py
+
+
 urlpatterns = [
 #    url(r'^(?:gendep|api)/', include('gendep.urls')), # This didn't work, (as genedp.utls contains app_name = 'gendep') but split the gendep urls in two files, but keep as one for simplicity for now.
+
     url(r'^admin/', admin.site.urls),
     url(r'^gendep/', include('gendep.urls')),
 #    url(r'^api/', include('gendep.urls_api')),
+
+    url(r'^awstats/', admin.site.admin_view(gendep.views.awstats_view), name='awstats'),     # The 'self.admin_site.admin_view()' wrapper checks that have admin permissions and marks the page as non-cacheable.
+    # The above also for eg: awstats/awstats?output=allhosts    
     
     # To enable the domain name: "http://www.cancergd.org" to go to the gendep app, without needing /gendep/ suffix.
     # From: http://stackoverflow.com/questions/22468813/how-do-i-set-my-django-views-url-to-the-root-domain-of-my-website    

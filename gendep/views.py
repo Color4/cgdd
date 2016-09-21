@@ -6,14 +6,16 @@ from urllib.error import  URLError
 from datetime import datetime # For get_timming() and log_comment()
 import requests # for Enrichr and mailgun email server
 import ipaddress # For is_valid_ip()
+import subprocess, io  # Used for awstats_view()
 
 from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.cache import cache  # To cache previous results. NOTE: "To provide thread-safety, a different instance of the cache backend will be returned for each thread."
+from django.core.urlresolvers import reverse
 from django.utils import timezone # For log_comment(), with USE_TZ=True in settings.py, and istall "pytz"
-from django.db.models import Q # Used for get_drivers()
-         
+from django.db.models import Q # Used for get_drivers()         
+
 from .models import Study, Gene, Dependency, Comment  # Removed: Histotype,
 
 from django.conf import settings # import the settings file for the Google analytics ID. Maybe better to use a context processor in the settings.py file: https://chriskief.com/2013/09/19/access-django-constants-from-settings-py-in-a-template/  and: http://www.nomadblue.com/blog/django/google-analytics-tracking-code-into-django-project/
@@ -92,98 +94,43 @@ def get_timing(start_time, name, time_list=None):
     return datetime.now()
 
 
-def awstats(request):
+def awstats_view(request):
+    awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
+    #awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
 
-
-  awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
-  #awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
-
-  cmd=[awstats_sh,]
+    cmd=[awstats_sh,]  
+    for key,val in request.GET.items():
+      if key=='config': continue # Skip this config option as is already defined in the 'awstats_sh' bash file.
+      cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
+    print("cmd",cmd)
   
-  # output_param = post_or_get_from_request(request, 'output')
-  # if output_param is not None and output_param!='': cmd.append(output_param)
-    
-  for key,val in request.GET.items():
-    if key=='config': continue # Skip this config option as is already defined in the 'awstats_sh' bash file.
-    cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
-    
-  print("cmd",cmd)
-  
-  import subprocess, io
-  from django.core.urlresolvers import reverse
+    p = subprocess.Popen( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
+    # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
+    # If submit the command with 'shell=False', give the command as a list of strings, with the command name in the first element of the list, the first argument in the next list element, etc.
+    # But need 'shell=True' for eg: ls and rmdir which are not programs, but are internal commands within the shell program.
+    # 'universal_newlines=True' means will return Strings (rather than Bytes)
+    # Maybe 'bufsize=-1'
 
-  # xml_filename = "entrez_gene_full_details_Achilles_and_Colt.xml"
+    # "This will deadlock when using stdout=PIPE or stderr=PIPE and the child process generates enough output to a pipe such that it blocks waiting for the OS pipe buffer to accept more data. Use Popen.communicate() when using pipes to avoid that.
+    # "Use the communicate() method rather than .stdin.write, .stdout.read or .stderr.read to avoid deadlocks due to streams pausing reading or writing and blocking the child process.           
+    stdout, stderr = p.communicate(timeout=None)
+    # except TimeoutExpired:
+    #       os.killpg(process.pid, signal)
+    if p.returncode != 0:
+      return HttpResponse( "Error, running awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr) )
 
-  #fin_xml = gzip.open(xml_filename+".gz", "rt", encoding='utf-8')
+    # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
+    # If there are any updates then will the stdout will start with:
+    # Create/Update database for config "/home/cgenetics/awstats/awstats.cancergd.org.conf" by AWStats version 7.5 (build 20160301)
+    # From data in log file "/home/cgenetics/awstats/tools/logresolvemerge.pl /var/log/*access.log* |"...
+    # As if the "Update Now" is clicked with a subsection then the updated datta is returned.
+    if "-update=1" in cmd and stdout[:len("Create/Update database")]=="Create/Update database":
+      stdout = stdout.replace("\n","<br/>\n")
+      stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
 
-   # import io
-   #fin_xml = io.TextIOWrapper(gzip.open(xml_filename+".gz", "rb"))
-
-  # Maybe faster might be using a pipe:
-  # Using gzcat, as: from man page: zcat expects or adds '.Z' at end of the input file.
-  #   p = subprocess.Popen(["gzcat",xml_filename+".gz"], stdout=subprocess.PIPE)  # Optionally add: stderr=subprocess.PIPE
-  
-  p = subprocess.Popen( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
-   # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
-   # If submit the command with 'shell=False', give the command as a list of strings, with the command name in the first element of the list, the first argument in the next list element, etc.
-   # But need 'shell=True' for eg: ls and rmdir which are not programs, but are internal commands within the shell program.
-   #   ? bufsize=-1
-   # universal_newlines=True means will return Strings (rather than Bytes)
-      
-   # In Python 2:
-   # import cStringIO
-   # fin_xml = cStringIO.StringIO(p.communicate()[0])
-
-   # In Python 3:
-
-   #fin_xml = io.BytesIO(p.communicate()[0])
-   #for line in p.stdout:
-   #     line = line.rstrip()
-   #     print line
-         http://www.cancergd.org/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&output=allhosts  
-  # try
-  stdout, stderr = p.communicate()
-  # except TimeoutExpired:
-     #       os.killpg(process.pid, signal)
-
-  # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
-  # If there are any updates then will the stdout will start with:
-  # Create/Update database for config "/home/cgenetics/awstats/awstats.cancergd.org.conf" by AWStats version 7.5 (build 20160301)
-  # From data in log file "/home/cgenetics/awstats/tools/logresolvemerge.pl /var/log/*access.log* |"...
-  # As if the "Update Now" is clicked with a subsection then the updated datta is returned.
-  if "-update=1" in cmd and stdout[:len("Create/Update database")]=="Create/Update database":
-    stdout = stdout.replace("\n","<br/>\n")
-    stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
-
-  if p.returncode != 0:    
-    return HttpResponse("Error, running awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr), content_type=plain_mimetype)
-
-            
-  # err_data = p.stderr.read().decode("utf-8")
-  # data = p.stdout.read().decode("utf-8")
-  # Warning Use the communicate() method rather than .stdin.write, .stdout.read or .stderr.read to avoid deadlocks due to streams pausing reading or writing and blocking the child process.
-  # err_data = stderr #.read()
-  # data = stdout  #.read()            
- 
- #print("Opened input file",fin_xml)
-
- #if PROCESS_MISSING_IDS:
- #  fout2 = open("entrez_gene_full_details_MISSING_drivers2.txt","w")
- #else:
- #  fout2 = open("entrez_gene_full_details_test.txt","w")
-
-  #dont_process = True
-
-  #for infile in input_files:
-  # with open(infile, "r") as fin:
-  #  if not PROCESS_MISSING_IDS:   # As has no header line in the file: "fetch_entrez_full_details_missing.txt"
-  #    header = fin.readline() # Skip header line.
-  #
-  #  for line in fin:
-  #  
-  #      response.write( ("," if delim_type=='csv' else "\t") + file_description + "\n" + response_stringio.getvalue() )   # getvalue() similar to:  response_stringio.seek(0); response_stringio.read()
-  #   response_stringio.close() # To free the memory.
-  return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") +stdout, content_type=html_mimetype)
+    # Could add logout link:  http://127.0.0.1:8000/admin/logout/ which is reverse( 'logout' ) or reverse( 'admin:logout' )
+    logout_link = '<p align="right"><a href="' + reverse( 'admin:logout' ) + '">Admin LOG OUT</a></p>'
+    return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") + logout_link +stdout )
 
 
     
