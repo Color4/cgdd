@@ -96,7 +96,7 @@ def get_timing(start_time, name, time_list=None):
 
 def awstats_view(request):
     awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
-    #awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
+    # awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
 
     cmd=[awstats_sh,]  
     for key,val in request.GET.items():
@@ -126,14 +126,13 @@ def awstats_view(request):
     # As if the "Update Now" is clicked with a subsection then the updated datta is returned.
     if "-update=1" in cmd and stdout[:len("Create/Update database")]=="Create/Update database":
       stdout = stdout.replace("\n","<br/>\n")
-      stdout += '<br/><a href="' + reverse('gendep:awstats') + '"><button>Display the updated stats</button></a>'
+      stdout += '<br/><a href="' + reverse('stats') + '"><button>Display the updated stats</button></a>'
 
     # Could add logout link:  http://127.0.0.1:8000/admin/logout/ which is reverse( 'logout' ) or reverse( 'admin:logout' )
     logout_link = '<p align="right"><a href="' + reverse( 'admin:logout' ) + '">Admin LOG OUT</a></p>'
     return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") + logout_link +stdout )
 
 
-    
 def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''):
     """ Sets the javascript arrays for driver, histotypes and studies within the main home/index page.
     As the index page can be called with specified values, eg: '.../driver/ERBB2/PANCAN/26947069/'
