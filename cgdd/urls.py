@@ -16,7 +16,7 @@ Including another URLconf
 
 from django.conf.urls import include, url
 from django.contrib import admin
-
+from django.http import HttpResponse # For the robots.txt response.
 
 import gendep.views  # To call the awstats in views.py
 
@@ -30,6 +30,9 @@ urlpatterns = [
 
     url(r'^stats/', admin.site.admin_view(gendep.views.awstats_view), name='stats'),     # The 'self.admin_site.admin_view()' wrapper checks that have admin permissions and marks the page as non-cacheable.
     # The above also for eg: stats/awstats?output=allhosts    
+
+    # The 'robots.txt' response for web search engine robots (this empty 'Disallow:' means all pages are allowed)
+    url(r'^robots.txt', lambda x: HttpResponse("User-Agent: *\nDisallow:", content_type="text/plain"), name="robots_file")
     
     # To enable the domain name: "http://www.cancergd.org" to go to the gendep app, without needing /gendep/ suffix.
     # From: http://stackoverflow.com/questions/22468813/how-do-i-set-my-django-views-url-to-the-root-domain-of-my-website    
