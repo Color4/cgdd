@@ -106,22 +106,23 @@ def awstats_view(request):
     perl5lib_for_geoip = awstats_dir+"/Geo-IP-1.50/install_dir/lib/perl/5.18.2"  # Path to the Geo-IP module used by awstats.pl. Could add:   +os.pathsep+os.environ['PERL5LIB']
     config = "awstats.cancergd.org.conf" # awstats config file (in awstats_dir/wwwroot/cgi-bin) for gathering and displaying the cancergd stats.
 
-    cmd = [ awstats_script, ]
+    cmd = [ awstats_script, '-config='+config ]
     env = dict(os.environ, PERL5LIB=perl5lib_for_geoip)
     # Alternatively copy the existing env and then modify it, so can add to any existing PERL5LIB:
     #  env = os.environ.copy()
-    #  env['PERL5LIB'] = perl5lib_for_geoip + os.pathsep + env['PERL5LIB']
+    #  env['PERL5LIB'] = perl5lib_for_geoip + os.pathsep + env['PERL5LIB'] # note: os.pathsep is : or ;  whereas os.path.sep is \\ or /
     
-    if len(request.GET.dict())==0:  # as just called with /stats so set defaults:
-      cmd.extend(['-output', '-config='+config])
+        
+    if len(request.GET.dict())==0:  # as just called with /stats so set default:
+      cmd.append('-output')
     else:
       for key,val in request.GET.items():
-        if key=='config': val = config # Always set to this config option (just in case accidentally or deliberately user tries a different config)
+        if key=='config': continue # Always set to this config option above (just in case accidentally or deliberately user tries a different config)
         cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
 
         
     print("cmd",cmd)
-      
+          
     p = subprocess.Popen( cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
     # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
@@ -150,6 +151,8 @@ def awstats_view(request):
     # Could add logout link:  http://127.0.0.1:8000/admin/logout/ which is reverse( 'logout' ) or reverse( 'admin:logout' )
     logout_link = '<p align="right"><a href="' + reverse( 'admin:logout' ) + '">Admin LOG OUT</a></p>'
     return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") + logout_link +stdout )
+
+
 
 
 def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''):
