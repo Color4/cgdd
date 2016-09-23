@@ -6,7 +6,7 @@ from urllib.error import  URLError
 from datetime import datetime # For get_timming() and log_comment()
 import requests # for Enrichr and mailgun email server
 import ipaddress # For is_valid_ip()
-import subprocess, io  # Used for awstats_view()
+import subprocess, io, os  # Used for awstats_view()
 
 from django.http import HttpResponse #, JsonResponse
 from django.shortcuts import get_object_or_404, render
@@ -95,16 +95,35 @@ def get_timing(start_time, name, time_list=None):
 
 
 def awstats_view(request):
-    awstats_sh = "/home/cgenetics/awstats/run_awstats.sh"  
-    # awstats_sh = "/Users/sbridgett/Documents/UCD/cgdd/run_awstats.sh"
+    awstats_dir = "/home/cgenetics/awstats"
+    awstats_script = os.path.join(awstats_dir, "wwwroot/cgi-bin/awstats.pl")
+    # awstats_script = os.path.join(awstats_dir, "run_awstats.sh") # Test script for debugging.
+        
+    # Local test settings:
+    awstats_dir = "/Users/sbridgett/Documents/UCD/cgdd"
+    awstats_script = os.path.join(awstats_dir, "run_awstats.sh")
 
-    cmd=[awstats_sh,]  
-    for key,val in request.GET.items():
-      if key=='config': continue # Skip this config option as is already defined in the 'awstats_sh' bash file.
-      cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
+    perl5lib_for_geoip = awstats_dir+"/Geo-IP-1.50/install_dir/lib/perl/5.18.2"  # Path to the Geo-IP module used by awstats.pl. Could add:   +os.pathsep+os.environ['PERL5LIB']
+    config = "awstats.cancergd.org.conf" # awstats config file (in awstats_dir/wwwroot/cgi-bin) for gathering and displaying the cancergd stats.
+
+    cmd = [ awstats_script, ]
+    env = dict(os.environ, PERL5LIB=perl5lib_for_geoip)
+    # Alternatively copy the existing env and then modify it, so can add to any existing PERL5LIB:
+    #  env = os.environ.copy()
+    #  env['PERL5LIB'] = perl5lib_for_geoip + os.pathsep + env['PERL5LIB']
+    
+    if len(request.GET.dict())==0:  # as just called with /stats so set defaults:
+      cmd.extend(['-output', '-config='+config])
+    else:
+      for key,val in request.GET.items():
+        if key=='config': val = config # Always set to this config option (just in case accidentally or deliberately user tries a different config)
+        cmd.append('-'+key+'='+val)   # eg: output, hostfilter, hostfilterex
+
+        
     print("cmd",cmd)
-  
-    p = subprocess.Popen( cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)  # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
+      
+    p = subprocess.Popen( cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    # Optionally add: stderr=subprocess.PIPE, shell=True, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True
     # For 'shell=True' submit the whole command as one string, but this starts a new shell process (which is an expensive operation).
     # If submit the command with 'shell=False', give the command as a list of strings, with the command name in the first element of the list, the first argument in the next list element, etc.
     # But need 'shell=True' for eg: ls and rmdir which are not programs, but are internal commands within the shell program.
@@ -119,7 +138,7 @@ def awstats_view(request):
     if p.returncode != 0:
       return HttpResponse( "Error, running awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr) )
 
-    # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=/home/cgenetics/awstats/awstats.cancergd.org.conf&update=1
+    # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=awstats.cancergd.org.conf&update=1
     # If there are any updates then will the stdout will start with:
     # Create/Update database for config "/home/cgenetics/awstats/awstats.cancergd.org.conf" by AWStats version 7.5 (build 20160301)
     # From data in log file "/home/cgenetics/awstats/tools/logresolvemerge.pl /var/log/*access.log* |"...
