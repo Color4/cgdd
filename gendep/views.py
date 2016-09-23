@@ -100,8 +100,8 @@ def awstats_view(request):
     # awstats_script = os.path.join(awstats_dir, "run_awstats.sh") # Test script for debugging.
         
     # Local test settings:
-    awstats_dir = "/Users/sbridgett/Documents/UCD/cgdd"
-    awstats_script = os.path.join(awstats_dir, "run_awstats.sh")
+    #awstats_dir = "/Users/sbridgett/Documents/UCD/cgdd"
+    #awstats_script = os.path.join(awstats_dir, "run_awstats.sh")
 
     perl5lib_for_geoip = awstats_dir+"/Geo-IP-1.50/install_dir/lib/perl/5.18.2"  # Path to the Geo-IP module used by awstats.pl. Could add:   +os.pathsep+os.environ['PERL5LIB']
     config = "awstats.cancergd.org.conf" # awstats config file (in awstats_dir/wwwroot/cgi-bin) for gathering and displaying the cancergd stats.
