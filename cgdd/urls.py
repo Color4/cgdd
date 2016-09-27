@@ -32,7 +32,7 @@ urlpatterns = [
     # The above also for eg: stats/awstats?output=allhosts    
 
     # The 'robots.txt' response for web search engine robots (this empty 'Disallow:' means all pages are allowed)
-    url(r'^robots.txt', lambda x: HttpResponse("User-Agent: *\nDisallow:", content_type="text/plain"), name="robots_file")
+    url(r'^robots.txt', lambda x: HttpResponse("User-Agent: *\nDisallow:", content_type="text/plain"), name="robots_file"),
     
     # To enable the domain name: "http://www.cancergd.org" to go to the gendep app, without needing /gendep/ suffix.
     # From: http://stackoverflow.com/questions/22468813/how-do-i-set-my-django-views-url-to-the-root-domain-of-my-website    

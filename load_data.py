@@ -1089,7 +1089,7 @@ def add_tissue_and_study_lists_for_each_driver():
         g = Gene.objects.get(gene_name=driver)
         g.driver_study_list = driver_studies[driver]
         num_in_list = g.driver_study_list.count(';')+1
-        if g.driver_num_studies != num_in_list:   # BUT 'g.num_studies' could drefer to targets not drivers.
+        if g.driver_num_studies != num_in_list:   # As 'g.driver_num_studies' already set in function: add_counts_of_study_tissue_and_target_to_drivers()
             print("Count mismatch: g.num_studies(%d) != num_in_list(%d)" %(g.driver_num_studies,num_in_list))
         g.save()
         print(g.gene_name,g.driver_study_list);        

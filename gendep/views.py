@@ -52,9 +52,19 @@ def JsonResponse(data, safe=False):
     # eg: django.http.JsonResponse(data, safe=safe)
     return HttpResponse(json.dumps(data, separators=[',',':']), content_type=json_mimetype)
 
+def PlainResponse(msg):
+    return HttpResponse(msg, content_type=plain_mimetype)
+
 def json_error(message, status_code='1'):
     """ Sends an error message to the browser in JSON format """
     return JsonResponse( {'success': False, 'error': status_code, 'message': message } ) # eg: str(exception)
+
+def html_error(msg):
+    return HttpResponse("<h2>Error:</h2>"+msg)
+
+def plain_error(msg):
+    return PlainResponse(msg)
+
 
 def is_search_by_driver(search_by):
     """ Checks if the 'search_by' parameter is valid, returning True if the dependency search is by driver """
@@ -137,7 +147,7 @@ def awstats_view(request):
     # except TimeoutExpired:
     #       os.killpg(process.pid, signal)
     if p.returncode != 0:
-      return HttpResponse( "Error, running awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr) )
+      return html_error( "awstats failed with error code: %d  StdErr: %s" %(p.returncode, '' if stderr is None else stderr) )
 
     # For the 'AllowUpdatesFromBrowser=1' awstats config option, the update button link: http://www.cancergd.org/gendep/awstats/awstats?config=awstats.cancergd.org.conf&update=1
     # If there are any updates then will the stdout will start with:
@@ -150,10 +160,115 @@ def awstats_view(request):
 
     # Could add logout link:  http://127.0.0.1:8000/admin/logout/ which is reverse( 'logout' ) or reverse( 'admin:logout' )
     logout_link = '<p align="right"><a href="' + reverse( 'admin:logout' ) + '">Admin LOG OUT</a></p>'
-    return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") + logout_link +stdout )
+    return HttpResponse( ("" if stderr=="" else "ERROR:<br/>"+stderr+"<br/>\n\n") + logout_link +stdout )    
+    # Could add to the update now link in the awstats.pl srcript: padding: 10px 20px;  
 
 
 
+
+
+# From: http://stackoverflow.com/questions/10340684/group-concat-equivalent-in-django
+# Django doesn't have built-in support for GROUP_CONCAT (which is available in SQLite and MySQL), so create an Aggregate class for it:
+
+from django.db.models import Aggregate, CharField, F
+
+class Concat(Aggregate):
+    # supports COUNT(distinct field)
+    function = 'GROUP_CONCAT'
+    
+    engine = settings.DATABASES['default']['ENGINE']
+    if engine == 'django.db.backends.sqlite3':
+      template = '%(function)s(%(distinct)s%(expressions)s)'  # Added separator doesn't doesn't work in sqlite when DISTINCT. No order by within the GROUP_CONCAT in Sqlite
+    elif engine == 'django.db.backends.mysql':
+      template = '%(function)s(%(distinct)s%(expressions) ORDER BY s%(expressions) SEPARATOR ",")'  # but doesn't work in sqlite.
+    elif engine == 'django.db.backends.postgresql':  # https://coderwall.com/p/eyknwa/postgres-group_concat
+      template = 'string_agg(%(distinct)s%(expressions), "," ORDER BY %(expressions)s)'  # add order by after separator and without a comma before it: https://www.postgresql.org/docs/9.5/static/sql-expressions.html#SYNTAX-AGGREGATES
+    else:
+      html_error("Unexpected database engine: %s" %(engine))
+    
+    # template = '%(function)s(%(distinct)s%(expressions)s,";")'  # but doesn't work in sqlite.    
+    # template = '%(function)s(%(distinct)s%(expressions)s,"%(sep)s")'
+    # sep=sep
+    # BUT get error: OperationalError: DISTINCT aggregates must have exactly one argument
+    # it seems from web that cannot have both DISTINCT and a custom separator
+    
+    # In MySQL can add:    ORDER BY  DESC SEPARATOR ' '
+     
+    def __init__(self, expression, distinct=False, **extra):   # sep=';', BUT doesn't work in sqlite
+        super(Concat, self).__init__(
+            expression,
+            distinct='DISTINCT ' if distinct else '',
+            output_field=CharField(),
+            **extra)
+# use it simply as:
+
+# query_set = Fruits.objects.values('type').annotate(count=Count('type'),
+#                       name = Concat('name')).order_by('-count')
+
+
+# OR:
+# In the upcoming Django 1.8 you could just implement GroupConcat expression, and then the query would look like:
+# Event.objects.values('slug').annotate(emails=GroupConcat('task__person__email'))
+# The .values().annotate() combination sets the GROUP BY to slug, and of course the GroupConcat implementation does the actual aggregation.
+# For how to write the GroupConcat implementation check out https://docs.djangoproject.com/en/dev/ref/models/expressions/#writing-your-own-query-expressions
+
+
+
+def build_driver_list(webpage):
+    # If the values() clause precedes the annotate(), the annotation will be computed using the grouping described by the values() clause:
+    # query_seq = Dependency.objects.values('driver_id','driver__full_name','driver__prevname_synonyms').annotate(histotypes=Concat('histotype',distinct=True),studies=Concat('study_id',distinct=True)).order_by('driver_id')
+                
+    # SELECT "gendep_dependency"."driver", "gendep_gene"."full_name", "gendep_gene"."prevname_synonyms", GROUP_CONCAT(DISTINCT "gendep_dependency"."histotype") AS "histotypes", GROUP_CONCAT(DISTINCT "gendep_dependency"."pmid") AS "studies" FROM "gendep_dependency" INNER JOIN "gendep_gene" ON ("gendep_dependency"."driver" = "gendep_gene"."gene_name") GROUP BY "gendep_dependency"."driver", "gendep_gene"."full_name", "gendep_gene"."prevname_synonyms" ORDER BY "gendep_dependency"."driver" ASC driver histotypes study
+
+
+    # (3) Use RAW SQL:
+    if settings.DATABASES['default']['ENGINE'] == 'django.db.backends.mysql':
+       histotype_order = ' ORDER BY D.histotype'
+       pmid_order = ' ORDER BY D.pmid'
+    else:
+       histotype_order = ''
+       pmid_order = ''
+       
+    if webpage == 'searchpage':
+      # Three possible queries:
+      # (1) With precomputed lists in model.py: 
+      # driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "prevname_synonyms", "driver_histotype_list", "driver_study_list").order_by('gene_name')
+
+      # (2) Using Django ORM
+      #driver_list = Dependency.objects.values('driver_id').annotate(full_name=F('driver__full_name'),prevname_synonyms=F('driver__prevname_synonyms'), driver_histotype_list=Concat('histotype',distinct=True), driver_study_list=Concat('study_id',distinct=True) ).order_by('driver_id')
+      # But this includes the full_name and synonyms in the GROUP BY list.
+      # Could try querying using the Gene object - bu this isn't working yet:
+      # driver_list = Gene.objects.values('gene_name').annotate(full_name=F('full_name'),prevname_synonyms=F('prevname_synonyms'), driver_histotype_list=Concat('histotype',distinct=True), driver_study_list=Concat('study_id',distinct=True) ).order_by('driver_id')
+        
+      driver_list = Gene.objects.raw("SELECT G.gene_name, G.full_name, G.prevname_synonyms, "
+                                    + "GROUP_CONCAT(DISTINCT D.histotype"+histotype_order+") AS driver_histotype_list, "
+                                    + "GROUP_CONCAT(DISTINCT D.pmid"+pmid_order+") AS driver_study_list "
+                                    + "FROM gendep_dependency D INNER JOIN gendep_gene G ON (D.driver = G.gene_name) "
+                                    + "GROUP BY D.driver ORDER BY G.gene_name ASC"
+                                    )
+
+    elif webpage == 'driverspage':    
+      # (1) With precomputed lists in model.py:
+      # driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+
+      driver_list = Gene.objects.raw("SELECT G.gene_name, G.full_name, G.prevname_synonyms, G.entrez_id, G.ensembl_id, G.hgnc_id, "
+                                    + "COUNT(DISTINCT D.pmid) AS driver_num_studies, "
+                                    + "COUNT(DISTINCT D.histotype) AS driver_num_histotypes, "
+                                    + "COUNT(DISTINCT D.target) AS driver_num_targets, "
+                                    + "GROUP_CONCAT(DISTINCT D.histotype"+histotype_order+") AS driver_histotype_list, "
+                                    + "GROUP_CONCAT(DISTINCT D.pmid"+pmid_order+") AS driver_study_list "
+                                    + "FROM gendep_dependency D INNER JOIN gendep_gene G ON (D.driver = G.gene_name) "
+                                    + "GROUP BY D.driver ORDER BY G.gene_name ASC"
+                                    )
+    
+    else: html_error("build_driver_list() Unexpected page: '%s'" %(webpage))
+    
+    return driver_list
+
+
+def sort_list(list):
+  return ','.join( sorted(list.split(',')) )
+  
 
 def index(request, search_by = 'driver', gene_name='', histotype_name='', study_pmid=''):
     """ Sets the javascript arrays for driver, histotypes and studies within the main home/index page.
@@ -163,13 +278,25 @@ def index(request, search_by = 'driver', gene_name='', histotype_name='', study_
     
     # Obtain the list of driver genes for the autocomplete box.
     # (Or for the 'Search-ByTarget' webpage, get the list of target genes).
-    # This needs: (is_driver=True), not just: (is_driver)
+    
     if is_search_by_driver(search_by):
-        driver_list = Gene.objects.filter(is_driver=True).only("gene_name", "full_name", "is_driver", "prevname_synonyms").order_by('gene_name')
+        driver_list = build_driver_list('searchpage')
         target_list = []
     else: 
-        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "is_target", "prevname_synonyms").order_by('gene_name')
+        # This needs: (is_target=True), not just: (is_target)
+        target_list = Gene.objects.filter(is_target=True).only("gene_name", "full_name", "prevname_synonyms").order_by('gene_name')
         driver_list = []
+
+    # From testing the three different methods give the sample results
+    #print(driver_list.query)
+    #print("driver\tfullname\tsynonyms\thistotypes\tstudies")
+    #with open("junk123.orm","w") as f:
+    #  print("Writing .......")
+    #  for d in driver_list:
+        #print(d.gene_name,"\t",d.full_name,"\t",d.prevname_synonyms,"\t", sort_list(d.driver_histotype_list),"\t", sort_list(d.driver_study_list))  # print(row.driver_id, row.histotypes)  row['driver_id'],row['histotypes'],row["studies"]        
+        #f.write("%s\t%s\t%s\t%s\t%s\n" %(d.gene_name, d.full_name, d.prevname_synonyms, sort_list(d.driver_histotype_list), sort_list(d.driver_study_list)) )  # print(row.driver_id, row.histotypes)  row['driver_id'],row['histotypes'],row["studies"]
+        #f.write("%s\t%s\t%s\t%s\t%s\n" %(d['driver_id'], d['full_name'], d['prevname_synonyms'], sort_list(d['driver_histotype_list']), sort_list(d['driver_study_list'])) )  # print(row.driver_id, row.histotypes)  row['driver_id'],row['histotypes'],row["studies"]
+
 
     # Retrieve the tissue, experiment type, and study data:
     histotype_list = Dependency.HISTOTYPE_CHOICES
@@ -178,8 +305,8 @@ def index(request, search_by = 'driver', gene_name='', histotype_name='', study_
     study_list = Study.objects.order_by('pmid')
     
     # As this page could in future be called from the 'drivers' or 'targets' page, with the gene_name as a standard GET or POST parameter (instead of the Django '/gene_name' parameter option in url.py):
-    if (gene_name is None) or (gene_name == ''):
-        gene_name = post_or_get_from_request(request, 'gene_name')
+    # if (gene_name is None) or (gene_name == ''):
+    #    gene_name = post_or_get_from_request(request, 'gene_name')
         
     # Set the default histotype to display in the Tissues menu:
     # Previously this defaulted to PANCAN (or "ALL_HISTOTYPES"), BUT now the tissue menu is populated by javascript after the user selects driver gene:
@@ -232,6 +359,9 @@ def get_drivers(request):
     # results = list(Gene.objects.filter(gene_name__icontains=name_contains).values('gene_name'))
     
     return JsonResponse(results, safe=False) # needs 'safe=false' as results is an array, not dictionary.
+
+
+
 
 
 
@@ -646,7 +776,7 @@ def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, s
         if dataformat[:4] == 'json': # for request 'jsonplot' or 'jsonplotandgene'
           return json_error(error_msg)
         else:  
-          return HttpResponse(error_msg, content_type=plain_mimetype)  # or could use csv_minetype
+          return plain_error(error_msg)
           
     if dataformat == 'csvplot':
         return HttpResponse(d.boxplot_data, content_type=csv_mimetype)
@@ -688,9 +818,8 @@ def get_boxplot(request, dataformat, driver_name, target_name, histotype_name, s
             
     else:
         print("*** Invalid dataformat requested for get_boxplot() ***")
-        return HttpResponse("Error, Invalid dataformat '"+dataformat+"' requested for get_boxplot()", content_type=plain_mimetype)
+        return html_error("Error, Invalid dataformat '"+dataformat+"' requested for get_boxplot()")
         
-
         
     
 def stringdb_interactions(required_score, protein_list):
@@ -719,9 +848,9 @@ def stringdb_interactions(required_score, protein_list):
         response = urlopen(req)
     except URLError as e:
         if hasattr(e, 'reason'):
-            return False, 'We failed to reach a server: ' + e.reason
+            return False, "We failed to reach a server: " + e.reason
         elif hasattr(e, 'code'):
-            return False, 'The server couldn\'t fulfill the request. Error code:' + e.code
+            return False, "The server couldn't fulfill the request. Error code: " + e.code
     else:  # response is fine
         return True, response.read().decode('utf-8').rstrip().split("\n") # read() returns 'bytes' so need to convert to python string
 
@@ -736,9 +865,9 @@ def get_stringdb_interactions(request, required_score, protein_list=None):
     # Fetch the subset of protein_list that  have actual interactions with other proteins in the list:
     success, response = stringdb_interactions(required_score, protein_list)
 
-    if not success: return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
+    if not success: return plain_error('ERROR: '+response)
 
-    if response=='': return HttpResponse("", content_type=plain_mimetype) # No interacting proteins.
+    if response=='': return PlainResponse("") # No interacting proteins.
     # was: or response=="\n", but the newline in empty response is rstrip'ed in stringdb_interactions()
     
     # Dictionary to check later if returned protein was in original list:
@@ -758,10 +887,10 @@ def get_stringdb_interactions(request, required_score, protein_list=None):
             
     if err_msg != '':
         print(err_msg)
-        return HttpResponse('ERROR:'+err_msg, content_type=plain_mimetype)
+        return plain_error('ERROR:'+err_msg)
             
     protein_list2 = ';'.join(final_protein_dict.keys())
-    return HttpResponse(protein_list2, content_type=plain_mimetype)
+    return PlainResponse(protein_list2)
 
     
     
@@ -781,12 +910,12 @@ def cytoscape(request, required_score, protein_list=None, gene_list=None):
        
     success, response = stringdb_interactions(required_score, protein_list) # Fetches list of actual interactions
     
-    if not success: return HttpResponse('ERROR: '+response, content_type=plain_mimetype)
+    if not success: return plain_error('ERROR: '+response)
 
     protein_list = protein_list.split(';')
     gene_list = gene_list.split(';')
     if len(protein_list) != len(gene_list):
-        return HttpResponse('ERROR: lengths of gene_list and protein_list are different', content_type=plain_mimetype)
+        return plain_error('ERROR: lengths of gene_list and protein_list are different')
 
     # Create a dictionary to check later if returned protein was in original list, and what the gene_name was for that protein_id:            
     initial_nodes = dict()
@@ -842,7 +971,7 @@ def cytoscape(request, required_score, protein_list=None, gene_list=None):
 
     if err_msg != '':
         print(err_msg)
-        return HttpResponse('ERROR:'+err_msg, content_type=plain_mimetype)
+        return plain_error('ERROR:'+err_msg)
     
     context = {'node_list': node_list, 'edge_list': edge_list}
     return render(request, 'gendep/cytoscape.html', context)
@@ -869,9 +998,10 @@ def about(request):
 
 def tutorial(request):
     return render(request, 'gendep/tutorial.html')
-        
+
+
 def drivers(request):
-    driver_list = Gene.objects.filter(is_driver=True).order_by('gene_name')  # Needs: (is_driver=True), not just: (is_driver)
+    driver_list = build_driver_list('driverspage')
     context = {'driver_list': driver_list}
     return render(request, 'gendep/drivers.html', context)
 
@@ -942,7 +1072,7 @@ def download_dependencies_as_csv_file(request, search_by, gene_name, histotype_n
                          'study__short_name', 'study__experiment_type', 'study__title' ]  # don't need 'study__pmid' (as is same as d.study_id)
         error_msg, dependency_list = build_dependency_query(search_by, gene_name, histotype_name, study_pmid, order_by='wilcox_p', select_related=select_related) # using 'select_related' will include all the Gene info for the target/driver in one SQL join query, rather than doing multiple subqueries later.
     
-    if error_msg != '': return HttpResponse("Error: "+error_msg, html_mimetype)
+    if error_msg != '': return html_error("Error: "+error_msg)
 
     # print("Query SQL:",dependency_list.query)
     """
@@ -969,10 +1099,10 @@ ASC
     
     
     histotype_full_name = get_histotype_full_name(histotype_name)
-    if histotype_full_name is None: return HttpResponse("Error: Tissue '%s' NOT found in histotype list" %(histotype_name))
+    if histotype_full_name is None: return html_error("Error: Tissue '%s' NOT found in histotype list" %(histotype_name))
     
     study = get_study(study_pmid)
-    if study is None: return HttpResponse("Error: Study pmid='%s' NOT found in Study table" %(study_pmid))
+    if study is None: return html_error("Error: Study pmid='%s' NOT found in Study table" %(study_pmid))
 
     # Retrieve the host domain for use in the boxplot file links:
     # current_url =  request.META['HTTP_HOST']
@@ -989,7 +1119,7 @@ ASC
     elif delim_type=='xlsx':   # A real Excel file.
         content_type = excel_minetype
     else:
-        return HttpResponse("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv' or 'xlsx'"%(delim_type), html_mimetype)
+        return html_error("Error: Invalid delim_type='%s', as must be 'csv' or 'tsv' or 'xlsx'"%(delim_type))
 
     timestamp = time.strftime("%d-%b-%Y") # To add time use: "%H:%M:%S")
 

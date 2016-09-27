@@ -490,9 +490,22 @@ if (log_timings) {console.log("Showed result div: ",performance.now()-t0); t0 = 
         }
     });
 	
-    $("#gene").focus();  // Another way to force focus when move is: Assuming your combobox has id= combobox, the input generated is put in a span following the combobox. This should do the job: $('#combobox').next().find('input').focus()
+    // $("#gene").focus();  // Another way to force focus when move is: Assuming your combobox has id= combobox, the input generated is put in a span following the combobox. This should do the job: $('#combobox').next().find('input').focus()
 	
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
+    $("#gene").focus(function(e){
+      // Reset the minLength to 2 as could have been changed by clicking the Show All button.
+      if ($( "#gene" ).autocomplete( "option", "minLength" ) != 2) { $( "#gene" ).autocomplete( "option", "minLength", 2 ); }
+    });
+
+
+    $("#show_all_button").click(function(event){
+      $( "#gene" ).autocomplete( "option", "minLength", 0 );
+      $( "#gene" ).autocomplete( "search", "" );
+      //var minLength = $( ".selector" ).autocomplete( "option", "minLength" );
+        return false; // false prevents page refreshing.
+    });      
+
 });
 
 
@@ -529,7 +542,7 @@ function set_tissue_and_study_options(event, ui) {
 		if ((typeof item  === 'undefined') || (item == null)) {return false;} // as not found in list, or is null if previously was set
 		
         var tissue_list = item['tissue_list'];  // 'ui.item' is the row object from the driver_array.
-		var available = tissue_list=='' ? [] : tissue_list.split(';');
+		var available = tissue_list=='' ? [] : tissue_list.split(/[;,]/); // *** Temporary fix to allow for splitting for precomputed or live generated lists.
 		
 		var current_val = $("#histotype").val(); // the currently selected value if any.
 		if ((current_val === null) || ($.inArray(current_val, available) == -1)) {current_val = 'PANCAN';}
@@ -544,7 +557,7 @@ function set_tissue_and_study_options(event, ui) {
 		//console.log("Tissue menu:",options_html);
 
         var study_list = item['study_list'];  // 'ui.item' is the row object from the driver_array.
-		var available = study_list=='' ? [] : study_list.split(';');
+		var available = study_list=='' ? [] : study_list.split(/[;,]/); // *** Temporary fix to allow for splitting for precomputed or live generated lists.
 		//console.log(available);
 		var current_val = $("#study").val(); // the currently selected value if any.
 		if ((current_val === null) || ($.inArray(current_val, available) == -1)) {current_val = 'ALL_STUDIES';}
@@ -589,7 +602,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
 <table id="searchbox_table" style="margin-left:auto; margin-right:auto;">
 <tr>
 <td>Search filter:</td>
-<td>  
+<td  style="padding-left:10px; padding-right:0;">
   <input name="search_by" id="search_by" value="{% if search_by == 'target' %}target{% else %}driver{% endif %}" type="hidden"/>
   
 {% comment %}
@@ -602,10 +615,12 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
   <label for="gene">Driver gene:</label>
   <input name="gene" id="gene" placeholder="Gene name (eg. ERBB2)"  value="{{ gene_name }}"/>   {# value= ... is when directed to this page by link from the Drivers or Targets page #}
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
+</td><td style="padding-left:0;">
+  <button name="show_all_button" id="show_all_button" style="margin-left:-2px;">Show All</button>
 </td>
 
 
-<td><label for="histotype">Tissue type:</label>
+<td style="padding-left:10px;"><label for="histotype">Tissue type:</label>
    <!-- Could alternatively use the jQuery SelectMenu widget: http://jqueryui.com/selectmenu/ -->
    <select name="histotype" id="histotype" style="width: 140px;" >
 {# Unless a specific histotype_name parameter is passed, the tissue menu isn't populated until after the user selects a driver gene from the menu #}
@@ -619,7 +634,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
    </select>
 </td>
 
-<td><label for="study">Study:</label>
+<td style="padding-left:10px;"><label for="study">Study:</label>
    <select name="study" id="study" style="width: 120px;">
 {# Unless a specific histotype_name parameter is passed, the tissue menu isn't populated until after the user selects a driver gene from the menu #}   
     {% if study_pmid != "" %}<option value="{{ study_pmid }}" selected="selected">{{ study_short_name }}</option>{% endif %}
@@ -632,7 +647,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
    </select>
 </td>
 
-<td><input type="submit" value="Search" data-value="Search" id="search_button" style="min-width: 90px;"/></td>
+<td style="padding-left:10px;"><input type="submit" value="Search" data-value="Search" id="search_button" style="min-width: 90px;"/></td>
 </tr>
 
 </table>

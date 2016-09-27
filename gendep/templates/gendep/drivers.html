@@ -7,15 +7,21 @@
 <table cellpadding="3" class="tabler"> <!-- style="border: 1px solid blue;" -->
 <thead><tr><th>Driver gene</th><th>Full name</th><th>Synonyms</th><th>Num studies</th><th>Num tissues</th><th>Num targets</th><th>External links</th></tr></thead>
 <tbody>
-{% for driver in driver_list %}
+{% for g in driver_list %}
 <tr>
-<td><a href="{% url 'gendep:home_search_by_gene' search_by='driver' gene_name=driver.gene_name %}">{{ driver.gene_name }}</a></td>
-<td>{{ driver.full_name }}</td>
-<td><font size="-1">{{ driver.prev_names_and_synonyms_spaced }}</font></td>
-<td style="text-align:center"><a class="tipleft" href="javascript:void(0);">{{ driver.driver_num_studies }}<span>PubMed Ids: {{ driver.driver_study_list }}</span></a></td>
-<td style="text-align:center"><a class="tipleft" href="javascript:void(0);">{{ driver.driver_num_histotypes }}<span>{{ driver.driver_histotype_list_full_names }}</span></a></td>
-<td style="text-align:center">{{ driver.driver_num_targets }}</td>
-<td><font size="-2">{{ driver.external_links|safe }}</font></td>
+<td><a href="{% url 'gendep:home_search_by_gene' search_by='driver' gene_name=g.gene_name %}">{{ g.gene_name }}</a></td>
+<td>{{ g.full_name }}</td>
+<td><font size="-1">{{ g.prevname_synonyms }}</font></td>
+<td style="text-align:center"><a class="tipleft" href="javascript:void(0);">{{ g.driver_num_studies }}<span>PubMed Ids: {{ g.driver_study_list }}</span></a></td>
+<td style="text-align:center"><a class="tipleft" href="javascript:void(0);">{{ g.driver_num_histotypes }}<span>{{ g.driver_histotype_list }} {# was: driver_histotype_list_full_names #}</span></a></td>
+<td style="text-align:center">{{ g.driver_num_targets }}</td>
+<td><font size="-2">
+  <a href="http://www.genecards.org/cgi-bin/carddisp.pl?gene={{ g.gene_name }}" target="_blank">GeneCards</a>
+  <a href="https://www.ncbi.nlm.nih.gov/gene/{{ g.entrez_id }}" target="_blank">Entrez</a>
+  {% if g.ensembl_id != '' %} <a href="http://www.ensembl.org/Homo_sapiens/Gene/Summary?g={{ g.ensembl_id }}" target="_blank">Ensembl</a> {% endif %}  
+  {% if g.hgnc_id != ''%} <a href="http://www.genenames.org/cgi-bin/gene_symbol_report?hgnc_id={{ g.hgnc_id }}" target="_blank">HGNC</a> {% endif %}  
+  {# was driver.external_links|safe #}
+</font></td>
 </tr>
 {% endfor %}
 </tbody>

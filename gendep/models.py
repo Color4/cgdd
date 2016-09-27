@@ -37,8 +37,9 @@ class Gene(models.Model):
     uniprot_id  = models.CharField('UniProt Ids', max_length=20, blank=True) # UniProt protein Ids.
     vega_id     = models.CharField('Vega Id', max_length=25, blank=True) # Vega Id.
     hgnc_id     = models.CharField('HGNC Id', max_length=10, blank=True) # HGNC Id.    
-    prevname_synonyms = models.CharField('Synonyms and previous names for gene name', max_length=250, blank=True) # contains previous names and synonyms.
-    inhibitors     = models.TextField('Inhibitors', blank=True) # List of drugs separarted by semi-colons or commas
+    # prevname_synonyms = models.CharField('Synonyms and previous names for gene name', max_length=250, blank=True) # contains previous names and synonyms.
+    prevname_synonyms = models.TextField('Synonyms and previous names for gene name', blank=True, default='') # contains previous names and synonyms.    
+    inhibitors     = models.TextField('Inhibitors', blank=True, default='') # List of drugs separated by semi-colons or commas
     ncbi_summary   = models.TextField('Entrez Gene Sumary', blank=True, default='') # Summary text of gene from NCBI
 
     # The following are pre-calculated fields that can be removed if data is cached by Django:
@@ -57,9 +58,10 @@ class Gene(models.Model):
     def __str__(self):
         # return self.gene_name+' '+self.entrez_id+' '+self.ensembl_id
         return self.gene_name
-    def prev_names_and_synonyms_spaced(self):
-        # To dispay in the template for the driver search box:
-        return self.prevname_synonyms.replace('|',' | ')
+        
+    # def prev_names_and_synonyms_spaced(self):
+    #    # To dispay in the template for the driver search box - but now are stored spaced in the database.
+    #    return self.prevname_synonyms.replace('|',' | ')
         
     def driver_histotype_list_full_names(self):
         result = ''
@@ -68,8 +70,15 @@ class Gene(models.Model):
             result += Dependency.histotype_full_name(h)
         return result
 
-        
-    
+    def driver_histotype_list_full_names2(histotype_list):
+        result = ''
+        for h in histotype_list.split(','):
+            if result != '': result += ", " # Just using a comma as newline doesn't work in html, would need <br/>
+            result += Dependency.histotype_full_name(h)
+        return result
+
+
+
 class Study(models.Model):
     """ Details for the research study papers """
     EXPERIMENTTYPE_CHOICES = (
