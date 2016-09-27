@@ -495,15 +495,18 @@ if (log_timings) {console.log("Showed result div: ",performance.now()-t0); t0 = 
     // It is possible to add more autocomplete customisations, such as a combo-box button: http://jqueryui.com/autocomplete/#combobox	
     $("#gene").focus(function(e){
       // Reset the minLength to 2 as could have been changed by clicking the Show All button.
-      if ($( "#gene" ).autocomplete( "option", "minLength" ) != 2) { $( "#gene" ).autocomplete( "option", "minLength", 2 ); }
+      if ($( "#gene" ).autocomplete( "option", "minLength" ) != 2) { $( "#gene" ).autocomplete("close").autocomplete( "option", "minLength", 2 ); }
     });
 
 
     $("#show_all_button").click(function(event){
-      $( "#gene" ).autocomplete( "option", "minLength", 0 );
-      $( "#gene" ).autocomplete( "search", "" );
+      if ($( "#gene" ).autocomplete( "option", "minLength" ) == 2) {
+        $( "#gene" ).autocomplete( "option", "minLength", 0 ).autocomplete( "search", "" );
+      } else {
+        $( "#gene" ).autocomplete("close").autocomplete( "option", "minLength", 2 );
+      }  
       //var minLength = $( ".selector" ).autocomplete( "option", "minLength" );
-        return false; // false prevents page refreshing.
+      return false; // false prevents page refreshing.
     });      
 
 });
@@ -616,7 +619,7 @@ In the 'Driver gene' search box, typing two letters of a gene name will display 
   <input name="gene" id="gene" placeholder="Gene name (eg. ERBB2)"  value="{{ gene_name }}"/>   {# value= ... is when directed to this page by link from the Drivers or Targets page #}
   <!-- Could add a button: https://jqueryui.com/autocomplete/#combobox -->
 </td><td style="padding-left:0;">
-  <button name="show_all_button" id="show_all_button" style="margin-left:-2px;">Show All</button>
+  <button name="show_all_button" id="show_all_button" style="margin-left:-3px;">Show All</button>
 </td>
 
 
